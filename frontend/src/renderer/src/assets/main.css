@@ -169,3 +169,111 @@ code {
     display: none;
   }
 } */
+
+.FilesPage {
+  display: flex;
+  flex-direction: column;
+}
+
+.FilesPage .row_1 {
+  flex: 1;
+  display: flex;
+}
+
+.FilesPage .row_1 .file_storage {
+  text-align: center;
+  font-size: 30px;
+  flex: 1;
+  padding: 20px;
+  background-color: #f1e1bf;
+  width: 30%;
+  margin: 30px;
+}
+
+.FilesPage .row_1 .import_file {
+  font-size: 30px;
+  color: white;
+  flex: 1;
+  padding: 20px;
+  background-color: #5b4040;
+  width: 30%;
+  transition-duration: 0.3s;
+  border: none;
+  margin: 30px;
+}
+
+.FilesPage .row_1 .import_file:hover {
+  background-color: #997777!important;
+  cursor: pointer;
+  position: relative;
+}
+
+.FilesPage .row_2 {
+  flex: 1;
+  display: inline;
+}
+
+.FilesPage .row_2 {
+  font-size: 30px;
+  justify-content: right;
+  display: flex;
+}
+
+.FilesPage .files {
+  flex: 5;
+}
+
+.FilesPage .sort_by {
+  font-size: 32px;
+  margin-right: 20px;
+  padding: 10px 15px;
+}
+
+.FilesPage .sorting_orders {
+  margin-right: 32px;
+}
+
+.FilesPage .sorting_orders button {
+  background-color: #f1e1bf;
+  border: none;
+  cursor: pointer;
+  float: right;
+  font-size: 24;
+  padding: 10px 20px;
+  transition-duration: 0.3s;
+}
+
+.sorting_orders button:hover {
+  background-color: #997777!important;
+}
+
+.FilesPage .files_header {
+  font-size: 32px;
+  display: flex;
+  margin-top: 24px;
+  padding: 12px;
+  border-bottom: 2px solid black;
+}
+
+.FilesPage .icon_col {
+  margin-left: 10px;
+  flex: 0.1;
+}
+
+.FilesPage .name_col {
+  flex: 0.75;
+}
+
+.FilesPage .size_col {
+  flex: 0.15;
+}
+
+.FilesPage .file_row {
+  display: flex;
+  border-bottom: 2px solid black;
+  padding: 20px 12px;
+}
+
+.FilesPage .file_row div {
+  font-size: 24px;
+}
