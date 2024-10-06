@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 
 import StatusIcon from '../assets/status-icon.png';
@@ -22,10 +21,10 @@ function Sidebar(): JSX.Element {
             <div className="flex justify-center p-4">
                 <img src={WalrusCoinLogo} alt="WalrusCoin" className="w-20 h-20" />
             </div>
-            <ul className='space-y-10'>
+            <ul className='menu space-y-10'>
                 {menuItems.map((item, index) => (
                     <li key={index} className='menu-item'>
-                        <Link to={item.path} className='flex items-center space-x-4'>
+                        <Link to={item.path} className='flex items-center space-x-4 pl-4'>
                             {item.icon && (
                                 <span>
                                     <img src={item.icon} alt={`${item.label}`} className='w-6 h-6' />
