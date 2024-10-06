@@ -1,16 +1,26 @@
 import React from 'react'
-import Versions from './components/Versions'
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom'
+import Sidebar from './components/Sidebar'
 import Homepage from './components/Homepage'
-import electronLogo from './assets/electron.svg'
+import Versions from './components/Versions'
+{/* Add the pages */}
 
 function App(): JSX.Element {
-  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
-
+  // const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
+  
   return (
-    <>
-      <Homepage></Homepage>
-      {/* <Versions></Versions> */}
-    </>
+    <Router>
+      <div className='flex min-h-screen'>
+        <Sidebar />
+        <div>
+          <Routes>
+            <Route path='/status' element={<Homepage />} />
+            <Route path='/files' element={<Versions />} />
+            {/* Add the pages */}
+          </Routes>
+        </div>
+      </div>
+    </Router>
   )
 }
 
