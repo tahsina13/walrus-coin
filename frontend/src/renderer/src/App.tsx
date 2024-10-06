@@ -1,8 +1,11 @@
-import React from 'react'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
-import Homepage from './components/Homepage'
+import StatusPage from './components/StatusPage'
 import Versions from './components/Versions'
+import FilesPage from './components/FilesPage'
+import Explorepage from './components/ExplorePage'
+import PeersPage from './components/PeersPage'
+import AccountPage from './components/AccountPage'
 {/* Add the pages */}
 
 function App(): JSX.Element {
@@ -10,12 +13,15 @@ function App(): JSX.Element {
   
   return (
     <Router>
-      <div className='flex min-h-screen'>
+      <div style={{backgroundColor: "#f6eedd"}} className='flex min-h-screen'>
         <Sidebar />
-        <div>
+        <div className='flex-1'>
           <Routes>
-            <Route path='/status' element={<Homepage />} />
-            <Route path='/files' element={<Versions />} />
+            <Route path='/status' element={<StatusPage />} />
+            <Route path='/files' element={<FilesPage />} />
+            <Route path='/explore' element={<Explorepage />} />
+            <Route path='/peers' element={<PeersPage />} />
+            <Route path='/account' element={<AccountPage />} />
             {/* Add the pages */}
           </Routes>
         </div>
