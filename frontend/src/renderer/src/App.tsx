@@ -6,7 +6,9 @@ import FilesPage from './components/FilesPage'
 import TransactionsPage from './components/TransactionsPage';
 import Explorepage from './components/ExplorePage'
 import PeersPage from './components/PeersPage'
+import MiningPage from './components/MiningPage';
 import AccountPage from './components/AccountPage'
+import Profile from './components/Profile';
 {/* Add the pages */}
 
 function App(): JSX.Element {
@@ -16,9 +18,9 @@ function App(): JSX.Element {
   const isSignInPage = location.pathname === '/sign-in';
 
   return (
-    <div className='flex min-h-screen'>
+    <div className='flex'>
       {!isSignInPage && <Sidebar />}
-      <div>
+      <div className='menu-options w-screen ml-5 mt-10'>
         <Routes>
             <Route path='/sign-in' element={<SignInLogIn />} />
             <Route path='/status' element={<StatusPage />} />
@@ -26,10 +28,14 @@ function App(): JSX.Element {
             <Route path='/transactions' element={<TransactionsPage />} />
             <Route path='/explore' element={<Explorepage />} />
             <Route path='/peers' element={<PeersPage />} />
+            <Route path='/mining' element={<MiningPage />} />
             <Route path='/account' element={<AccountPage />} />
           {/* Add the pages */}
           <Route path='*' element={<Navigate to="/sign-in" />} />
         </Routes>
+      </div>
+      <div className="flex justify-end items-top">
+        {!isSignInPage && <Profile/>}
       </div>
     </div>
   );
