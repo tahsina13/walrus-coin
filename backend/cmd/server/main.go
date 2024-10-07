@@ -6,19 +6,23 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/gorilla/rpc/v2"
+	"github.com/gorilla/rpc/v2/json2"
 	"github.com/tahsina13/walrus-coin/backend/internal/coin"
-	"github.com/tahsina13/walrus-coin/backend/internal/handlers"
 )
 
 func main() {
 	testnet := flag.Bool("testnet", false, "Use testnet")
 	simnet := flag.Bool("simnet", false, "Use simnet")
-	rpcconnect := flag.String("rpcconnect", "", "Host for RPC connections")
-	rpcuser := flag.String("rpcuser", "", "Username for RPC connections")
-	rpcpass := flag.String("rpcpass", "", "Password for RPC connections")
+	notls := flag.Bool("notls", true, "Disable TLS")
 	port := flag.Int64("port", 8080, "Port to listen on")
+	rpcconnect := flag.String("rpcconnect", "", "Host for RPC connections")
+	rpcpass := flag.String("rpcpass", "password", "Password for RPC connections")
+	rpcuser := flag.String("rpcuser", "user", "Username for RPC connections")
 
 	flag.Parse()
 
@@ -35,13 +39,20 @@ func main() {
 			*rpcconnect = "localhost:8334"
 		}
 	}
-	if rpcuser == nil || *rpcuser == "" {
-		log.Fatal("No RPC username specified")
-		os.Exit(1)
+
+	btcdParams := []string{fmt.Sprintf("--rpcuser=%s", *rpcuser), fmt.Sprintf("--rpcpass=%s", *rpcpass)}
+	if testnet != nil && *testnet {
+		btcdParams = append(btcdParams, "--testnet")
 	}
-	if rpcpass == nil || *rpcpass == "" {
-		log.Fatal("No RPC password specified")
-		os.Exit(1)
+	if simnet != nil && *simnet {
+		btcdParams = append(btcdParams, "--simnet")
+	}
+	if notls != nil && *notls {
+		btcdParams = append(btcdParams, "--notls")
+	}
+	started, err := coin.InitBtcdDaemon(btcdParams...)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	connCfg := &rpcclient.ConnConfig{
@@ -49,14 +60,26 @@ func main() {
 		Endpoint:   "ws",
 		User:       *rpcuser,
 		Pass:       *rpcpass,
-		DisableTLS: true,
+		DisableTLS: *notls,
 	}
+	<-started // Wait for btcd daemon to start
 	if err := coin.InitBtcdClient(connCfg, nil); err != nil {
-		log.Fatal("Failed to init btcd client:", err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 
-	http.Handle("/api/coin/", http.StripPrefix("/api/coin", handlers.GetCoinHandler()))
-	log.Printf("Starting server on port %d...\n", *port)
-	log.Fatal("Server error:", http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		coin.ShutdownBtcdClient()
+	}()
+
+	// Register RPC services here
+	s := rpc.NewServer()
+	s.RegisterCodec(json2.NewCodec(), "application/json")
+	s.RegisterService(&coin.CoinService{}, "")
+
+	http.Handle("/rpc", s)
+	log.Printf("Server listening on :%d\n", *port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }

@@ -2,7 +2,10 @@ module github.com/tahsina13/walrus-coin/backend
 
 go 1.23.1
 
-require github.com/btcsuite/btcd v0.24.2
+require (
+	github.com/btcsuite/btcd v0.24.2
+	github.com/gorilla/rpc v1.2.1
+)
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.1.3 // indirect
