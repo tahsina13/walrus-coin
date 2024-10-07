@@ -1,8 +1,7 @@
 import React, { Link } from 'react-router-dom';
-
 import StatusIcon from '../assets/status-icon.png';
 import FilesIcon from '../assets/file-text.svg';
-
+import TransactionsIcon from '../assets/transactions-icon.png'
 import ExploreIcon from "../assets/icon.svg";
 import PeersIcon from '../assets/peers-icon.png';
 import AccountIcon from '../assets/avatar.png';
@@ -13,7 +12,7 @@ function Sidebar(): JSX.Element {
     const menuItems = [
         { label: 'Status', icon: StatusIcon, path: '/status' },
         { label: 'Files', icon: FilesIcon, path: '/files' },
-        { label: 'Transactions', icon: FilesIcon, path: '/transactions' },
+        { label: 'Transactions', icon: TransactionsIcon, path: '/transactions' },
         { label: 'Explore', icon: ExploreIcon, path: '/explore' },
         { label: 'Peers', icon: PeersIcon, path: '/peers' },
         { label: 'Account', icon: AccountIcon, path: '/account' },
