@@ -19,17 +19,17 @@ function Sidebar(): JSX.Element {
     ];
 
     return (
-        <div style={{ backgroundColor: '#997777' }} className="w-32 min-h-screen flex flex-col">
+        <div style={{ backgroundColor: '#997777' }} className="w-36 min-h-screen flex flex-col">
             <div className="flex justify-center p-4">
                 <img src={WalrusCoinLogo} alt="WalrusCoin" className="w-20 h-20" />
             </div>
             <ul className='space-y-10'>
                 {menuItems.map((item, index) => (
-                    <li key={index} className='menu-item'>
+                    <li key={index} className='menu-item items-center'>
                         <Link to={item.path} className='flex items-center space-x-4'>
                             {item.icon && (
                                 <span>
-                                    <img src={item.icon} alt={`${item.label}`} className='w-6 h-6' />
+                                    <img src={item.icon} alt={`${item.label}`} className='w-6 h-6 ml-3' />
                                 </span>
                             )}
                             <span className="text-white">{item.label}</span>

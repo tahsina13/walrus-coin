@@ -16,9 +16,9 @@ function App(): JSX.Element {
   const isSignInPage = location.pathname === '/sign-in';
 
   return (
-    <div className='flex min-h-screen'>
+    <div style={{backgroundColor: "#f6eedd"}} className='flex min-h-screen'>
       {!isSignInPage && <Sidebar />}
-      <div>
+      <div className='flex-1'>
         <Routes>
             <Route path='/sign-in' element={<SignInLogIn />} />
             <Route path='/status' element={<StatusPage />} />
