@@ -1,7 +1,91 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import icon from '../../resources/icon.png'
+import { create } from 'ipfs';
+const { generateKeyPairSync } = require('crypto');
+import { randomBytes } from 'crypto';
+import { createSign, createVerify } from 'crypto';
+
+let ipfs: any;
+
+async function initIPFS() {
+  try {
+    ipfs = await create();
+    console.log("IPFS node is ready")
+  }
+  catch (error) {
+    console.log("error: ", error)
+  }
+}
+
+async function getIPFSIdentity() {
+  try {
+    const identity = await ipfs.id();
+    console.log("Node Identity:", identity);
+  } catch (error) {
+    console.error("Error retrieving identity:", error);
+  }
+}
+
+function generateKeys() {
+  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+  return { publicKey: publicKey.export({ type: 'spki', format: 'pem' }), privateKey: privateKey.export({ type: 'pkcs8', format: 'pem' }) };
+}
+
+async function login(publicKey, privateKey) {
+  // Generate a challenge
+  const challenge = randomBytes(32).toString('hex');
+  
+  // Sign the challenge
+  const sign = createSign('SHA256');
+  sign.update(challenge);
+  const signature = sign.sign(privateKey, 'hex');
+
+  return { challenge, signature }; // Send this to the server
+}
+
+async function verifyLogin(publicKey, signature, challenge) {
+  const verify = createVerify('SHA256');
+  verify.update(challenge);
+  const isVerified = verify.verify(publicKey, signature, 'hex');
+  
+  if (isVerified) {
+    console.log("Login successful!");
+  } else {
+    console.log("Login failed!");
+  }
+  return isVerified;
+}
+
+
+// async function generateKeyPair() {
+//   const privateKey = randomBytes(32).toString('hex');
+//   const publicKey = generatePublicKey(privateKey);
+//   return { privateKey, publicKey };
+// }
+
+// async function generatePublicKey(privateKey: String){
+
+// }
+
+async function uploadFile(file:Buffer) {
+  const { path } = await ipfs.add(file);
+  console.log(`${file} uploaded to IPFS with path: ${path}`)
+  return path;
+}
+
+async function downloadFile(cid:String) {
+  const stream = ipfs.cat(cid);
+  let data = '';
+
+  for await (const chunk of stream) {
+    data += chunk.toString();
+  }
+
+  console.log(`File downloaded from IPFS: ${data}`);
+  return data;
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -16,8 +100,6 @@ function createWindow(): void {
       sandbox: false
     }
   })
-
-  mainWindow.maximize();
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -50,6 +132,33 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
+
+  initIPFS().then(getIPFSIdentity);
+
+  ipcMain.on('register', (event) => {
+    const keys = generateKeys();
+    event.reply('registration-result', { publicKey: keys.publicKey });
+  });
+  
+  ipcMain.on('login', async (event, { publicKey, privateKey }) => {
+    const { challenge, signature } = await login(publicKey, privateKey);
+    
+    const isVerified = await verifyLogin(publicKey, signature, challenge);
+    event.reply('login-result', { success: isVerified });
+  });
+  
+
+  ipcMain.on('upload-file', async (event, file) => {
+    try {
+      const cid = await uploadFile(file);
+      event.reply('file-uploaded', cid);
+    }
+    catch (error) {
+      console.log('Upload failed: ', error)
+      event.reply('file-upload-error', error.message)
+    }
+  })
+
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))

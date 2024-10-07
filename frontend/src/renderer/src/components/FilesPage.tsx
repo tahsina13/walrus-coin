@@ -1,26 +1,55 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom';
+import FilesIcon from '../assets/file-icon.png';
 
 function FilesPage(): JSX.Element {
     const [storage, set_storage] = useState<number>(0);
-    const [style0, set_style0] = useState<{}>({backgroundColor: "#f1e1bf", border: "none"});
+    const [style0, set_style0] = useState<{}>({backgroundColor: "#997777", border: "none"});
     const [style1, set_style1] = useState<{}>({backgroundColor: "#f1e1bf", border: "none"});
     const [style2, set_style2] = useState<{}>({backgroundColor: "#f1e1bf", border: "none"});
+    const [sorting_order, set_sorting_order] = useState<String>("time");
     let files = [ // for testing
     {
         type: "txt",
-        name: "New Text Document.txt",
+        name: "ANew Text Document.txt",
         size: 10,
-        path: "New-Text-Document"
+        path: "ANew-Text-Document",
+        create_date: new Date(),
     },
     {
         type: "txt",
-        name: "New Text Document2.txt",
-        size: 10,
-        path: "New-Text-Document2"
+        name: "BNew Text Document2.txt",
+        size: 100,
+        path: "BNew-Text-Document2",
+        create_date: new Date(),
     },
     ];
     const [file_list, set_file_list] = useState(files);
+    
+    
+    const sort_by_time = () => {
+        set_style0({backgroundColor: "#997777"});
+        set_style1({backgroundColor: "#f1e1bf"});
+        set_style2({backgroundColor: "#f1e1bf"});
+        set_file_list(file_list.sort((f1, f2) => f2.create_date.getTime() - f1.create_date.getTime()));
+    }
+
+    const sort_by_size = () => {
+        set_style0({backgroundColor: "#f1e1bf"});
+        set_style1({backgroundColor: "#997777"});
+        set_style2({backgroundColor: "#f1e1bf"});
+        set_file_list(file_list.sort((f1, f2) => f2.size - f1.size));
+    }
+
+    const sort_by_name = () => {
+        set_style0({backgroundColor: "#f1e1bf"});
+        set_style1({backgroundColor: "#f1e1bf"});
+        set_style2({backgroundColor: "#997777"});
+        set_file_list(file_list.sort((f1, f2) => f1.name.localeCompare(f2.name)));
+    }
+
+
+
     return (
         <div className='FilesPage'>
             <div className='row_1'>
@@ -36,20 +65,20 @@ function FilesPage(): JSX.Element {
                     Sort By
                 </div>
                 <div className="sorting_orders">
-                    <button id="time" style={style0}>
-                        Time
+                    <button id="type" style={style2} onMouseDown={() => sort_by_name()}>
+                        Name
                     </button>
-                    <button id="size" style={style1}>
+                    <button id="size" style={style1} onMouseDown={() => sort_by_size()}>
                         Size
                     </button>
-                    <button id="type" style={style2}>
-                        Type
+                    <button id="time" style={style0} onMouseDown={() => sort_by_time()}>
+                        Time
                     </button>
                 </div>
             </div>
             <div className='files'>
                 <div className='files_header'>
-                    <div className='icon_col'>Icon:</div>
+                    <div className='icon_col'></div>
                     <div className='name_col'>Name:</div>
                     <div className='size_col'>Size:</div>
                 </div>
@@ -57,7 +86,7 @@ function FilesPage(): JSX.Element {
                     {file_list.map((file, index) => (
                         <li key={index} className='menu-item'>
                             <Link to = {file.path} className='file_row'>
-                                <div className='icon_col'>{file.type}</div>
+                                <div className='icon_col'><img src={FilesIcon} alt={file.type} className='w-10 h-10 ml-3'/></div>
                                 <div className='name_col'>{file.name}</div>
                                 <div className='size_col'>{file.size} KB</div>
                             </Link>

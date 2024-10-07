@@ -27,11 +27,11 @@ function Sidebar(): JSX.Element {
             </div>
             <ul className='mt-10 space-y-10'>
                 {menuItems.map((item, index) => (
-                    <li key={index} className='menu-item'>
+                    <li key={index} className='menu-item items-center'>
                         <Link to={item.path} className='flex items-center space-x-4'>
                             {item.icon && (
                                 <span>
-                                    <img src={item.icon} alt={`${item.label}`} className='w-6 h-6' />
+                                    <img src={item.icon} alt={`${item.label}`} className='w-6 h-6 ml-3' />
                                 </span>
                             )}
                             <span className="text-white">{item.label}</span>

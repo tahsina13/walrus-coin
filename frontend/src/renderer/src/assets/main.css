@@ -241,6 +241,8 @@ code {
   font-size: 24;
   padding: 10px 20px;
   transition-duration: 0.3s;
+  width: 120px;
+  text-align: center;
 }
 
 .sorting_orders button:hover {
