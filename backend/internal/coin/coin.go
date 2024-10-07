@@ -127,3 +127,15 @@ func (c *CoinService) GetBlockCount(r *http.Request, args *GetBlockCountArgs, re
 	reply.Count = count
 	return nil
 }
+
+func (c *CoinService) GetPeerInfo(r *http.Request, args *GetPeerInfoArgs, reply *GetPeerInfoReply) error {
+	if btcdClient == nil {
+		return errors.New("GetPeerInfo: no btcd rpc client")
+	}
+	peers, err := btcdClient.GetPeerInfo()
+	if err != nil {
+		return fmt.Errorf("GetPeerInfo: %v", err)
+	}
+	reply.Peers = peers
+	return nil
+}
