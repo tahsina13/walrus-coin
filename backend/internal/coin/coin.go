@@ -69,74 +69,54 @@ func createProcess(relPath string, params ...string) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func InitBtcdDaemon(params ...string) (chan struct{}, error) {
+func InitBtcdDaemon(params ...string) error {
 	cmd, err := createProcess(btcdPath, params...)
 	if err != nil {
-		return nil, fmt.Errorf("InitBtcdDaemon: %v", err)
+		return fmt.Errorf("InitBtcdDaemon: %v", err)
 	}
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("InitBtcdDaemon: %v", err)
+		return fmt.Errorf("InitBtcdDaemon: %v", err)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, fmt.Errorf("InitBtcdDaemon: %v", err)
+		return fmt.Errorf("InitBtcdDaemon: %v", err)
 	}
 
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("InitBtcdDaemon: %v", err)
+		return fmt.Errorf("InitBtcdDaemon: %v", err)
 	}
+
 	go printOutput(stdout)
 	go printOutput(stderr)
 
-	tee := io.TeeReader(stdout, os.Stdout)
-	started := make(chan struct{})
-	go func() {
-		scanner := bufio.NewScanner(tee)
-		for scanner.Scan() {
-			if strings.Contains(scanner.Text(), "Server listening on") {
-				close(started)
-				break
-			}
-		}
-	}()
-	return started, nil
+	return nil
 }
 
-func InitBtcwalletDaemon(params ...string) (chan struct{}, error) {
+func InitBtcwalletDaemon(params ...string) error {
 	cmd, err := createProcess(btcwalletPath, params...)
 	if err != nil {
-		return nil, fmt.Errorf("InitBtcwalletDaemon: %v", err)
+		return fmt.Errorf("InitBtcwalletDaemon: %v", err)
 	}
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("InitBtcwalletDaemon: %v", err)
+		return fmt.Errorf("InitBtcwalletDaemon: %v", err)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, fmt.Errorf("InitBtcwalletDaemon %v", err)
+		return fmt.Errorf("InitBtcwalletDaemon %v", err)
 	}
 
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("InitBtcwalletDaemon: %v", err)
+		return fmt.Errorf("InitBtcwalletDaemon: %v", err)
 	}
+
 	go printOutput(stdout)
 	go printOutput(stderr)
 
-	tee := io.TeeReader(stdout, os.Stdout)
-	started := make(chan struct{})
-	go func() {
-		scanner := bufio.NewScanner(tee)
-		for scanner.Scan() {
-			if strings.Contains(scanner.Text(), "Opened wallet") {
-				close(started)
-				break
-			}
-		}
-	}()
-	return started, nil
+	return nil
 }
 
 func InitRPCClient(config *rpcclient.ConnConfig, ntfnHandlers *rpcclient.NotificationHandlers) error {
