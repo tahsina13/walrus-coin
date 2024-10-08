@@ -24,16 +24,23 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/client"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multihash"
+	"github.com/joho/godotenv"
 )
 
-var(
-	node_id = "SBU_ID"
-	relay_node_addr = "/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
+var (
+	node_id             string
+	relay_node_addr     = "/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
 	bootstrap_node_addr = "/ip4/130.245.173.222/tcp/61000/p2p/12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE"
-	globalCtx context.Context
+	globalCtx           context.Context
 )
 
-func main(){
+func main() {
+	godotenv.Load()
+	node_id = os.Getenv("SBUID")
+	if(node_id == ""){
+	log.Println("Set a SBUID in a .env file in the same dir")
+		return
+	}
 	host := createLibp2pHost()
 	dht := setupDHT(context.Background(), host)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -44,7 +51,7 @@ func main(){
 	connectToPeer(host, bootstrap_node_addr)
 	go handlePeerExchange(host)
 	go handleInput(ctx, dht)
-	
+
 	defer host.Close()
 
 	select {}
@@ -61,26 +68,26 @@ func generatePrivateKeyFromSeed(seed []byte) (crypto.PrivKey, error) {
 	return privKey, nil
 }
 
-//Create a libp2p host and enable relaying with relay node
+// Create a libp2p host and enable relaying with relay node
 func createLibp2pHost() host.Host {
 	customAddr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 	relayInfo, err := peer.AddrInfoFromString(relay_node_addr) // converts multiaddr string to peer.addrInfo
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 	seed := []byte(node_id)
 	privKey, err := generatePrivateKeyFromSeed(seed)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 	node, err := libp2p.New(
-				libp2p.ListenAddrs(customAddr),
-				libp2p.Identity(privKey),
-				libp2p.EnableAutoRelayWithStaticRelays([]peer.AddrInfo{*relayInfo}),
-				libp2p.EnableRelayService(),
+		libp2p.ListenAddrs(customAddr),
+		libp2p.Identity(privKey),
+		libp2p.EnableAutoRelayWithStaticRelays([]peer.AddrInfo{*relayInfo}),
+		libp2p.EnableRelayService(),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -98,14 +105,13 @@ func (v *CustomValidator) Select(key string, values [][]byte) (int, error) {
 	return 0, nil
 }
 
-
 func setupDHT(ctx context.Context, h host.Host) *dht.IpfsDHT {
 	// Set up the DHT instance
 	kadDHT, err := dht.New(ctx, h, dht.Mode(dht.ModeClient))
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	// Configure the DHT to use the custom validator
 	kadDHT.Validator = record.NamespacedValidator{
 		"orcanet": &CustomValidator{}, // Add a custom validator for the "orcanet" namespace
@@ -120,7 +126,7 @@ func setupDHT(ctx context.Context, h host.Host) *dht.IpfsDHT {
 	return kadDHT
 }
 
-// Here peerAddr is the String format of Multiaddr of a peer 
+// Here peerAddr is the String format of Multiaddr of a peer
 func connectToPeer(node host.Host, peerAddr string) {
 
 	addr, err := multiaddr.NewMultiaddr(peerAddr) // convert string to Multiaddr
@@ -148,7 +154,7 @@ func connectToPeer(node host.Host, peerAddr string) {
 }
 
 func makeReservation(node host.Host) {
-	ctx := globalCtx //think this should cancel the reservation when program terminates
+	ctx := context.Background()
 	relayInfo, err := peer.AddrInfoFromString(relay_node_addr)
 	if err != nil {
 		log.Fatalf("Failed to create addrInfo from string representation of relay multiaddr: %v", err)
@@ -157,7 +163,7 @@ func makeReservation(node host.Host) {
 	if err != nil {
 		log.Fatalf("Failed to make reservation on relay: %v", err)
 	}
-	
+
 	fmt.Printf("Reservation successfull \n")
 }
 
@@ -169,16 +175,16 @@ func connectToPeerUsingRelay(node host.Host, targetPeerID string) {
 		log.Printf("Failed to create relay multiaddr: %v", err)
 	}
 	peerMultiaddr := relayAddr.Encapsulate(multiaddr.StringCast("/p2p-circuit/p2p/" + targetPeerID))
-	
+
 	// log.Println("peer multi addr: ", peerMultiaddr)
-	
+
 	relayedAddrInfo, err := peer.AddrInfoFromP2pAddr(peerMultiaddr)
 	if err != nil {
 		log.Println("Failed to get relayed AddrInfo: %w", err)
 		return
 	}
 	// Connect to the peer through the relay
-	
+
 	// log.Println("Trying to connect to ", relayedAddrInfo)
 	// os.Stdout.Sync()
 
