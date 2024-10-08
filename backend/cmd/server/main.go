@@ -8,12 +8,15 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
 	"github.com/tahsina13/walrus-coin/backend/internal/coin"
 )
+
+const waitTime = 5 * time.Second
 
 var (
 	testnet   *bool   = flag.Bool("testnet", false, "Use testnet")
@@ -29,17 +32,15 @@ var (
 func main() {
 	parseFlags()
 
-	startedBtcd, err := coin.InitBtcdDaemon(getBtcdParams()...)
-	if err != nil {
+	if err := coin.InitBtcdDaemon(getBtcdParams()...); err != nil {
 		log.Fatal(err)
 	}
-	<-startedBtcd // Wait for btcd daemon to start
+	time.Sleep(waitTime) // Wait for btcd to start
 
-	startedBtcwallet, err := coin.InitBtcwalletDaemon(getBtcwalletParams()...)
-	if err != nil {
+	if err := coin.InitBtcwalletDaemon(getBtcwalletParams()...); err != nil {
 		log.Fatal(err)
 	}
-	<-startedBtcwallet // Wait for btcwallet daemon to start
+	time.Sleep(waitTime)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
