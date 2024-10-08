@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"fmt"
+	"net/http"
 	"os/exec"
 	"path/filepath"
 
@@ -39,4 +40,13 @@ func InitBtcwalletDaemon(params ...string) (*exec.Cmd, error) {
 	go util.PrintOutput(stderr)
 
 	return cmd, nil
+}
+
+func (w *WalletService) GetBalance(r *http.Request, args *GetBalanceArgs, reply *GetBalanceReply) error {
+	balance, err := w.Client.GetBalance(args.Account)
+	if err != nil {
+		return fmt.Errorf("GetBalance: %v", err)
+	}
+	reply.Balance = balance
+	return nil
 }
