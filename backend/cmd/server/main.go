@@ -6,85 +6,151 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
-	dhtrpc "net/rpc"
+	"time"
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
 	"github.com/tahsina13/walrus-coin/backend/internal/coin"
+	"github.com/tahsina13/walrus-coin/backend/internal/wallet"
+	"github.com/tahsina13/walrus-coin/backend/internal/dht"
+)
+
+const waitTime = 5 * time.Second
+
+var (
+	testnet   *bool   = flag.Bool("testnet", false, "Use testnet")
+	simnet    *bool   = flag.Bool("simnet", false, "Use simnet")
+	notls     *bool   = flag.Bool("notls", true, "Disable TLS for btcd and btcwallet")
+	rpcbtcd   *string = flag.String("rpcbtcd", "", "Host for btcd RPC connections")
+	rpcwallet *string = flag.String("rpcwallet", "", "Host for btcwallet RPC connections")
+	rpcpass   *string = flag.String("rpcpass", "password", "Password for RPC connections")
+	rpcuser   *string = flag.String("rpcuser", "user", "Username for RPC connections")
+	port      *int64  = flag.Int64("port", 8080, "Port to listen on")
 	"github.com/tahsina13/walrus-coin/backend/internal/dht"
 	// "github.com/tahsina13/walrus-coin/backend/internal/rpcdefs"
 )
 
 func main() {
-	testnet := flag.Bool("testnet", false, "Use testnet")
-	simnet := flag.Bool("simnet", false, "Use simnet")
-	notls := flag.Bool("notls", true, "Disable TLS")
-	port := flag.Int64("port", 8080, "Port to listen on")
-	rpcconnect := flag.String("rpcconnect", "", "Host for RPC connections")
-	rpcpass := flag.String("rpcpass", "password", "Password for RPC connections")
-	rpcuser := flag.String("rpcuser", "user", "Username for RPC connections")
+	parseFlags()
 
+	btcdCmd, err := coin.InitBtcdDaemon(getBtcdParams()...)
+	if err != nil {
+		log.Fatal(err)
+	}
+	time.Sleep(waitTime) // Wait for btcd to start
+
+	btcwalletCmd, err := wallet.InitBtcwalletDaemon(getBtcwalletParams()...)
+	if err != nil {
+		log.Fatal(err)
+	}
+	time.Sleep(waitTime) // Wait for btcwallet to start
+
+	btcdClient, err := rpcclient.New(getBtcdRPCClientConfig(), nil)
+	if err != nil {
+		btcdCmd.Process.Kill()
+		btcwalletCmd.Process.Kill()
+		log.Fatal(err)
+	}
+
+	btcwalletClient, err := rpcclient.New(getBtcwalletRPCClientConfig(), nil)
+	if err != nil {
+		btcdCmd.Process.Kill()
+		btcwalletCmd.Process.Kill()
+		btcdClient.Shutdown()
+		log.Fatal(err)
+	}
+
+	// Register RPC services here
+	s := rpc.NewServer()
+	s.RegisterCodec(json2.NewCodec(), "application/json")
+	s.RegisterService(&coin.CoinService{Client: btcdClient}, "")
+	s.RegisterService(&wallet.WalletService{Client: btcwalletClient}, "")
+	s.RegisterService(&dht.DHTServer{}, "")
+
+	http.Handle("/rpc", s)
+	log.Printf("Server listening on :%d\n", *port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
+}
+
+func parseFlags() {
 	flag.Parse()
 
 	if testnet != nil && *testnet && simnet != nil && *simnet {
 		log.Fatal("Cannot specify both testnet and simnet")
 		os.Exit(1)
 	}
-	if rpcconnect != nil && *rpcconnect == "" {
-		if testnet != nil && *testnet {
-			*rpcconnect = "localhost:18334"
-		} else if simnet != nil && *simnet {
-			*rpcconnect = "localhost:18556"
-		} else {
-			*rpcconnect = "localhost:8334"
-		}
-	}
-
-	btcdParams := []string{fmt.Sprintf("--rpcuser=%s", *rpcuser), fmt.Sprintf("--rpcpass=%s", *rpcpass)}
 	if testnet != nil && *testnet {
-		btcdParams = append(btcdParams, "--testnet")
+		*rpcbtcd = "127.0.0.1:18334"
+		*rpcwallet = "127.0.0.1:18332"
 	}
 	if simnet != nil && *simnet {
-		btcdParams = append(btcdParams, "--simnet")
+		*rpcbtcd = "127.0.0.1:18556"
+		*rpcwallet = "127.0.0.1:18554"
+	}
+	if rpcbtcd != nil && *rpcbtcd == "" {
+		*rpcbtcd = "127.0.0.1:8334"
+	}
+	if rpcwallet != nil && *rpcwallet == "" {
+		*rpcwallet = "127.0.0.1:8332"
+	}
+}
+
+func getBtcdParams() []string {
+	params := []string{
+		fmt.Sprintf("-u=%s", *rpcuser),
+		fmt.Sprintf("-P=%s", *rpcpass),
+		fmt.Sprintf("--rpclisten=%s", *rpcbtcd),
+	}
+	if testnet != nil && *testnet {
+		params = append(params, "--testnet")
+	}
+	if simnet != nil && *simnet {
+		params = append(params, "--simnet")
 	}
 	if notls != nil && *notls {
-		btcdParams = append(btcdParams, "--notls")
+		params = append(params, "--notls")
 	}
-	started, err := coin.InitBtcdDaemon(btcdParams...)
-	if err != nil {
-		log.Fatal(err)
-	}
+	return params
+}
 
-	connCfg := &rpcclient.ConnConfig{
-		Host:       *rpcconnect,
+func getBtcwalletParams() []string {
+	params := []string{
+		fmt.Sprintf("-u=%s", *rpcuser),
+		fmt.Sprintf("-P=%s", *rpcpass),
+		fmt.Sprintf("--rpcconnect=%s", *rpcbtcd),
+		fmt.Sprintf("--rpclisten=%s", *rpcwallet),
+	}
+	if testnet != nil && *testnet {
+		params = append(params, "--testnet")
+	}
+	if simnet != nil && *simnet {
+		params = append(params, "--simnet")
+	}
+	if notls != nil && *notls {
+		params = append(params, "--noclienttls")
+		params = append(params, "--noservertls")
+	}
+	return params
+}
+
+func getBtcdRPCClientConfig() *rpcclient.ConnConfig {
+	return &rpcclient.ConnConfig{
+		Host:       *rpcbtcd,
 		Endpoint:   "ws",
 		User:       *rpcuser,
 		Pass:       *rpcpass,
 		DisableTLS: *notls,
 	}
-	<-started // Wait for btcd daemon to start
-	if err := coin.InitBtcdClient(connCfg, nil); err != nil {
-		log.Fatal(err)
-	}
-
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigs
-		coin.ShutdownBtcdClient()
-	}()
-
-	// Register RPC services here
-	s := rpc.NewServer()
-	s.RegisterCodec(json2.NewCodec(), "application/json")
-	s.RegisterService(&coin.CoinService{}, "")
-	s.RegisterService(&dht.DHTServer{}, "")
-	
-
-	http.Handle("/rpc", s)
-	log.Printf("Server listening on :%d\n", *port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
+
+func getBtcwalletRPCClientConfig() *rpcclient.ConnConfig {
+	return &rpcclient.ConnConfig{
+		Host:       *rpcwallet,
+		Endpoint:   "ws",
+		User:       *rpcuser,
+		Pass:       *rpcpass,
+		DisableTLS: *notls,
+	}
+}
+
