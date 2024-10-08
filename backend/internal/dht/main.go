@@ -9,10 +9,16 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
+	"net/rpc"
+	"runtime"
 	"os"
+	"path/filepath"
 	"strings"
+	"github.com/tahsina13/walrus-coin/backend/internal/rpcdefs"
 
 	"github.com/ipfs/go-cid"
+	"github.com/joho/godotenv"
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	record "github.com/libp2p/go-libp2p-record"
@@ -24,7 +30,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/client"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multihash"
-	"github.com/joho/godotenv"
 )
 
 var (
@@ -34,27 +39,117 @@ var (
 	globalCtx           context.Context
 )
 
+type DHTServer struct {
+	dht *dht.IpfsDHT
+	ctx context.Context
+}
+
+func (d *DHTServer) DHTGet(args *rpcdefs.DHTGet, reply *rpcdefs.Result) error {
+	result, err := DHTGetHelper(d.ctx, d.dht, args.Key)
+	if(err != nil){
+		if strings.Contains(err.Error(), "routing: not found") {
+			log.Printf("Key %s not found in DHT", args.Key)
+			reply.Success = false
+			reply.Value = ""  // No value to return, so set it to an empty string
+			return nil  // No need to return the original error, just return successfully
+		}
+		return err
+	}
+	reply.Success = result != ""
+	reply.Value = result
+	return nil
+}
+
+func (d *DHTServer) DHTPut(args *rpcdefs.DHTPut, reply *rpcdefs.Result) error {
+	result, err := DHTPutHelper(d.ctx, d.dht, args.Key, args.Value)
+	if(err != nil){
+		return err
+	}
+	reply.Success = result != ""
+	reply.Value = result
+	return nil
+}
+
+func DHTGetHelper(ctx context.Context, dht *dht.IpfsDHT, key string) (string, error) {
+	dhtKey := "/orcanet/" + key
+	res, err := dht.GetValue(ctx, dhtKey)
+	if err != nil {
+		fmt.Printf("Failed to get record: %v\n", err)
+		return "", err
+	}
+	return string(res), err
+}
+func DHTPutHelper(ctx context.Context, dht *dht.IpfsDHT, key string, value string) (string, error) {
+	dhtKey := "/orcanet/" + key
+	err := dht.PutValue(ctx, dhtKey, []byte(value))
+	if err != nil {
+		fmt.Printf("Failed to put record: %v\n", err)
+		return "", err
+	}
+	return value, err
+}
+
 func main() {
-	godotenv.Load()
+	// Get the directory of the current file
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+
+	// Build the path to the .env file relative to the current file
+	envFile := filepath.Join(dir, "../..", ".env")
+
+	err:= godotenv.Load(envFile)
+	log.Println(envFile)
+	if err!=nil {
+		log.Fatal("Error loading .env file (put it in cwd)")
+	}
+
 	node_id = os.Getenv("SBUID")
-	if(node_id == ""){
-	log.Println("Set a SBUID in a .env file in the same dir")
+	if node_id == "" {
+		log.Println("Set a SBUID in a .env file in cwd")
 		return
 	}
+
 	host := createLibp2pHost()
 	dht := setupDHT(context.Background(), host)
 	ctx, cancel := context.WithCancel(context.Background())
 	globalCtx = ctx
 	defer cancel()
+	defer host.Close()
+
 	connectToPeer(host, relay_node_addr)
 	makeReservation(host)
 	connectToPeer(host, bootstrap_node_addr)
-	go handlePeerExchange(host)
-	go handleInput(ctx, dht)
+	go handlePeerExchange(host) //this is with bootstrap
+	
+	// go handleInput(ctx, dht)
 
-	defer host.Close()
+	// defer host.Close()
 
-	select {}
+	// select {}
+
+	dhtServer := DHTServer{
+		ctx: ctx,
+		dht: dht,
+	}
+
+	if err := rpc.Register(&dhtServer); err != nil {
+        log.Fatal("Error registering DHT server:", err)
+    }
+
+	listener, err := net.Listen("tcp", ":8888")
+	if err != nil {
+		log.Fatal("Error starting RPC server:", err)
+	}
+	defer listener.Close()
+	log.Println("RPC server running on port 8888")
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Println("Connection error:", err)
+			continue
+		}
+		go rpc.ServeConn(conn)
+	}
 }
 
 func generatePrivateKeyFromSeed(seed []byte) (crypto.PrivKey, error) {
