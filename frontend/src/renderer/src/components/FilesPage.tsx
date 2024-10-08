@@ -99,35 +99,3 @@ function FilesPage(): JSX.Element {
 }
 
 export default FilesPage;
-
-/*
-function FilesPage(): JSX.Element {
-    const [storage, set_storage] = useState<number>(0);
-    return (
-        <div className='flex flex-col'>
-            <div className='flex-1 flex items-center space-x-12'>
-                <div style={{backgroundColor: "#f1e1bf"}} className='text-center text-2xl px-8 py-4 ml-16 my-8 w-1/3'>
-                    {storage} MB Files 
-                </div>
-                <button style={{backgroundColor: "#997777", color: "white"}} className='text-center text-2xl px-8 py-4 my-8 w-1/3'>
-                    + Import
-                </button>
-            </div>
-            <div className='flex-1 flex items-center'>
-                <div className='text-2xl flex-0.3'>
-                    sort by
-                </div>
-            </div>
-            <div className='flex-5'>
-                <div className=''>
-                    <div>Name:</div>
-                    <div>Size:</div>
-                </div>
-                <div className='files_list'>
-                    files list here
-                </div>
-            </div>
-        </div>
-    );
-}
-    */
