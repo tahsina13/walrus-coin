@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "master"
+  pull_request:
+    branches:
+      - "*"
+concurrency:
+  # Cancel any previous workflows if they are from a PR or push.
+  group: ${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # go needs absolute directories, using the $HOME variable doesn't work here.
+  GOCACHE: /home/runner/work/go/pkg/build
+  GOPATH: /home/runner/work/go
+  GO111MODULE: on
+
+  GO_VERSION: 1.22.x
+  BITCOIND_VERSION: '22.0'
+  BITCOIND_IMAGE: 'lightninglabs/bitcoin-core'
+
+jobs:
+  ########################
+  # Format, compileation and lint check
+  ########################
+  lint-check:
+    name: Format, compilation and lint check
+    runs-on: ubuntu-latest
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: setup go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: '${{ env.GO_VERSION }}'
+
+      - name: run format
+        run: make fmt
+
+      - name: compile code
+        run: go install -v ./...
+
+      - name: run lint
+        run: make lint
+
+  ########################
+  # run unit tests
+  ########################
+  unit-test:
+    name: run unit tests
+    runs-on: ubuntu-latest
+    strategy:
+      # Allow other tests in the matrix to continue if one fails.
+      fail-fast: false
+      matrix:
+        unit_type:
+          - unit-race
+          - unit-cover
+    steps:
+      - name: extract bitcoind from docker image
+        run: |-
+          docker pull ${{ env.BITCOIND_IMAGE }}:${{ env.BITCOIND_VERSION }}
+          CONTAINER_ID=$(docker create ${{ env.BITCOIND_IMAGE }}:${{ env.BITCOIND_VERSION }})
+          sudo docker cp $CONTAINER_ID:/opt/bitcoin-${{ env.BITCOIND_VERSION }}/bin/bitcoind /usr/local/bin/bitcoind
+          docker rm $CONTAINER_ID
+
+      - name: git checkout
+        uses: actions/checkout@v4
+
+      - name: go cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/work/go
+          key: btcwallet-${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ github.job }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            btcwallet-${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ github.job }}-${{ hashFiles('**/go.sum') }}
+            btcwallet-${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ github.job }}-
+            btcwallet-${{ runner.os }}-go-${{ env.GO_VERSION }}-
+            btcwallet-${{ runner.os }}-go-
+
+      - name: setup go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: '${{ env.GO_VERSION }}'
+
+      - name: run ${{ matrix.unit_type }}
+        run: make ${{ matrix.unit_type }}
+
+      - name: Send coverage
+        uses: shogo82148/actions-goveralls@v1
+        if: matrix.unit_type == 'unit-cover'
+        with:
+          path-to-profile: coverage.txt
+          parallel: true
