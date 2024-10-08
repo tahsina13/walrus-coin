@@ -81,23 +81,8 @@ func main() {
 	s := rpc.NewServer()
 	s.RegisterCodec(json2.NewCodec(), "application/json")
 	s.RegisterService(&coin.CoinService{}, "")
-
-	readyChan := make(chan bool)
-	go dht.InitDHT(readyChan)
-	if <- readyChan{
-		fmt.Println("Server is ready")
-		}else{
-			log.Fatal("Server was unable to get set up")
-		}
-		
-	// Connect to dht microprocess using rpc
-	client, err := dhtrpc.Dial("tcp", "localhost:8888")
-	if err != nil {
-		log.Fatal("Dialing error:", err)
-	}
-	defer client.Close()
-	// dhtrpc.Get(client, "key")
-	// dhtrpc.Put(client, "key", "value")
+	s.RegisterService(&dht.DHTServer{}, "")
+	
 
 	http.Handle("/rpc", s)
 	log.Printf("Server listening on :%d\n", *port)

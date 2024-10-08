@@ -11,11 +11,11 @@ import (
 	"log"
 	"net"
 	"net/rpc"
+	"net/http"
 	"runtime"
 	"os"
 	"path/filepath"
 	"strings"
-	"github.com/tahsina13/walrus-coin/backend/internal/rpcdefs"
 
 	"github.com/ipfs/go-cid"
 	"github.com/joho/godotenv"
@@ -37,16 +37,15 @@ var (
 	relay_node_addr     = "/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
 	bootstrap_node_addr = "/ip4/130.245.173.222/tcp/61000/p2p/12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE"
 	globalCtx           context.Context
+	dhtserver *dht.IpfsDHT
 )
 
-type DHTServer struct {
-	dht *dht.IpfsDHT
-	ctx context.Context
-}
+type DHTServer struct {}
 
-func (d *DHTServer) DHTGet(args *rpcdefs.DHTGetArgs, reply *rpcdefs.Result) error {
-	result, err := DHTGetHelper(d.ctx, d.dht, args.Key)
-	if(err != nil){
+func (d *DHTServer) DHTGet(r *http.Request, args *DHTGetArgs, reply *Result) error {
+	dhtKey := "/orcanet/" + args.Key
+	res, err := dhtserver.GetValue(globalCtx, dhtKey)
+	if err != nil {
 		if strings.Contains(err.Error(), "routing: not found") {
 			log.Printf("Key %s not found in DHT", args.Key)
 			reply.Success = false
@@ -55,38 +54,21 @@ func (d *DHTServer) DHTGet(args *rpcdefs.DHTGetArgs, reply *rpcdefs.Result) erro
 		}
 		return err
 	}
-	reply.Success = result != ""
-	reply.Value = result
+	reply.Success = true
+	reply.Value = string(res)
 	return nil
 }
 
-func (d *DHTServer) DHTPut(args *rpcdefs.DHTPutArgs, reply *rpcdefs.Result) error {
-	result, err := DHTPutHelper(d.ctx, d.dht, args.Key, args.Value)
-	if(err != nil){
+func (d *DHTServer) DHTPut(r *http.Request, args *DHTPutArgs, reply *Result) error {
+	dhtKey := "/orcanet/" + args.Key
+	err := dhtserver.PutValue(globalCtx, dhtKey, []byte(args.Value))
+	if err != nil {
+		reply.Success = false
+		fmt.Printf("Failed to put record: %v\n", err)
 		return err
 	}
-	reply.Success = result != ""
-	reply.Value = result
+	reply.Success = true
 	return nil
-}
-
-func DHTGetHelper(ctx context.Context, dht *dht.IpfsDHT, key string) (string, error) {
-	dhtKey := "/orcanet/" + key
-	res, err := dht.GetValue(ctx, dhtKey)
-	if err != nil {
-		fmt.Printf("Failed to get record: %v\n", err)
-		return "", err
-	}
-	return string(res), err
-}
-func DHTPutHelper(ctx context.Context, dht *dht.IpfsDHT, key string, value string) (string, error) {
-	dhtKey := "/orcanet/" + key
-	err := dht.PutValue(ctx, dhtKey, []byte(value))
-	if err != nil {
-		fmt.Printf("Failed to put record: %v\n", err)
-		return "", err
-	}
-	return value, err
 }
 
 func InitDHT(readyChan chan<- bool) {
@@ -108,7 +90,7 @@ func InitDHT(readyChan chan<- bool) {
 	}
 
 	host := createLibp2pHost()
-	dht := setupDHT(context.Background(), host)
+	dhtserver := setupDHT(context.Background(), host)
 	ctx, cancel := context.WithCancel(context.Background())
 	globalCtx = ctx
 	defer cancel()
@@ -124,33 +106,6 @@ func InitDHT(readyChan chan<- bool) {
 	// defer host.Close()
 
 	// select {}
-
-	dhtServer := DHTServer{
-		ctx: ctx,
-		dht: dht,
-	}
-
-	if err := rpc.Register(&dhtServer); err != nil {
-        log.Fatal("Error registering DHT server:", err)
-    }
-
-	listener, err := net.Listen("tcp", ":8888")
-	if err != nil {
-		readyChan <- false
-		log.Fatal("Error starting RPC server:", err)
-	}
-	defer listener.Close()
-	readyChan <- true
-	log.Println("RPC server running on port 8888")
-	for {
-
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Println("Connection error:", err)
-			continue
-		}
-		go rpc.ServeConn(conn)
-	}
 }
 
 func generatePrivateKeyFromSeed(seed []byte) (crypto.PrivKey, error) {
