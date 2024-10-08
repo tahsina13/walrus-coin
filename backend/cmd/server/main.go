@@ -6,14 +6,13 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
 	"github.com/tahsina13/walrus-coin/backend/internal/coin"
+	"github.com/tahsina13/walrus-coin/backend/internal/wallet"
 )
 
 const waitTime = 5 * time.Second
@@ -32,32 +31,38 @@ var (
 func main() {
 	parseFlags()
 
-	if err := coin.InitBtcdDaemon(getBtcdParams()...); err != nil {
+	btcdCmd, err := coin.InitBtcdDaemon(getBtcdParams()...)
+	if err != nil {
 		log.Fatal(err)
 	}
 	time.Sleep(waitTime) // Wait for btcd to start
 
-	if err := coin.InitBtcwalletDaemon(getBtcwalletParams()...); err != nil {
+	btcwalletCmd, err := wallet.InitBtcwalletDaemon(getBtcwalletParams()...)
+	if err != nil {
 		log.Fatal(err)
 	}
-	time.Sleep(waitTime)
+	time.Sleep(waitTime) // Wait for btcwallet to start
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigs
-		coin.ShutdownRPCClient()
-	}()
+	btcdClient, err := rpcclient.New(getBtcdRPCClientConfig(), nil)
+	if err != nil {
+		btcdCmd.Process.Kill()
+		btcwalletCmd.Process.Kill()
+		log.Fatal(err)
+	}
 
-	connCfg := getRPCClientConfig()
-	if err := coin.InitRPCClient(connCfg, nil); err != nil {
+	btcwalletClient, err := rpcclient.New(getBtcwalletRPCClientConfig(), nil)
+	if err != nil {
+		btcdCmd.Process.Kill()
+		btcwalletCmd.Process.Kill()
+		btcdClient.Shutdown()
 		log.Fatal(err)
 	}
 
 	// Register RPC services here
 	s := rpc.NewServer()
 	s.RegisterCodec(json2.NewCodec(), "application/json")
-	s.RegisterService(&coin.CoinService{}, "")
+	s.RegisterService(&coin.CoinService{Client: btcdClient}, "")
+	s.RegisterService(&wallet.WalletService{Client: btcwalletClient}, "")
 
 	http.Handle("/rpc", s)
 	log.Printf("Server listening on :%d\n", *port)
@@ -125,7 +130,17 @@ func getBtcwalletParams() []string {
 	return params
 }
 
-func getRPCClientConfig() *rpcclient.ConnConfig {
+func getBtcdRPCClientConfig() *rpcclient.ConnConfig {
+	return &rpcclient.ConnConfig{
+		Host:       *rpcbtcd,
+		Endpoint:   "ws",
+		User:       *rpcuser,
+		Pass:       *rpcpass,
+		DisableTLS: *notls,
+	}
+}
+
+func getBtcwalletRPCClientConfig() *rpcclient.ConnConfig {
 	return &rpcclient.ConnConfig{
 		Host:       *rpcwallet,
 		Endpoint:   "ws",

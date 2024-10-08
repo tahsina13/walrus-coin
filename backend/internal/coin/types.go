@@ -1,8 +1,13 @@
 package coin
 
-import "github.com/btcsuite/btcd/btcjson"
+import (
+	"github.com/btcsuite/btcd/btcjson"
+	"github.com/btcsuite/btcd/rpcclient"
+)
 
-type CoinService struct{}
+type CoinService struct {
+	Client *rpcclient.Client
+}
 
 type GetBlockCountArgs struct{}
 type GetBlockCountReply struct {
