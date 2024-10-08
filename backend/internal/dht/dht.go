@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
-	"net/rpc"
 	"net/http"
 	"runtime"
 	"os"
@@ -40,9 +38,8 @@ var (
 	dhtserver *dht.IpfsDHT
 )
 
-type DHTServer struct {}
 
-func (d *DHTServer) DHTGet(r *http.Request, args *DHTGetArgs, reply *Result) error {
+func (d *DHTClient) DHTGet(r *http.Request, args *DHTGetArgs, reply *Result) error {
 	dhtKey := "/orcanet/" + args.Key
 	res, err := dhtserver.GetValue(globalCtx, dhtKey)
 	if err != nil {
@@ -59,7 +56,7 @@ func (d *DHTServer) DHTGet(r *http.Request, args *DHTGetArgs, reply *Result) err
 	return nil
 }
 
-func (d *DHTServer) DHTPut(r *http.Request, args *DHTPutArgs, reply *Result) error {
+func (d *DHTClient) DHTPut(r *http.Request, args *DHTPutArgs, reply *Result) error {
 	dhtKey := "/orcanet/" + args.Key
 	err := dhtserver.PutValue(globalCtx, dhtKey, []byte(args.Value))
 	if err != nil {
@@ -71,7 +68,7 @@ func (d *DHTServer) DHTPut(r *http.Request, args *DHTPutArgs, reply *Result) err
 	return nil
 }
 
-func InitDHT(readyChan chan<- bool) {
+func InitDHTDaemon() context.CancelFunc {
 	// Get the directory of the current file
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
@@ -79,34 +76,43 @@ func InitDHT(readyChan chan<- bool) {
 	// Build the path to the .env file relative to the current file
 	envFile := filepath.Join(dir, "../..", ".env")
 
-	err:= godotenv.Load(envFile)
-	if err!=nil {
-		log.Fatal("Error loading .env file (put it in /backend)")
+	// Load environment variables from the .env file
+	err := godotenv.Load(envFile)
+	if err != nil {
+		log.Fatal("InitDHTDaemon: Error loading .env file (put it in /backend)")
 	}
 
-	node_id = os.Getenv("SBUID")
+	// Get SBUID from the environment
+	node_id := os.Getenv("SBUID")
 	if node_id == "" {
-		log.Fatal("Set a SBUID in a .env file in /backend")
+		log.Fatal("InitDHTDaemon: Set an SBUID in the .env file in /backend")
 	}
 
+	// Create the Libp2p host
 	host := createLibp2pHost()
-	dhtserver := setupDHT(context.Background(), host)
+
+	// Set up the DHT
+	dhtserver = setupDHT(context.Background(), host)
+
+	// Create a cancelable context
 	ctx, cancel := context.WithCancel(context.Background())
 	globalCtx = ctx
-	defer cancel()
-	defer host.Close()
 
+	// Connect to relay node and bootstrap node
 	connectToPeer(host, relay_node_addr)
+
+	// Make reservation and connect to bootstrap node
 	makeReservation(host)
+
 	connectToPeer(host, bootstrap_node_addr)
-	go handlePeerExchange(host) //this is with bootstrap
-	
-	// go handleInput(ctx, dht)
 
-	// defer host.Close()
+	// Start the peer exchange handling in a goroutine
+	go handlePeerExchange(host)
 
-	// select {}
+	// Return the cancel function so the caller can stop the DHT process
+	return cancel
 }
+
 
 func generatePrivateKeyFromSeed(seed []byte) (crypto.PrivKey, error) {
 	hash := sha256.Sum256(seed)
@@ -215,7 +221,7 @@ func makeReservation(node host.Host) {
 		log.Fatalf("Failed to make reservation on relay: %v", err)
 	}
 
-	fmt.Printf("Reservation successfull \n")
+	fmt.Printf("Reservation successful \n")
 }
 
 func connectToPeerUsingRelay(node host.Host, targetPeerID string) {

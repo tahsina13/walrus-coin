@@ -1,5 +1,10 @@
 package dht
 
+import(
+	"github.com/btcsuite/btcd/rpcclient"
+
+)
+
 // DHTGet struct used to request a DHT value
 type DHTGetArgs struct {
 	Key string
@@ -15,4 +20,8 @@ type DHTPutArgs struct {
 type Result struct {
 	Success bool
 	Value   string
+}
+
+type DHTClient struct {
+	Client *rpcclient.Client
 }
