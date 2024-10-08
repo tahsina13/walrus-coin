@@ -14,6 +14,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 )
 
@@ -181,4 +183,28 @@ func (c *CoinService) RemoveNode(r *http.Request, args *RemoveNodeArgs, reply *R
 		return fmt.Errorf("RemoveNode: %v", err)
 	}
 	return nil
+}
+
+func (c *CoinService) GetBalance(r *http.Request, args *GetBalanceArgs) (btcutil.Amount, error) {
+	if _rpcclient == nil {
+		return 0, errors.New("GetBalance: no btcd rpc client")
+	}
+	balance, err := _rpcclient.GetBalance(args.Account)
+	if err != nil {
+		return 0, fmt.Errorf("GetBalance: %v", err)
+	}
+	return balance, nil
+}
+
+func (c *CoinService) SendFrom(r *http.Request, args *SendFromArgs) (*chainhash.Hash, error) {
+	if _rpcclient == nil {
+		return nil, errors.New("SendFrom: no btcd rpc client")
+	}
+	hash, err := _rpcclient.SendFrom(args.Account, args.Address, args.Amount)
+
+	if err != nil {
+		return nil, fmt.Errorf("SendFrom: failed to send transaction: %w", err)
+	}
+
+	return hash, nil
 }
