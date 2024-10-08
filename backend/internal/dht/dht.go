@@ -1,4 +1,4 @@
-package main
+package dht
 
 import (
 	"bufio"
@@ -44,7 +44,7 @@ type DHTServer struct {
 	ctx context.Context
 }
 
-func (d *DHTServer) DHTGet(args *rpcdefs.DHTGet, reply *rpcdefs.Result) error {
+func (d *DHTServer) DHTGet(args *rpcdefs.DHTGetArgs, reply *rpcdefs.Result) error {
 	result, err := DHTGetHelper(d.ctx, d.dht, args.Key)
 	if(err != nil){
 		if strings.Contains(err.Error(), "routing: not found") {
@@ -60,7 +60,7 @@ func (d *DHTServer) DHTGet(args *rpcdefs.DHTGet, reply *rpcdefs.Result) error {
 	return nil
 }
 
-func (d *DHTServer) DHTPut(args *rpcdefs.DHTPut, reply *rpcdefs.Result) error {
+func (d *DHTServer) DHTPut(args *rpcdefs.DHTPutArgs, reply *rpcdefs.Result) error {
 	result, err := DHTPutHelper(d.ctx, d.dht, args.Key, args.Value)
 	if(err != nil){
 		return err
@@ -89,7 +89,7 @@ func DHTPutHelper(ctx context.Context, dht *dht.IpfsDHT, key string, value strin
 	return value, err
 }
 
-func main() {
+func InitDHT(readyChan chan<- bool) {
 	// Get the directory of the current file
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
@@ -98,15 +98,13 @@ func main() {
 	envFile := filepath.Join(dir, "../..", ".env")
 
 	err:= godotenv.Load(envFile)
-	log.Println(envFile)
 	if err!=nil {
-		log.Fatal("Error loading .env file (put it in cwd)")
+		log.Fatal("Error loading .env file (put it in /backend)")
 	}
 
 	node_id = os.Getenv("SBUID")
 	if node_id == "" {
-		log.Println("Set a SBUID in a .env file in cwd")
-		return
+		log.Fatal("Set a SBUID in a .env file in /backend")
 	}
 
 	host := createLibp2pHost()
@@ -138,11 +136,14 @@ func main() {
 
 	listener, err := net.Listen("tcp", ":8888")
 	if err != nil {
+		readyChan <- false
 		log.Fatal("Error starting RPC server:", err)
 	}
 	defer listener.Close()
+	readyChan <- true
 	log.Println("RPC server running on port 8888")
 	for {
+
 		conn, err := listener.Accept()
 		if err != nil {
 			log.Println("Connection error:", err)
