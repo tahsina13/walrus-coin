@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/tahsina13/walrus-coin/backend/internal/util"
 )
@@ -72,5 +73,18 @@ func (c *CoinService) RemoveNode(r *http.Request, args *RemoveNodeArgs, reply *R
 	if err := c.Client.AddNode(args.Host, rpcclient.ANRemove); err != nil {
 		return fmt.Errorf("RemoveNode: %v", err)
 	}
+	return nil
+}
+
+func (c *CoinService) SendFrom(r *http.Request, args *SendFromArgs, reply *SendFromReply) error {
+	address, err := btcutil.DecodeAddress(args.Address, nil)
+	if err != nil {
+		return fmt.Errorf("SendFrom: %v", err)
+	}
+	hash, err := c.Client.SendFrom(args.Account, address, args.Amount)
+	if err != nil {
+		return fmt.Errorf("SendFrom: %v", err)
+	}
+	reply.Hash = hash.String()
 	return nil
 }

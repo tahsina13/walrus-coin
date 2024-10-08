@@ -2,6 +2,7 @@ package coin
 
 import (
 	"github.com/btcsuite/btcd/btcjson"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/rpcclient"
 )
 
@@ -32,4 +33,13 @@ type RemoveNodeReply struct{}
 type GetNewAddressArgs struct{}
 type GetNewAddressReply struct {
 	Address string `json:"address"`
+}
+
+type SendFromArgs struct {
+	Account string         `json:"fromaccount"`
+	Address string         `json:"toaddress"`
+	Amount  btcutil.Amount `json:"amount"`
+}
+type SendFromReply struct {
+	Hash string `json:"hash"`
 }
