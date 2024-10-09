@@ -10,9 +10,9 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"runtime"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/ipfs/go-cid"
@@ -35,9 +35,8 @@ var (
 	relay_node_addr     = "/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
 	bootstrap_node_addr = "/ip4/130.245.173.222/tcp/61000/p2p/12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE"
 	globalCtx           context.Context
-	dhtserver *dht.IpfsDHT
+	dhtserver           *dht.IpfsDHT
 )
-
 
 func (d *DHTClient) DHTGet(r *http.Request, args *DHTGetArgs, reply *Result) error {
 	dhtKey := "/orcanet/" + args.Key
@@ -46,8 +45,8 @@ func (d *DHTClient) DHTGet(r *http.Request, args *DHTGetArgs, reply *Result) err
 		if strings.Contains(err.Error(), "routing: not found") {
 			log.Printf("Key %s not found in DHT", args.Key)
 			reply.Success = false
-			reply.Value = ""  // No value to return, so set it to an empty string
-			return nil  // No need to return the original error, just return successfully
+			reply.Value = "" // No value to return, so set it to an empty string
+			return nil       // No need to return the original error, just return successfully
 		}
 		return err
 	}
@@ -68,7 +67,7 @@ func (d *DHTClient) DHTPut(r *http.Request, args *DHTPutArgs, reply *Result) err
 	return nil
 }
 
-func InitDHTDaemon() context.CancelFunc {
+func InitDHT() context.CancelFunc {
 	// Get the directory of the current file
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
@@ -79,13 +78,13 @@ func InitDHTDaemon() context.CancelFunc {
 	// Load environment variables from the .env file
 	err := godotenv.Load(envFile)
 	if err != nil {
-		log.Fatal("InitDHTDaemon: Error loading .env file (put it in /backend)")
+		log.Fatal("InitDHT: Error loading .env file (put it in /backend)")
 	}
 
 	// Get SBUID from the environment
 	node_id := os.Getenv("SBUID")
 	if node_id == "" {
-		log.Fatal("InitDHTDaemon: Set an SBUID in the .env file in /backend")
+		log.Fatal("InitDHT: Set an SBUID in the .env file in /backend")
 	}
 
 	// Create the Libp2p host
@@ -112,7 +111,6 @@ func InitDHTDaemon() context.CancelFunc {
 	// Return the cancel function so the caller can stop the DHT process
 	return cancel
 }
-
 
 func generatePrivateKeyFromSeed(seed []byte) (crypto.PrivKey, error) {
 	hash := sha256.Sum256(seed)

@@ -11,8 +11,9 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
-	"github.com/tahsina13/walrus-coin/backend/internal/coin"
-	"github.com/tahsina13/walrus-coin/backend/internal/wallet"
+
+	// "github.com/tahsina13/walrus-coin/backend/internal/coin"
+	// "github.com/tahsina13/walrus-coin/backend/internal/wallet"
 	"github.com/tahsina13/walrus-coin/backend/internal/dht"
 )
 
@@ -24,7 +25,7 @@ var (
 	notls     *bool   = flag.Bool("notls", true, "Disable TLS for btcd and btcwallet")
 	rpcbtcd   *string = flag.String("rpcbtcd", "", "Host for btcd RPC connections")
 	rpcwallet *string = flag.String("rpcwallet", "", "Host for btcwallet RPC connections")
-	rpcdht 	  *string = flag.String("rpcdht", "", "Host for dht RPC connections")
+	rpcdht    *string = flag.String("rpcdht", "", "Host for dht RPC connections")
 	rpcpass   *string = flag.String("rpcpass", "password", "Password for RPC connections")
 	rpcuser   *string = flag.String("rpcuser", "user", "Username for RPC connections")
 	port      *int64  = flag.Int64("port", 8080, "Port to listen on")
@@ -33,36 +34,36 @@ var (
 func main() {
 	parseFlags()
 
-	btcdCmd, err := coin.InitBtcdDaemon(getBtcdParams()...)
-	if err != nil {
-		log.Fatal(err)
-	}
-	time.Sleep(waitTime) // Wait for btcd to start
+	// btcdCmd, err := coin.InitBtcdDaemon(getBtcdParams()...)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// time.Sleep(waitTime) // Wait for btcd to start
 
-	btcwalletCmd, err := wallet.InitBtcwalletDaemon(getBtcwalletParams()...)
-	if err != nil {
-		log.Fatal(err)
-	}
-	time.Sleep(waitTime) // Wait for btcwallet to start
+	// btcwalletCmd, err := wallet.InitBtcwalletDaemon(getBtcwalletParams()...)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// time.Sleep(waitTime) // Wait for btcwallet to start
 
-	cancelDht := dht.InitDHTDaemon()
+	cancelDht := dht.InitDHT()
 	time.Sleep(waitTime) // Wait for DHT to start
-	
-	btcdClient, err := rpcclient.New(getBtcdRPCClientConfig(), nil)
-	if err != nil {
-		btcdCmd.Process.Kill()
-		btcwalletCmd.Process.Kill()
-		log.Fatal(err)
-	}
 
-	btcwalletClient, err := rpcclient.New(getBtcwalletRPCClientConfig(), nil)
-	if err != nil {
-		btcdCmd.Process.Kill()
-		btcwalletCmd.Process.Kill()
-		btcdClient.Shutdown()
-		log.Fatal(err)
-	}
-	
+	// btcdClient, err := rpcclient.New(getBtcdRPCClientConfig(), nil)
+	// if err != nil {
+	// 	btcdCmd.Process.Kill()
+	// 	btcwalletCmd.Process.Kill()
+	// 	log.Fatal(err)
+	// }
+
+	// btcwalletClient, err := rpcclient.New(getBtcwalletRPCClientConfig(), nil)
+	// if err != nil {
+	// 	btcdCmd.Process.Kill()
+	// 	btcwalletCmd.Process.Kill()
+	// 	btcdClient.Shutdown()
+	// 	log.Fatal(err)
+	// }
+
 	dhtClient, err := rpcclient.New(getDhtRPCClientConfig(), nil)
 	if err != nil {
 		log.Println("Error in dhtclient")
@@ -74,8 +75,8 @@ func main() {
 	// Register RPC services here
 	s := rpc.NewServer()
 	s.RegisterCodec(json2.NewCodec(), "application/json")
-	s.RegisterService(&coin.CoinService{Client: btcdClient}, "")
-	s.RegisterService(&wallet.WalletService{Client: btcwalletClient}, "")
+	// s.RegisterService(&coin.CoinService{Client: btcdClient}, "")
+	// s.RegisterService(&wallet.WalletService{Client: btcwalletClient}, "")
 	s.RegisterService(&dht.DHTClient{Client: dhtClient}, "")
 
 	http.Handle("/rpc", s)
