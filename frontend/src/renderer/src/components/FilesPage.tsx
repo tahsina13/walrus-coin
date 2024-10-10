@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import FilesIcon from '../assets/file-icon.png'
 
@@ -48,11 +48,24 @@ function FilesPage(): JSX.Element {
     set_file_list(file_list.sort((f1, f2) => f1.name.localeCompare(f2.name)))
   }
 
+  const hiddenFileInput = useRef(null);
+
+  const handleClick = event => {
+    hiddenFileInput.current.click();
+  };
+
+  const handleFileChange = event => {
+    alert(event.target.files[0]) //TODO upload
+  };
+
   return (
     <div className="FilesPage">
       <div className="row_1">
         <div className="file_storage">{storage} MB Files</div>
-        <button className="import_file">+ Import</button>
+        <input type="file" onChange={handleFileChange} ref={hiddenFileInput} style={{display: 'none'}} />
+        <button className="import_file" onClick={handleClick}>
+          Upload
+        </button>
       </div>
       <div className="row_2">
         <div className="sort_by">Sort By</div>
@@ -92,4 +105,4 @@ function FilesPage(): JSX.Element {
   )
 }
 
-export default FilesPage
+export default FilesPage;
