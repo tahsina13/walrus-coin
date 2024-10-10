@@ -1,13 +1,8 @@
 package dht
 
-import(
-	"github.com/btcsuite/btcd/rpcclient"
-
-)
-
 // DHTGet struct used to request a DHT value
 type DHTGetArgs struct {
-	Key string
+	Key string 
 }
 
 // DHTPut struct used to put a value in the DHT
@@ -18,10 +13,8 @@ type DHTPutArgs struct {
 
 // Result struct used for responses
 type Result struct {
-	Success bool
-	Value   string
+	Success bool 
+	Value   string 
 }
 
-type DHTClient struct {
-	Client *rpcclient.Client
-}
+type DHTClient struct {}
