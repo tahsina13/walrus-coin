@@ -20,7 +20,7 @@ function App(): JSX.Element {
   return (
     <div className='flex'>
       {!isSignInPage && <Sidebar />}
-      <div className='menu-options w-screen ml-5 mt-10'>
+      <div className='menu-options w-screen'>
         <Routes>
             <Route path='/sign-in' element={<SignInLogIn />} />
             <Route path='/status' element={<StatusPage />} />

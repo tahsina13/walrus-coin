@@ -1,5 +1,6 @@
 import React, { useState }from 'react';
 import { useNavigate } from 'react-router-dom';
+import WalrusCoinLogo from '../assets/walrus-coin-icon.png';
 
 function SignInLogIn(): JSX.Element {
 
@@ -22,10 +23,14 @@ function SignInLogIn(): JSX.Element {
   }
 
   return (
-      <div className="container flex justify-center items-center h-screen w-screen">
+      <div style={{ backgroundColor: '#997777' }} className="container flex justify-center items-center h-screen w-screen">
           <div className="flex flex-col items-center">
+              <img src={WalrusCoinLogo} alt="WalrusCoin" className="w-80 h-80" />
+              <div className="flex justify-center p-4">
+                  <span className="text-white text-5xl">{"WalrusCoin"}</span>
+              </div>
               <div className="header">
-                  <div className="text">Sign In / Log In</div>
+                  <div className="text">Register / Log In</div>
               </div>
               <div className="inputs mt-4">
                   <div className="input mb-4">
@@ -47,7 +52,7 @@ function SignInLogIn(): JSX.Element {
                   <div className="submit-container flex">
                     <div className="register-container">
                         <button 
-                            className="submit bg-blue-500 text-white p-2 rounded disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                            className="submit bg-yellow-900 text-white p-2 rounded hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                             type='button'
                             onClick={handleLogin}
                             disabled={!inputValue}
@@ -57,7 +62,7 @@ function SignInLogIn(): JSX.Element {
                     </div>
                     <div className="login-container flex justify-end w-full">
                         <button 
-                          className="submit bg-blue-500 text-white p-2 rounded disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                          className="submit bg-yellow-900 text-white p-2 rounded hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                           type='button'
                           onClick={handleLogin}
                           disabled={!inputValue}
