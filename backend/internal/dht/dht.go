@@ -11,12 +11,9 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/ipfs/go-cid"
-	"github.com/joho/godotenv"
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	record "github.com/libp2p/go-libp2p-record"
@@ -36,10 +33,12 @@ var (
 	bootstrap_node_addr = "/ip4/130.245.173.222/tcp/61000/p2p/12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE"
 	globalCtx           context.Context
 	dhtserver           *dht.IpfsDHT
+	cancelDHT           context.CancelFunc
+	P2PHost				host.Host
 )
 
-func (d *DHTClient) DHTGet(r *http.Request, args *DHTGetArgs, reply *Result) error {
-	log.Printf("Received DHTGet request for key: %s", args.Key)  
+func (d *DHTClient) Get(r *http.Request, args *DHTGetArgs, reply *Result) error {
+	log.Printf("Received DHTGet request for key: %s", args.Key)
 	dhtKey := "/orcanet/" + args.Key
 	res, err := dhtserver.GetValue(globalCtx, dhtKey)
 	if err != nil {
@@ -56,7 +55,7 @@ func (d *DHTClient) DHTGet(r *http.Request, args *DHTGetArgs, reply *Result) err
 	return nil
 }
 
-func (d *DHTClient) DHTPut(r *http.Request, args *DHTPutArgs, reply *Result) error {
+func (d *DHTClient) Put(r *http.Request, args *DHTPutArgs, reply *Result) error {
 	log.Printf("Received DHTPut request for key: %s, value: %s", args.Key, args.Value)
 	dhtKey := "/orcanet/" + args.Key
 	err := dhtserver.PutValue(globalCtx, dhtKey, []byte(args.Value))
@@ -69,29 +68,75 @@ func (d *DHTClient) DHTPut(r *http.Request, args *DHTPutArgs, reply *Result) err
 	return nil
 }
 
-func InitDHT() context.CancelFunc {
-	// Get the directory of the current file
-	_, filename, _, _ := runtime.Caller(0)
-	dir := filepath.Dir(filename)
+func (d *DHTClient) ChangeNodeID(r *http.Request, args *ChangeNodeIDArgs, reply *Result) error {
+	log.Printf("Received ChangeNodID request for NodeID: %s", args.NodeID)
+	cancelDHT()
+	err := P2PHost.Close()
+	if(err != nil){
+		log.Printf("Error shutting down P2P Host: %s", err)
+		return err
+	}
+	reply.Success = true
+	InitDHT(args.NodeID)
+	return nil
+}
 
-	// Build the path to the .env file relative to the current file
-	envFile := filepath.Join(dir, "../..", ".env")
+func (d *DHTClient) GetConnectedNodes(r *http.Request, args *GetConnectedNodesArgs, reply *Result) error {
+	log.Printf("Received GetConnectedNodes request")
 
-	// Load environment variables from the .env file
-	err := godotenv.Load(envFile)
+	peers := P2PHost.Network().Peers()
+
+	// If there are no peers connected, return an empty response
+	
+	var peerList []PeerInfo
+	
+	// Loop through all connected peers and gather their addresses
+	for _, peerID := range peers {
+		if(peerID.String() == "12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN" || peerID.String() == "12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE"){
+			continue //skip bootstrap and relay
+		}
+		peerInfo := P2PHost.Peerstore().PeerInfo(peerID)
+		var addresses []string
+		for _, addr := range peerInfo.Addrs {
+			addresses = append(addresses, addr.String())
+		}
+		
+		// Append peer information to the list
+		peerList = append(peerList, PeerInfo{
+			PeerID:    peerID.String(),
+			Addresses: addresses,
+		})
+	}
+	
+	if len(peerList) == 0 {
+		reply.Success = true
+		reply.Value = ""
+		return nil
+	}
+
+	// Convert the peerList to JSON format
+	peerListJSON, err := json.Marshal(peerList)
 	if err != nil {
-		log.Fatal("InitDHT: Error loading .env file (put it in /backend)")
+		log.Printf("Error marshalling peer list to JSON: %v", err)
+		reply.Success = false
+		reply.Value = "Error generating peer list"
+		return err
 	}
 
-	// Get SBUID from the environment
-	node_id := os.Getenv("SBUID")
-	if node_id == "" {
-		log.Fatal("InitDHT: Set an SBUID in the .env file in /backend")
-	}
+	// Set the reply's success to true and the value to the peer list in JSON format
+	reply.Success = true
+	reply.Value = string(peerListJSON)
+	return nil
+}
+
+
+func InitDHT(nodeID string) context.CancelFunc {
+
+	node_id = nodeID
 
 	// Create the Libp2p host
 	host := createLibp2pHost()
-
+	P2PHost = host
 	// Set up the DHT
 	dhtserver = setupDHT(context.Background(), host)
 
@@ -109,6 +154,7 @@ func InitDHT() context.CancelFunc {
 
 	// Start the peer exchange handling in a goroutine
 	go handlePeerExchange(host)
+	cancelDHT = cancel
 
 	// Return the cancel function so the caller can stop the DHT process
 	return cancel

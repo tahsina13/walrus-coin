@@ -11,10 +11,21 @@ type DHTPutArgs struct {
 	Value string
 }
 
+type ChangeNodeIDArgs struct {
+	NodeID string 
+}
+
+type GetConnectedNodesArgs struct{}
+
 // Result struct used for responses
 type Result struct {
 	Success bool 
 	Value   string 
+}
+
+type PeerInfo struct {
+	PeerID    string   `json:"peer_id"`
+	Addresses []string `json:"addresses"`
 }
 
 type DHTClient struct {}
