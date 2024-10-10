@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
@@ -17,7 +16,7 @@ import (
 	"github.com/tahsina13/walrus-coin/backend/internal/dht"
 )
 
-const waitTime = 5 * time.Second
+const waitTime = 2 * time.Second
 
 var (
 	testnet   *bool   = flag.Bool("testnet", false, "Use testnet")
@@ -25,7 +24,6 @@ var (
 	notls     *bool   = flag.Bool("notls", true, "Disable TLS for btcd and btcwallet")
 	rpcbtcd   *string = flag.String("rpcbtcd", "", "Host for btcd RPC connections")
 	rpcwallet *string = flag.String("rpcwallet", "", "Host for btcwallet RPC connections")
-	rpcdht    *string = flag.String("rpcdht", "", "Host for dht RPC connections")
 	rpcpass   *string = flag.String("rpcpass", "password", "Password for RPC connections")
 	rpcuser   *string = flag.String("rpcuser", "user", "Username for RPC connections")
 	port      *int64  = flag.Int64("port", 8080, "Port to listen on")
@@ -46,7 +44,7 @@ func main() {
 	// }
 	// time.Sleep(waitTime) // Wait for btcwallet to start
 
-	cancelDht := dht.InitDHT()
+	dht.InitDHT()
 	time.Sleep(waitTime) // Wait for DHT to start
 
 	// btcdClient, err := rpcclient.New(getBtcdRPCClientConfig(), nil)
@@ -64,20 +62,12 @@ func main() {
 	// 	log.Fatal(err)
 	// }
 
-	dhtClient, err := rpcclient.New(getDhtRPCClientConfig(), nil)
-	if err != nil {
-		log.Println("Error in dhtclient")
-		cancelDht()
-		dhtClient.Shutdown()
-		log.Fatal(err)
-	}
-
 	// Register RPC services here
 	s := rpc.NewServer()
 	s.RegisterCodec(json2.NewCodec(), "application/json")
 	// s.RegisterService(&coin.CoinService{Client: btcdClient}, "")
 	// s.RegisterService(&wallet.WalletService{Client: btcwalletClient}, "")
-	s.RegisterService(&dht.DHTClient{Client: dhtClient}, "")
+	s.RegisterService(&dht.DHTClient{}, "DHTClient")
 
 	http.Handle("/rpc", s)
 	log.Printf("Server listening on :%d\n", *port)
@@ -158,16 +148,6 @@ func getBtcdRPCClientConfig() *rpcclient.ConnConfig {
 func getBtcwalletRPCClientConfig() *rpcclient.ConnConfig {
 	return &rpcclient.ConnConfig{
 		Host:       *rpcwallet,
-		Endpoint:   "ws",
-		User:       *rpcuser,
-		Pass:       *rpcpass,
-		DisableTLS: *notls,
-	}
-}
-
-func getDhtRPCClientConfig() *rpcclient.ConnConfig {
-	return &rpcclient.ConnConfig{
-		Host:       *rpcdht,
 		Endpoint:   "ws",
 		User:       *rpcuser,
 		Pass:       *rpcpass,

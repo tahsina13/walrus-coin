@@ -39,6 +39,7 @@ var (
 )
 
 func (d *DHTClient) DHTGet(r *http.Request, args *DHTGetArgs, reply *Result) error {
+	log.Printf("Received DHTGet request for key: %s", args.Key)  
 	dhtKey := "/orcanet/" + args.Key
 	res, err := dhtserver.GetValue(globalCtx, dhtKey)
 	if err != nil {
@@ -56,6 +57,7 @@ func (d *DHTClient) DHTGet(r *http.Request, args *DHTGetArgs, reply *Result) err
 }
 
 func (d *DHTClient) DHTPut(r *http.Request, args *DHTPutArgs, reply *Result) error {
+	log.Printf("Received DHTPut request for key: %s, value: %s", args.Key, args.Value)
 	dhtKey := "/orcanet/" + args.Key
 	err := dhtserver.PutValue(globalCtx, dhtKey, []byte(args.Value))
 	if err != nil {
