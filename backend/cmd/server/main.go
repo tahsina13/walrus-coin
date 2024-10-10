@@ -27,6 +27,7 @@ var (
 	rpcpass   *string = flag.String("rpcpass", "password", "Password for RPC connections")
 	rpcuser   *string = flag.String("rpcuser", "user", "Username for RPC connections")
 	port      *int64  = flag.Int64("port", 8080, "Port to listen on")
+	nodeID	  *string = flag.String("nodeID", "1111111111", "SBUID for P2P node identification")
 )
 
 func main() {
@@ -44,8 +45,8 @@ func main() {
 	// }
 	// time.Sleep(waitTime) // Wait for btcwallet to start
 
-	dht.InitDHT()
-	time.Sleep(waitTime) // Wait for DHT to start
+	dht.InitDHT(*nodeID)
+	// time.Sleep(waitTime) // Wait for DHT to start
 
 	// btcdClient, err := rpcclient.New(getBtcdRPCClientConfig(), nil)
 	// if err != nil {
