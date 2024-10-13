@@ -21,6 +21,9 @@ function SignInLogIn(): JSX.Element {
       navigate('/status'); // add more conditions when we figure out login
     }
   }
+  const handleRegister = async () => {
+    navigate('/register'); // register conditions
+  }
 
   return (
       <div style={{ backgroundColor: '#997777' }} className="container flex justify-center items-center h-screen w-screen">
@@ -54,8 +57,7 @@ function SignInLogIn(): JSX.Element {
                         <button 
                             className="submit bg-yellow-900 text-white p-2 rounded hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                             type='button'
-                            onClick={handleLogin}
-                            disabled={!inputValue}
+                            onClick={handleRegister}
                           >
                               Register
                         </button>
