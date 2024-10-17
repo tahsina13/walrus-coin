@@ -12,17 +12,24 @@ import (
 	record "github.com/libp2p/go-libp2p-record"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multihash"
+	"github.com/tahsina13/walrus-coin/backend/internal/node"
 )
 
-func (d *DhtService) CreateDht(r *http.Request, args *CreateDhtArgs, reply *CreateDhtReply) error {
-	if d.NodeService == nil {
-		return errors.New("no node service")
+func NewDhtService(nodeService *node.NodeService) (*DhtService, error) {
+	if nodeService == nil {
+		return nil, errors.New("node service is nil")
 	}
-	ctx := d.NodeService.GetContext()
+	return &DhtService{
+		nodeService: nodeService,
+	}, nil
+}
+
+func (d *DhtService) CreateDht(r *http.Request, args *CreateDhtArgs, reply *CreateDhtReply) error {
+	ctx := d.nodeService.GetContext()
 	if ctx == nil {
 		return errors.New("context not initialized")
 	}
-	h := d.NodeService.GetHost()
+	h := d.nodeService.GetHost()
 	if h == nil {
 		return errors.New("host not initialized")
 	}
@@ -64,9 +71,6 @@ func (d *DhtService) CreateDht(r *http.Request, args *CreateDhtArgs, reply *Crea
 }
 
 func (d *DhtService) CloseDht(r *http.Request, args *CreateDhtArgs, reply *CreateDhtReply) error {
-	if d.client == nil {
-		return errors.New("dht client not initialized")
-	}
 	if err := d.client.Close(); err != nil {
 		err = fmt.Errorf("failed to close dht client: %w", err)
 		log.Printf("CloseDht: %v\n", err)
@@ -76,14 +80,11 @@ func (d *DhtService) CloseDht(r *http.Request, args *CreateDhtArgs, reply *Creat
 }
 
 func (d *DhtService) GetValue(r *http.Request, args *GetValueArgs, reply *GetValueReply) error {
-	if d.NodeService == nil {
-		return errors.New("no node service")
-	}
 	if d.client == nil {
 		return errors.New("dht client not initialized")
 	}
 	dhtKey := "/orcanet/" + args.Key
-	value, err := d.client.GetValue(d.NodeService.GetContext(), dhtKey)
+	value, err := d.client.GetValue(d.nodeService.GetContext(), dhtKey)
 	if err != nil {
 		err = fmt.Errorf("failed to get value: %w", err)
 		log.Printf("GetValue: %v\n", err)
@@ -94,9 +95,6 @@ func (d *DhtService) GetValue(r *http.Request, args *GetValueArgs, reply *GetVal
 }
 
 func (d *DhtService) GetProviders(r *http.Request, args *GetProvidersArgs, reply *GetProvidersReply) error {
-	if d.NodeService == nil {
-		return errors.New("no node service")
-	}
 	if d.client == nil {
 		return errors.New("dht client not initialized")
 	}
@@ -110,7 +108,7 @@ func (d *DhtService) GetProviders(r *http.Request, args *GetProvidersArgs, reply
 		return err
 	}
 	c := cid.NewCidV1(cid.Raw, mh)
-	providers := d.client.FindProvidersAsync(d.NodeService.GetContext(), c, args.Count)
+	providers := d.client.FindProvidersAsync(d.nodeService.GetContext(), c, args.Count)
 
 	var addrs []peer.AddrInfo
 	for p := range providers {
@@ -125,14 +123,11 @@ func (d *DhtService) GetProviders(r *http.Request, args *GetProvidersArgs, reply
 }
 
 func (d *DhtService) PutValue(r *http.Request, args *PutValueArgs, reply *PutValueReply) error {
-	if d.NodeService == nil {
-		return errors.New("no node service")
-	}
 	if d.client == nil {
 		return errors.New("dht client not initialized")
 	}
 	dhtKey := "/orcanet/" + args.Key
-	if err := d.client.PutValue(d.NodeService.GetContext(), dhtKey, []byte(args.Value)); err != nil {
+	if err := d.client.PutValue(d.nodeService.GetContext(), dhtKey, []byte(args.Value)); err != nil {
 		err = fmt.Errorf("failed to put value: %w", err)
 		log.Printf("PutValue: %v\n", err)
 		return err
@@ -141,9 +136,6 @@ func (d *DhtService) PutValue(r *http.Request, args *PutValueArgs, reply *PutVal
 }
 
 func (d *DhtService) PutProvider(r *http.Request, args *PutProviderArgs, reply *PutProviderReply) error {
-	if d.NodeService == nil {
-		return errors.New("no node service")
-	}
 	if d.client == nil {
 		return errors.New("dht client is not initialized")
 	}
@@ -158,7 +150,7 @@ func (d *DhtService) PutProvider(r *http.Request, args *PutProviderArgs, reply *
 	c := cid.NewCidV1(cid.Raw, mh)
 
 	// Start providing the key
-	if err := d.client.Provide(d.NodeService.GetContext(), c, true); err != nil {
+	if err := d.client.Provide(d.nodeService.GetContext(), c, true); err != nil {
 		err = fmt.Errorf("PutProvider: failed to start providing key: %w", err)
 		log.Printf("PutProvider: %v\n", err)
 		return err

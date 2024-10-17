@@ -7,7 +7,7 @@ import (
 )
 
 type DhtService struct {
-	NodeService *node.NodeService
+	nodeService *node.NodeService
 	client      *dht.IpfsDHT
 }
 

@@ -23,6 +23,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+func NewNodeService() *NodeService {
+	return &NodeService{}
+}
+
 func (n *NodeService) GetContext() context.Context {
 	return n.context
 }
@@ -72,6 +76,7 @@ func (n *NodeService) connectToPeer(peerAddr string) error {
 		return fmt.Errorf("failed to connect to peer: %w", err)
 	}
 
+	log.Printf("Connected to peer: %s\n", addrInfo.ID)
 	return nil
 }
 
@@ -90,6 +95,7 @@ func (n *NodeService) makeReservation(relayAddr string) error {
 		return fmt.Errorf("failed to make reservation: %w", err)
 	}
 
+	log.Printf("Reservation successful\n")
 	return nil
 }
 
@@ -105,6 +111,8 @@ func (n *NodeService) connectToPeerUsingRelay(relayAddr multiaddr.Multiaddr, tar
 	if err := n.host.Connect(n.context, *relayedAddrInfo); err != nil {
 		return fmt.Errorf("failed to connect to peer through relay: %w", err)
 	}
+
+	log.Printf("Connected to peer via relay: %s\n", targetPeerID)
 	return nil
 }
 
