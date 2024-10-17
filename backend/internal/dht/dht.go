@@ -1,218 +1,41 @@
 package dht
 
 import (
-	"bufio"
-	"bytes"
-	"context"
 	"crypto/sha256"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/ipfs/go-cid"
-	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	record "github.com/libp2p/go-libp2p-record"
-	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/peerstore"
-	"github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/client"
-	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multihash"
 )
 
-var (
-	node_id             string
-	relay_node_addr     = "/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
-	bootstrap_node_addr = "/ip4/130.245.173.222/tcp/61000/p2p/12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE"
-	globalCtx           context.Context
-	dhtserver           *dht.IpfsDHT
-	cancelDHT           context.CancelFunc
-	P2PHost				host.Host
-)
-
-func (d *DHTClient) Get(r *http.Request, args *DHTGetArgs, reply *Result) error {
-	log.Printf("Received DHTGet request for key: %s", args.Key)
-	dhtKey := "/orcanet/" + args.Key
-	res, err := dhtserver.GetValue(globalCtx, dhtKey)
-	if err != nil {
-		if strings.Contains(err.Error(), "routing: not found") {
-			log.Printf("Key %s not found in DHT", args.Key)
-			reply.Success = false
-			reply.Value = "" // No value to return, so set it to an empty string
-			return nil       // No need to return the original error, just return successfully
-		}
-		return err
+func (d *DhtService) CreateDht(r *http.Request, args *CreateDhtArgs, reply *CreateDhtReply) error {
+	if d.NodeService == nil {
+		return errors.New("no node service")
 	}
-	reply.Success = true
-	reply.Value = string(res)
-	return nil
-}
-
-func (d *DHTClient) Put(r *http.Request, args *DHTPutArgs, reply *Result) error {
-	log.Printf("Received DHTPut request for key: %s, value: %s", args.Key, args.Value)
-	dhtKey := "/orcanet/" + args.Key
-	err := dhtserver.PutValue(globalCtx, dhtKey, []byte(args.Value))
-	if err != nil {
-		reply.Success = false
-		fmt.Printf("Failed to put record: %v\n", err)
-		return err
+	ctx := d.NodeService.GetContext()
+	if ctx == nil {
+		return errors.New("context not initialized")
 	}
-	reply.Success = true
-	return nil
-}
-
-func (d *DHTClient) ChangeNodeID(r *http.Request, args *ChangeNodeIDArgs, reply *Result) error {
-	log.Printf("Received ChangeNodID request for NodeID: %s", args.NodeID)
-	cancelDHT()
-	err := P2PHost.Close()
-	if(err != nil){
-		log.Printf("Error shutting down P2P Host: %s", err)
-		return err
+	h := d.NodeService.GetHost()
+	if h == nil {
+		return errors.New("host not initialized")
 	}
-	reply.Success = true
-	InitDHT(args.NodeID)
-	return nil
-}
-
-func (d *DHTClient) GetConnectedNodes(r *http.Request, args *GetConnectedNodesArgs, reply *Result) error {
-	log.Printf("Received GetConnectedNodes request")
-
-	peers := P2PHost.Network().Peers()
-
-	// If there are no peers connected, return an empty response
-	
-	var peerList []PeerInfo
-	
-	// Loop through all connected peers and gather their addresses
-	for _, peerID := range peers {
-		if(peerID.String() == "12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN" || peerID.String() == "12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE"){
-			continue //skip bootstrap and relay
-		}
-		peerInfo := P2PHost.Peerstore().PeerInfo(peerID)
-		var addresses []string
-		for _, addr := range peerInfo.Addrs {
-			addresses = append(addresses, addr.String())
-		}
-		
-		// Append peer information to the list
-		peerList = append(peerList, PeerInfo{
-			PeerID:    peerID.String(),
-			Addresses: addresses,
-		})
-	}
-	
-	if len(peerList) == 0 {
-		reply.Success = true
-		reply.Value = ""
-		return nil
+	if d.client != nil {
+		return errors.New("dht client already initialized")
 	}
 
-	// Convert the peerList to JSON format
-	peerListJSON, err := json.Marshal(peerList)
-	if err != nil {
-		log.Printf("Error marshalling peer list to JSON: %v", err)
-		reply.Success = false
-		reply.Value = "Error generating peer list"
-		return err
-	}
-
-	// Set the reply's success to true and the value to the peer list in JSON format
-	reply.Success = true
-	reply.Value = string(peerListJSON)
-	return nil
-}
-
-
-func InitDHT(nodeID string) context.CancelFunc {
-
-	node_id = nodeID
-
-	// Create the Libp2p host
-	host := createLibp2pHost()
-	P2PHost = host
-	// Set up the DHT
-	dhtserver = setupDHT(context.Background(), host)
-
-	// Create a cancelable context
-	ctx, cancel := context.WithCancel(context.Background())
-	globalCtx = ctx
-
-	// Connect to relay node and bootstrap node
-	connectToPeer(host, relay_node_addr)
-
-	// Make reservation and connect to bootstrap node
-	makeReservation(host)
-
-	connectToPeer(host, bootstrap_node_addr)
-
-	// Start the peer exchange handling in a goroutine
-	go handlePeerExchange(host)
-	cancelDHT = cancel
-
-	// Return the cancel function so the caller can stop the DHT process
-	return cancel
-}
-
-func generatePrivateKeyFromSeed(seed []byte) (crypto.PrivKey, error) {
-	hash := sha256.Sum256(seed)
-	privKey, _, err := crypto.GenerateEd25519Key(
-		bytes.NewReader(hash[:]),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate private key: %w", err)
-	}
-	return privKey, nil
-}
-
-// Create a libp2p host and enable relaying with relay node
-func createLibp2pHost() host.Host {
-	customAddr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
-	if err != nil {
-		log.Fatal(err)
-	}
-	relayInfo, err := peer.AddrInfoFromString(relay_node_addr) // converts multiaddr string to peer.addrInfo
-	if err != nil {
-		log.Fatal(err)
-	}
-	seed := []byte(node_id)
-	privKey, err := generatePrivateKeyFromSeed(seed)
-	if err != nil {
-		log.Fatal(err)
-	}
-	node, err := libp2p.New(
-		libp2p.ListenAddrs(customAddr),
-		libp2p.Identity(privKey),
-		libp2p.EnableAutoRelayWithStaticRelays([]peer.AddrInfo{*relayInfo}),
-		libp2p.EnableRelayService(),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return node
-}
-
-type CustomValidator struct{}
-
-func (v *CustomValidator) Validate(key string, value []byte) error {
-	return nil
-}
-
-func (v *CustomValidator) Select(key string, values [][]byte) (int, error) {
-	return 0, nil
-}
-
-func setupDHT(ctx context.Context, h host.Host) *dht.IpfsDHT {
 	// Set up the DHT instance
 	kadDHT, err := dht.New(ctx, h, dht.Mode(dht.ModeClient))
 	if err != nil {
-		log.Fatal(err)
+		err = fmt.Errorf("failed to create dht client: %w", err)
+		log.Printf("CreateDht: %v\n", err)
+		return err
 	}
 
 	// Configure the DHT to use the custom validator
@@ -223,217 +46,122 @@ func setupDHT(ctx context.Context, h host.Host) *dht.IpfsDHT {
 	// Bootstrap the DHT (connect to other peers to join the DHT network)
 	err = kadDHT.Bootstrap(ctx)
 	if err != nil {
-		log.Fatal(err)
+		err = fmt.Errorf("failed to bootstrap dht client: %w", err)
+		log.Printf("CreateDht: %v\n", err)
+		return err
 	}
 
-	return kadDHT
-}
-
-// Here peerAddr is the String format of Multiaddr of a peer
-func connectToPeer(node host.Host, peerAddr string) {
-
-	addr, err := multiaddr.NewMultiaddr(peerAddr) // convert string to Multiaddr
-	if err != nil {
-		log.Printf("Failed to parse peer address: %s", err)
-		return
-	}
-
-	info, err := peer.AddrInfoFromP2pAddr(addr) // returns a peer.AddrInfo, containing the multiaddress and ID of the node.
-	if err != nil {
-		log.Printf("Failed to get AddrInfo from Multiaddr: %s", err)
-		return
-	}
-
-	err = node.Connect(context.Background(), *info)
-	if err != nil {
-		log.Printf("Failed to connect to peer: %s", err)
-		return
-	}
-	// after successful connection to the peer, add it to the peerstore
-	// Peerstore is a local storage of the host(peer) where it stores the other peers
-	node.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.PermanentAddrTTL)
-
-	fmt.Println("Connected to:", info.ID)
-}
-
-func makeReservation(node host.Host) {
-	ctx := context.Background()
-	relayInfo, err := peer.AddrInfoFromString(relay_node_addr)
-	if err != nil {
-		log.Fatalf("Failed to create addrInfo from string representation of relay multiaddr: %v", err)
-	}
-	_, err = client.Reserve(ctx, node, *relayInfo)
-	if err != nil {
-		log.Fatalf("Failed to make reservation on relay: %v", err)
-	}
-
-	fmt.Printf("Reservation successful \n")
-}
-
-func connectToPeerUsingRelay(node host.Host, targetPeerID string) {
-	ctx := globalCtx
-	targetPeerID = strings.TrimSpace(targetPeerID)
-	relayAddr, err := multiaddr.NewMultiaddr(relay_node_addr)
-	if err != nil {
-		log.Printf("Failed to create relay multiaddr: %v", err)
-	}
-	peerMultiaddr := relayAddr.Encapsulate(multiaddr.StringCast("/p2p-circuit/p2p/" + targetPeerID))
-
-	// log.Println("peer multi addr: ", peerMultiaddr)
-
-	relayedAddrInfo, err := peer.AddrInfoFromP2pAddr(peerMultiaddr)
-	if err != nil {
-		log.Println("Failed to get relayed AddrInfo: %w", err)
-		return
-	}
-	// Connect to the peer through the relay
-
-	// log.Println("Trying to connect to ", relayedAddrInfo)
-	// os.Stdout.Sync()
-
-	err = node.Connect(ctx, *relayedAddrInfo)
-	if err != nil {
-		log.Println("Failed to connect to peer through relay: ", err)
-		return
-	}
-
-	fmt.Printf("Connected to peer via relay: %s\n", targetPeerID)
-}
-
-func handlePeerExchange(node host.Host) {
-	relayInfo, _ := peer.AddrInfoFromString(relay_node_addr)
-	node.SetStreamHandler("/orcanet/p2p", func(s network.Stream) {
-		defer s.Close()
-		// log.Println("orcanet stream received")
-		// os.Stdout.Sync()
-		buf := bufio.NewReader(s)
-		peerAddr, err := buf.ReadString('\n')
-		if err != nil {
-			if err != io.EOF {
-				fmt.Printf("error reading from stream: %v", err)
-			}
+	go func() {
+		<-ctx.Done()
+		if err := kadDHT.Close(); err != nil {
+			log.Println(err) // TODO: better error messaging
 		}
-		peerAddr = strings.TrimSpace(peerAddr)
-		var data map[string]interface{}
-		err = json.Unmarshal([]byte(peerAddr), &data)
-		if err != nil {
-			fmt.Printf("error unmarshaling JSON: %v", err)
-		}
-		if knownPeers, ok := data["known_peers"].([]interface{}); ok {
-			for _, peer := range knownPeers {
-				fmt.Println("Peer:")
-				if peerMap, ok := peer.(map[string]interface{}); ok {
-					if peerID, ok := peerMap["peer_id"].(string); ok {
-						if string(peerID) != string(relayInfo.ID) {
-							connectToPeerUsingRelay(node, peerID)
-						}
-					}
-				}
-			}
-		}
-		os.Stdout.Sync()
-	})
+		d.client = nil
+	}()
+
+	d.client = kadDHT
+	return nil
 }
 
-func handleInput(ctx context.Context, dht *dht.IpfsDHT) {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("User Input \n ")
-	for {
-		fmt.Print("> ")
-		input, _ := reader.ReadString('\n') // Read input from keyboard
-		input = strings.TrimSpace(input)    // Trim any trailing newline or spaces
-		args := strings.Split(input, " ")
-		if len(args) < 1 {
-			fmt.Println("No command provided")
-			continue
-		}
-		command := args[0]
-		command = strings.ToUpper(command)
-		switch command {
-		case "GET":
-			if len(args) < 2 {
-				fmt.Println("Expected key")
-				continue
-			}
-			key := args[1]
-			dhtKey := "/orcanet/" + key
-			res, err := dht.GetValue(ctx, dhtKey)
-			if err != nil {
-				fmt.Printf("Failed to get record: %v\n", err)
-				continue
-			}
-			fmt.Printf("Record: %s\n", res)
-
-		case "GET_PROVIDERS":
-			if len(args) < 2 {
-				fmt.Println("Expected key")
-				continue
-			}
-			key := args[1]
-			data := []byte(key)
-			hash := sha256.Sum256(data)
-			mh, err := multihash.EncodeName(hash[:], "sha2-256")
-			if err != nil {
-				fmt.Printf("Error encoding multihash: %v\n", err)
-				continue
-			}
-			c := cid.NewCidV1(cid.Raw, mh)
-			providers := dht.FindProvidersAsync(ctx, c, 20)
-
-			fmt.Println("Searching for providers...")
-			for p := range providers {
-				if p.ID == peer.ID("") {
-					break
-				}
-				fmt.Printf("Found provider: %s\n", p.ID.String())
-				for _, addr := range p.Addrs {
-					fmt.Printf(" - Address: %s\n", addr.String())
-				}
-			}
-
-		case "PUT":
-			if len(args) < 3 {
-				fmt.Println("Expected key and value")
-				continue
-			}
-			key := args[1]
-			value := args[2]
-			dhtKey := "/orcanet/" + key
-			log.Println(dhtKey)
-			err := dht.PutValue(ctx, dhtKey, []byte(value))
-			if err != nil {
-				fmt.Printf("Failed to put record: %v\n", err)
-				continue
-			}
-			// provideKey(ctx, dht, key)
-			fmt.Println("Record stored successfully")
-
-		case "PUT_PROVIDER":
-			if len(args) < 2 {
-				fmt.Println("Expected key")
-				continue
-			}
-			key := args[1]
-			provideKey(ctx, dht, key)
-		default:
-			fmt.Println("Expected GET, GET_PROVIDERS, PUT or PUT_PROVIDER")
-		}
+func (d *DhtService) CloseDht(r *http.Request, args *CreateDhtArgs, reply *CreateDhtReply) error {
+	if d.client == nil {
+		return errors.New("dht client not initialized")
 	}
+	if err := d.client.Close(); err != nil {
+		err = fmt.Errorf("failed to close dht client: %w", err)
+		log.Printf("CloseDht: %v\n", err)
+		return err
+	}
+	return nil
 }
 
-func provideKey(ctx context.Context, dht *dht.IpfsDHT, key string) error {
+func (d *DhtService) GetValue(r *http.Request, args *GetValueArgs, reply *GetValueReply) error {
+	if d.NodeService == nil {
+		return errors.New("no node service")
+	}
+	if d.client == nil {
+		return errors.New("dht client not initialized")
+	}
+	dhtKey := "/orcanet/" + args.Key
+	value, err := d.client.GetValue(d.NodeService.GetContext(), dhtKey)
+	if err != nil {
+		err = fmt.Errorf("failed to get value: %w", err)
+		log.Printf("GetValue: %v\n", err)
+		return err
+	}
+	reply.Value = string(value)
+	return nil
+}
+
+func (d *DhtService) GetProviders(r *http.Request, args *GetProvidersArgs, reply *GetProvidersReply) error {
+	if d.NodeService == nil {
+		return errors.New("no node service")
+	}
+	if d.client == nil {
+		return errors.New("dht client not initialized")
+	}
+	key := args.Key
 	data := []byte(key)
 	hash := sha256.Sum256(data)
 	mh, err := multihash.EncodeName(hash[:], "sha2-256")
 	if err != nil {
-		return fmt.Errorf("error encoding multihash: %v", err)
+		err = fmt.Errorf("error encoding multihash: %w", err)
+		log.Printf("GetProviders: %v\n", err)
+		return err
+	}
+	c := cid.NewCidV1(cid.Raw, mh)
+	providers := d.client.FindProvidersAsync(d.NodeService.GetContext(), c, args.Count)
+
+	var addrs []peer.AddrInfo
+	for p := range providers {
+		if p.ID == peer.ID("") {
+			break
+		}
+		addrs = append(addrs, p)
+	}
+	reply.Addrs = addrs
+
+	return nil
+}
+
+func (d *DhtService) PutValue(r *http.Request, args *PutValueArgs, reply *PutValueReply) error {
+	if d.NodeService == nil {
+		return errors.New("no node service")
+	}
+	if d.client == nil {
+		return errors.New("dht client not initialized")
+	}
+	dhtKey := "/orcanet/" + args.Key
+	if err := d.client.PutValue(d.NodeService.GetContext(), dhtKey, []byte(args.Value)); err != nil {
+		err = fmt.Errorf("failed to put value: %w", err)
+		log.Printf("PutValue: %v\n", err)
+		return err
+	}
+	return nil
+}
+
+func (d *DhtService) PutProvider(r *http.Request, args *PutProviderArgs, reply *PutProviderReply) error {
+	if d.NodeService == nil {
+		return errors.New("no node service")
+	}
+	if d.client == nil {
+		return errors.New("dht client is not initialized")
+	}
+	data := []byte(args.Key)
+	hash := sha256.Sum256(data)
+	mh, err := multihash.EncodeName(hash[:], "sha2-256")
+	if err != nil {
+		err = fmt.Errorf("PutProvider: error encoding multihash: %w", err)
+		log.Printf("PutProvider: %v\n", err)
+		return err
 	}
 	c := cid.NewCidV1(cid.Raw, mh)
 
 	// Start providing the key
-	err = dht.Provide(ctx, c, true)
-	if err != nil {
-		return fmt.Errorf("failed to start providing key: %v", err)
+	if err := d.client.Provide(d.NodeService.GetContext(), c, true); err != nil {
+		err = fmt.Errorf("PutProvider: failed to start providing key: %w", err)
+		log.Printf("PutProvider: %v\n", err)
+		return err
 	}
 	return nil
 }

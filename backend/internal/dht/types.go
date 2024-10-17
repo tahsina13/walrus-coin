@@ -1,31 +1,44 @@
 package dht
 
-// DHTGet struct used to request a DHT value
-type DHTGetArgs struct {
-	Key string 
+import (
+	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/tahsina13/walrus-coin/backend/internal/node"
+)
+
+type DhtService struct {
+	NodeService *node.NodeService
+	client      *dht.IpfsDHT
 }
 
-// DHTPut struct used to put a value in the DHT
-type DHTPutArgs struct {
-	Key   string
-	Value string
+type CreateDhtArgs struct{}
+type CreateDhtReply struct{}
+
+type CloseDhtArgs struct{}
+type CloseDhtReply struct{}
+
+type GetValueArgs struct {
+	Key string `json:"key"`
+}
+type GetValueReply struct {
+	Value string `json:"value"`
 }
 
-type ChangeNodeIDArgs struct {
-	NodeID string 
+type GetProvidersArgs struct {
+	Key   string `json:"key"`
+	Count int    `json:"count"`
+}
+type GetProvidersReply struct {
+	Addrs []peer.AddrInfo `json:"addrs"`
 }
 
-type GetConnectedNodesArgs struct{}
-
-// Result struct used for responses
-type Result struct {
-	Success bool 
-	Value   string 
+type PutValueArgs struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
+type PutValueReply struct{}
 
-type PeerInfo struct {
-	PeerID    string   `json:"peer_id"`
-	Addresses []string `json:"addresses"`
+type PutProviderArgs struct {
+	Key string `json:"key"`
 }
-
-type DHTClient struct {}
+type PutProviderReply struct{}
