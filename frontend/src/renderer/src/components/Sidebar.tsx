@@ -7,10 +7,12 @@ import PeersIcon from '../assets/peers-icon.png'
 import MiningIcon from '../assets/mining-icon.png'
 import AccountIcon from '../assets/avatar.png'
 import WalrusCoinLogo from '../assets/walrus-coin-icon.png'
+import ProxyIcon from '../assets/proxy-icon.jpg'
 
 function Sidebar(): JSX.Element {
   const menuItems = [
     { label: 'Status', icon: StatusIcon, path: '/status' },
+    { label: 'Proxy', icon: ProxyIcon, path: '/proxy'},
     { label: 'Files', icon: FilesIcon, path: '/files' },
     { label: 'Transactions', icon: TransactionsIcon, path: '/transactions' },
     { label: 'Explore', icon: ExploreIcon, path: '/explore' },
