@@ -1,5 +1,6 @@
 import React, { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom'
 import SignInLogIn from './components/SignInLogIn';
+import RegisterPage from './components/RegisterPage';
 import Sidebar from './components/Sidebar'
 import StatusPage from './components/StatusPage'
 import FilesPage from './components/FilesPage'
@@ -16,13 +17,15 @@ function App(): JSX.Element {
 
   const location = useLocation();
   const isSignInPage = location.pathname === '/sign-in';
+  const isRegisterPage = location.pathname === '/register';
 
   return (
     <div className='flex'>
-      {!isSignInPage && <Sidebar />}
+      {!isSignInPage && !isRegisterPage && <Sidebar />}
       <div className='menu-options w-screen'>
         <Routes>
             <Route path='/sign-in' element={<SignInLogIn />} />
+            <Route path='/register' element={<RegisterPage />} />
             <Route path='/status' element={<StatusPage />} />
             <Route path='/files' element={<FilesPage />} />
             <Route path='/transactions' element={<TransactionsPage />} />
@@ -35,7 +38,7 @@ function App(): JSX.Element {
         </Routes>
       </div>
       <div className="flex justify-end items-top">
-        {!isSignInPage && <Profile/>}
+        {!isSignInPage && !isRegisterPage &&<Profile/>}
       </div>
     </div>
   );
