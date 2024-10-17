@@ -1,5 +1,6 @@
 import React, { Link } from 'react-router-dom'
 import StatusIcon from '../assets/status-icon.png'
+import ProxyIcon from '../assets/proxy1.png'
 import FilesIcon from '../assets/file-text.svg'
 import TransactionsIcon from '../assets/transactions-icon.png'
 import ExploreIcon from '../assets/icon.svg'
@@ -7,7 +8,7 @@ import PeersIcon from '../assets/peers-icon.png'
 import MiningIcon from '../assets/mining-icon.png'
 import AccountIcon from '../assets/avatar.png'
 import WalrusCoinLogo from '../assets/walrus-coin-icon.png'
-import ProxyIcon from '../assets/proxy-icon.jpg'
+import ProxyIcon2 from '../assets/proxy-icon.jpg'
 
 function Sidebar(): JSX.Element {
   const menuItems = [

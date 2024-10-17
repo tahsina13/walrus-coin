@@ -3,12 +3,9 @@ import AccountIcon from '../assets/avatar.png'
 import Dollar from '../assets/DollarIcon.png'
 
 function AccountPage(): JSX.Element {
-
   return (
     <div className="container flex flex-col h-screen pl-10">
-      <div className="text-4xl mt-10">
-          Account
-      </div>
+      <PageHeader name={'Account'} />
       <ManageProfileWallet />
       <Setting name={'Token and Payment'} bg={true} />
       <div className="mt-10"></div>
@@ -48,5 +45,8 @@ function Setting({name, bg}): JSX.Element {
   )
 }
 
+function PageHeader({name}): JSX.Element {
+  return(<div className="text-4xl mt-10"> {name} </div>)
+}
 
-export default AccountPage
+export {AccountPage, PageHeader}

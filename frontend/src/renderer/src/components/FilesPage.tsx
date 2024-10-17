@@ -8,6 +8,7 @@ function FilesPage(): JSX.Element {
   const [style1, set_style1] = useState<{}>({ backgroundColor: '#f1e1bf', border: 'none' })
   const [style2, set_style2] = useState<{}>({ backgroundColor: '#f1e1bf', border: 'none' })
   const [sorting_order, set_sorting_order] = useState<String>('time')
+  const [search, setSearch] = useState('');
   let files = [
     // for testing
     {
@@ -81,6 +82,7 @@ function FilesPage(): JSX.Element {
           </button>
         </div>
       </div>
+      <SearchBar setSearch={setSearch} />
       <div className="files">
         <div className="files_header">
           <div className="icon_col"></div>
@@ -103,6 +105,24 @@ function FilesPage(): JSX.Element {
       </div>
     </div>
   )
+}
+
+function SearchBar({setSearch}): JSX.Element {
+  const searchFile = (event) => {
+    if(event.keyCode === 13){
+      setSearch(event.target.value);
+      event.target.value = '';
+    }
+  }
+  return (
+    <div className="container ml-10 w-1/2 rounded bg-blue-100">
+      <input id = "searchbar" type="text" placeholder="Search.."  className="text-3xl w-full" onKeyUp={(event) => searchFiles(event)} />
+    </div>
+  );
+}
+
+function searchFiles(event): null{
+  return null
 }
 
 export default FilesPage;
