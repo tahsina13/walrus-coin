@@ -8,7 +8,7 @@ import TransactionsPage from './components/TransactionsPage';
 import Explorepage from './components/ExplorePage'
 import PeersPage from './components/PeersPage'
 import MiningPage from './components/MiningPage';
-import {AccountPage} from './components/AccountPage'
+import AccountPage from './components/AccountPage'
 import Profile from './components/Profile';
 import ProxyPage from'./components/ProxyPage';
 {/* Add the pages */}

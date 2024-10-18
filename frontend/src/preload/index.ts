@@ -11,6 +11,10 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
+    contextBridge.exposeInMainWorld('versions', {
+      ping: () => ipcRenderer.invoke('ping'),
+      startProcess: (command, args) => ipcRenderer.invoke('start-process', command, args)
+    })
   //   contextBridge.exposeInMainWorld('electron', {
   //     uploadFile: (file) => ipcRenderer.invoke('upload-file', file),
   //     onFileUploaded: (callback) => ipcRenderer.on('file-uploaded', callback),

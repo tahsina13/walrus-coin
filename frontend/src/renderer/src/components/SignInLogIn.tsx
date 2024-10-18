@@ -1,6 +1,9 @@
 import React, { useState }from 'react';
 import { useNavigate } from 'react-router-dom';
 import WalrusCoinLogo from '../assets/walrus-coin-icon.png';
+import { electronAPI } from '@electron-toolkit/preload';
+import { ipcRenderer } from 'electron';
+import path from 'path';
 
 function SignInLogIn(): JSX.Element {
 
@@ -18,11 +21,16 @@ function SignInLogIn(): JSX.Element {
 
   const handleLogin = async () => {
     // check wallet exists first
-    navigate('/status')
-  }
+    console.log("logging in...");
+    const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", []);
+    console.log(res);
+    console.log("finished opening wallet");
+    navigate('/status');
+  };
+
   const handleRegister = async () => {
     navigate('/register'); // register conditions
-  }
+  };
 
   return (
       <div style={{ backgroundColor: '#997777' }} className="container flex justify-center items-center h-screen w-screen">

@@ -1,5 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import { join } from 'path'
+import path, { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png'
 import { create } from 'ipfs';
@@ -96,13 +96,15 @@ function startBtcd() {
   });
 }
 
-function startBtcwallet() {
-  const btcd = spawn('../backend/btcwallet/btcwallet');
+// function startBtcwallet() {
 
-  btcd.stdout.on('data', (data) => {
-    console.log(`btcwallet stdout: ${data}`);
-  });
-}
+
+//   const btcd = spawn('../backend/btcwallet/btcwallet');
+
+//   btcd.stdout.on('data', (data) => {
+//     console.log(`btcwallet stdout: ${data}`);
+//   });
+// }
 
 function createWindow(): void {
   // Create the browser window.
@@ -113,7 +115,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false
     }
   })
@@ -137,10 +139,9 @@ function createWindow(): void {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
-  // start btcd and wallet
-  console.log("CWD: " + process.cwd());
+  // start btcd
   startBtcd();
-  startBtcwallet();
+  // startBtcwallet();
 }
 
 // This method will be called when Electron has finished
@@ -185,7 +186,16 @@ app.whenReady().then(() => {
 
 
   // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+  ipcMain.handle('ping', () => console.log('pong'))
+  ipcMain.handle('start-process', (event, command, args) => {
+    const procPath = path.join(process.cwd(), command);
+    const child = spawn(procPath, args);
+    console.log(event, command, args);
+
+    child.stdout.on('data', (data) => {
+      console.log(event + ": " + data);
+    });
+  });
 
   createWindow()
 
