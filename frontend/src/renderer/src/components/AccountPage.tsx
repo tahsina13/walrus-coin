@@ -1,4 +1,5 @@
 import { ReactElement, JSXElementConstructor, ReactNode } from 'react'
+import {PageHeader} from '../components/Components'
 import AccountIcon from '../assets/avatar.png'
 import Dollar from '../assets/DollarIcon.png'
 
@@ -45,8 +46,4 @@ function Setting({name, bg}): JSX.Element {
   )
 }
 
-function PageHeader({name}): JSX.Element {
-  return(<div className="text-4xl mt-10"> {name} </div>)
-}
-
-export {AccountPage, PageHeader}
+export default AccountPage

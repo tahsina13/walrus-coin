@@ -26,7 +26,9 @@
     "@electron-toolkit/utils": "^3.0.0",
     "electron-updater": "^6.1.7",
     "ipfs": "^0.66.1",
+    "react-native": "^0.75.4",
     "react-router-dom": "^6.26.2",
+    "react-switch": "^7.0.0",
     "tailwind": "^4.0.0"
   },
   "devDependencies": {
