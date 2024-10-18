@@ -6,6 +6,7 @@ import { create } from 'ipfs';
 const { generateKeyPairSync } = require('crypto');
 import { randomBytes } from 'crypto';
 import { createSign, createVerify } from 'crypto';
+import { spawn } from 'child_process';
 
 let ipfs: any;
 
@@ -87,6 +88,22 @@ async function downloadFile(cid:String) {
   return data;
 }
 
+function startBtcd() {
+  const btcd = spawn('../backend/btcd/btcd');
+
+  btcd.stdout.on('data', (data) => {
+    console.log(`btcd stdout: ${data}`);
+  });
+}
+
+function startBtcwallet() {
+  const btcd = spawn('../backend/btcwallet/btcwallet');
+
+  btcd.stdout.on('data', (data) => {
+    console.log(`btcwallet stdout: ${data}`);
+  });
+}
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -119,6 +136,11 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  // start btcd and wallet
+  console.log("CWD: " + process.cwd());
+  startBtcd();
+  startBtcwallet();
 }
 
 // This method will be called when Electron has finished
