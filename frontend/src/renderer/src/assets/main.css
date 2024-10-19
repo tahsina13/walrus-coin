@@ -170,9 +170,16 @@ code {
   }
 } */
 
+body {
+  margin: 0px;
+  overflow: hidden;
+}
+
 .FilesPage {
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  height: 88%;
 }
 
 .FilesPage .row_1 {
@@ -208,19 +215,9 @@ code {
   position: relative;
 }
 
-.FilesPage .row_2 {
-  flex: 1;
-  display: inline;
-}
-
-.FilesPage .row_2 {
-  font-size: 30px;
-  justify-content: right;
-  display: flex;
-}
-
 .FilesPage .files {
   flex: 5;
+  overflow: auto;
 }
 
 .FilesPage .sort_by {
@@ -263,11 +260,18 @@ code {
 }
 
 .FilesPage .name_col {
-  flex: 0.75;
+  flex: 0.5;
+  cursor: pointer;
+}
+
+.FilesPage .last_modified_col {
+  flex: 0.3;
+  cursor: pointer;
 }
 
 .FilesPage .size_col {
-  flex: 0.15;
+  flex: 0.1;
+  cursor: pointer;
 }
 
 .FilesPage .file_row {
