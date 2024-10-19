@@ -4,6 +4,11 @@ import WalrusCoinLogo from '../assets/walrus-coin-icon.png';
 import { electronAPI } from '@electron-toolkit/preload';
 import { ipcRenderer } from 'electron';
 import path from 'path';
+import axios from 'axios';
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 function SignInLogIn(): JSX.Element {
 
@@ -18,13 +23,29 @@ function SignInLogIn(): JSX.Element {
   // const handleInputChange2 = (e: React.ChangeEvent<HTMLInputElement>) => {
   //   setInputValue2(e.target.value);
   // }
+  // const client = new JsonRpcClient({
+    // endpoint: 'http://localhost:8332/rpc',
+  // });
 
   const handleLogin = async () => {
-    // check wallet exists first
-    console.log("logging in...");
+    // start wallet (ADD: check for error)
     const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", []);
-    console.log(res);
-    console.log("finished opening wallet");
+
+
+    // wait for btcwallet to start (maybe add loading symbol of some sort?)
+    await sleep(1000);
+    // test rpc call
+    const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "listaccounts", params: []}, {
+      auth: {
+        username: 'user',
+        password: 'password'
+      },
+      headers: {
+        'Content-Type': 'text/plain;',
+      },
+    });
+
+    console.log(resrpc);
     navigate('/status');
   };
 
