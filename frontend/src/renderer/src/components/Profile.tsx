@@ -42,7 +42,7 @@ function Profile(): JSX.Element {
             {dropdownOpen && (
                 <div 
                     ref={dropdownRef}
-                    className="absolute right-0 top-10 mt-2 w-48 bg-white border border-gray-300 shadow-lg rounded-md z-10"
+                    className="absolute left-2 top-0 w-24 bg-white border border-gray-300 shadow-lg rounded-md z-10"
                 >
                     <ul className="py-1">
                         <li className="px-4 py-2 text-gray-700 hover:bg-gray-200 cursor-pointer" onClick={handleLogout}>
