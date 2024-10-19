@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import MiningIcon from '../assets/image-1.png'
-import Temp from '../assets/walrus-coin-icon.png';
+import Pickaxe from '../assets/pickaxe.png'
 
 function MiningPage(): JSX.Element {
 
@@ -38,12 +37,12 @@ function MiningPage(): JSX.Element {
     
 
     return (
-        <div className="mining-container flex justify-center">
+        <div className="mining-container flex justify-center mt-10">
             <div className='flex flex-col items-center'>
                 <div>
                     <img
-                        className='w-64 h-64 mb-4 object-cover'
-                        src={!isMining ? MiningIcon : Temp}
+                        className={`w-64 h-64 mb-4 ${isMining ? 'animate-spin' : ''}`}
+                        src={Pickaxe}
                         alt='Mining'
                     />
                 </div>
@@ -55,12 +54,12 @@ function MiningPage(): JSX.Element {
                 <div className='mt-5'> Next Block in {nextBlockTime} seconds</div>
                 <div className="w-full bg-gray-300 rounded-full h-5 mb-4">
                     <div
-                        className="bg-blue-600 h-5 rounded-full transition-all"
-                        style={{ width:`${((blockMineTime - nextBlockTime) / blockMineTime) * 100}%`}}
+                        className="bg-blue-600 h-5 rounded-full"
+                        style={{ width:`${((blockMineTime - nextBlockTime) / blockMineTime) * 100}%`, transition: "width 1s linear"}}
                     />
                 </div>
                 <div className="stats-container grid grid-cols-2 gap-10 p-10">
-                    <div className='border p-3'> {blocksMined} Blocks Mined </div>
+                    <div className='border p-3'> {blocksMined} WACO Mined </div>
                     <div className='border p-3'> Balance: {balance} WACO</div>
                 </div>
             </div>
