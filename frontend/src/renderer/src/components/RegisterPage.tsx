@@ -13,21 +13,26 @@ function RegisterPage(): JSX.Element {
 
   const handleCreateWallet = async () => {
     setWalletExists(true);
-    await window.versions.startProcess("../backend/btcwallet/btcwallet.exe", ["--create"], walletPassword);  
+    await window.versions.createWallet("../backend/btcwallet/btcwallet", ["--create"], [walletPassword, walletPassword, "n", "n", "OK"]);
+    // await window.versions.startProcess("../backed/btcd/cmd/btcctl", ["--wallet", "--rpcuser=user", "--rpcpass=password", "--rpcserver=localhost:8332", "listaccounts"]);
   }
   const handleCreateAccount = async () => {
     if (true){ // add conditions when we figure out login
       navigate('/status');
     }
   }
+  const returnHome = async () => {
+    navigate('/sign-in')
+  }
 
   
   useEffect(() => {
     const checkIfWalletExists = async () => {
       try {
-          await window.versions.startProcess("../backend/btcwallet/btcwallet.exe", []);  
+          await window.versions.startProcess("../backend/btcwallet/btcwallet", []);  
           setWalletExists(true)
       } catch (error) {
+          
           setWalletExists(false)
       }
     };
@@ -72,27 +77,17 @@ function RegisterPage(): JSX.Element {
         <div className="container flex justify-center items-center h-screen w-screen">
             <div className="flex flex-col items-center">
                 <div className="header">
-                    <div className="text"> Create an account </div>
+                    <div className="text"> You already have a wallet! </div>
                 </div>
                 <div className="inputs mt-4">
-                    <div className="input mb-4">
-                        <input 
-                            type="password" 
-                            placeholder='Account Name' 
-                            className="border border-gray-300 p-2 rounded focus:outline-none"
-                            value={accountName}
-                            onChange={(event)=>{setAccountName(event.target.value)}}
-                            />
-                    </div>
                     <div className="submit-container flex">
                       <div className="register-container flex justify-end w-full">
                           <button 
                             className="submit bg-blue-500 text-white p-2 rounded disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                             type='button'
-                            onClick={handleCreateAccount}
-                            // disabled={!inputValue}
+                            onClick={returnHome}
                             >
-                              Create
+                              Return to home
                           </button>
                       </div>
                     </div>

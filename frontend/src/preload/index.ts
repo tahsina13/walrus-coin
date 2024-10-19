@@ -13,7 +13,8 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('api', api)
     contextBridge.exposeInMainWorld('versions', {
       ping: () => ipcRenderer.invoke('ping'),
-      startProcess: (command, args) => ipcRenderer.invoke('start-process', command, args)
+      startProcess: (command, args, inputs) => ipcRenderer.invoke('start-process', command, args, inputs),
+      createWallet: (command, args, inputs) => ipcRenderer.invoke('create-wallet', command, args, inputs)
     })
   //   contextBridge.exposeInMainWorld('electron', {
   //     uploadFile: (file) => ipcRenderer.invoke('upload-file', file),

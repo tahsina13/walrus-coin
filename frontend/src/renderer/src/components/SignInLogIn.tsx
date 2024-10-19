@@ -31,21 +31,24 @@ function SignInLogIn(): JSX.Element {
     // start wallet (ADD: check for error)
     const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", []);
 
+    console.log(res);
+    console.log("started btcwallet");
 
     // wait for btcwallet to start (maybe add loading symbol of some sort?)
     await sleep(1000);
+    console.log("started btcwallet");
     // test rpc call
-    const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "listaccounts", params: []}, {
-      auth: {
-        username: 'user',
-        password: 'password'
-      },
-      headers: {
-        'Content-Type': 'text/plain;',
-      },
-    });
+    // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "listaccounts", params: []}, {
+    //   auth: {
+    //     username: 'user',
+    //     password: 'password'
+    //   },
+    //   headers: {
+    //     'Content-Type': 'text/plain;',
+    //   },
+    // });
 
-    console.log(resrpc);
+    // console.log(resrpc);
     navigate('/status');
   };
 
