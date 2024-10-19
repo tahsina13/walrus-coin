@@ -187,15 +187,42 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.handle('ping', () => console.log('pong'))
-  ipcMain.handle('start-process', (event, command, args) => {
-    const procPath = path.join(process.cwd(), command);
-    const child = spawn(procPath, args);
-    console.log(event, command, args);
+  ipcMain.handle('start-process', (event, command, args, inputs) => {
+    return new Promise((resolve, reject) => {  
+      const procPath = path.join(process.cwd(), command); 
+      const child = spawn(procPath, args);  
+      
+      let output = '';  
+  
+      child.stdout.on('data', (data) => {
+        output += data.toString();  
+      });
+  
+      child.stderr.on('data', (data) => {
+        console.error(`Error: ${data}`);
+      });
+  
+      child.on('close', (code) => {
+        if (code === 0) {
+          resolve(output); 
+        } else {
+          reject(new Error(`Process exited with code: ${code}`));  
+        }
+      });
+  
+      child.on('error', (err) => {
+        reject(new Error(`Failed to start process: ${err.message}`));  
+      });
 
-    child.stdout.on('data', (data) => {
-      console.log(event + ": " + data);
+      if (inputs && inputs.length > 0) {
+        inputs.forEach((input, index) => {
+          child.stdin.write(input + '\n'); 
+        });
+        child.stdin.end();  
+      };
     });
   });
+  
 
   createWindow()
 
