@@ -23,6 +23,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+const peerExchangeProtocolID = "/orcanet/p2p"
+
 func NewNodeService() *NodeService {
 	return &NodeService{}
 }
@@ -61,18 +63,14 @@ func generatePrivateKeyFromSeed(seed []byte) (crypto.PrivKey, error) {
 	return privKey, nil
 }
 
-func (n *NodeService) connectToPeer(peerAddr string) error {
-	if n.host == nil {
-		return errors.New("host not initialized")
-	}
-
+func connectToPeer(h host.Host, ctx context.Context, peerAddr string) error {
 	addrInfo, err := peer.AddrInfoFromString(peerAddr)
 	if err != nil {
 		return fmt.Errorf("failed to parse peer address: %w", err)
 	}
 
-	n.host.Peerstore().AddAddrs(addrInfo.ID, addrInfo.Addrs, peerstore.PermanentAddrTTL)
-	if err := n.host.Connect(n.context, *addrInfo); err != nil {
+	h.Peerstore().AddAddrs(addrInfo.ID, addrInfo.Addrs, peerstore.PermanentAddrTTL)
+	if err := h.Connect(ctx, *addrInfo); err != nil {
 		return fmt.Errorf("failed to connect to peer: %w", err)
 	}
 
@@ -80,17 +78,13 @@ func (n *NodeService) connectToPeer(peerAddr string) error {
 	return nil
 }
 
-func (n *NodeService) makeReservation(relayAddr string) error {
-	if n.host == nil {
-		return errors.New("host not initialized")
-	}
-
+func makeReservation(h host.Host, ctx context.Context, relayAddr string) error {
 	relayInfo, err := peer.AddrInfoFromString(relayAddr)
 	if err != nil {
 		return fmt.Errorf("failed to parse relay address: %w", err)
 	}
 
-	_, err = client.Reserve(n.context, n.host, *relayInfo)
+	_, err = client.Reserve(ctx, h, *relayInfo)
 	if err != nil {
 		return fmt.Errorf("failed to make reservation: %w", err)
 	}
@@ -99,7 +93,7 @@ func (n *NodeService) makeReservation(relayAddr string) error {
 	return nil
 }
 
-func (n *NodeService) connectToPeerUsingRelay(relayAddr multiaddr.Multiaddr, targetPeerID string) error {
+func connectToPeerUsingRelay(h host.Host, ctx context.Context, relayAddr multiaddr.Multiaddr, targetPeerID string) error {
 	targetPeerID = strings.TrimSpace(targetPeerID)
 	peerMultiaddr := relayAddr.Encapsulate(multiaddr.StringCast("/p2p-circuit/p2p/" + targetPeerID))
 
@@ -108,7 +102,7 @@ func (n *NodeService) connectToPeerUsingRelay(relayAddr multiaddr.Multiaddr, tar
 		return fmt.Errorf("failed to get relayed address info: %w", err)
 	}
 	// Connect to the peer through the relay
-	if err := n.host.Connect(n.context, *relayedAddrInfo); err != nil {
+	if err := h.Connect(ctx, *relayedAddrInfo); err != nil {
 		return fmt.Errorf("failed to connect to peer through relay: %w", err)
 	}
 
@@ -116,7 +110,7 @@ func (n *NodeService) connectToPeerUsingRelay(relayAddr multiaddr.Multiaddr, tar
 	return nil
 }
 
-func (n *NodeService) handlePeerExchange(relayAddr multiaddr.Multiaddr, s network.Stream) error {
+func handlePeerExchange(h host.Host, ctx context.Context, relayAddr multiaddr.Multiaddr, s network.Stream) error {
 	relayInfo, err := peer.AddrInfoFromP2pAddr(relayAddr)
 	if err != nil {
 		return err
@@ -136,7 +130,7 @@ func (n *NodeService) handlePeerExchange(relayAddr multiaddr.Multiaddr, s networ
 			if peerMap, ok := peer.(map[string]interface{}); ok {
 				if peerID, ok := peerMap["peer_id"].(string); ok {
 					if string(peerID) != string(relayInfo.ID) {
-						n.connectToPeerUsingRelay(relayAddr, peerID)
+						connectToPeerUsingRelay(h, ctx, relayAddr, peerID)
 					}
 				}
 			}
@@ -194,34 +188,35 @@ func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *C
 		return err
 	}
 
-	host.SetStreamHandler("/orcanet/p2p", func(s network.Stream) {
+	context, cancel := context.WithCancel(context.Background())
+
+	host.SetStreamHandler(peerExchangeProtocolID, func(s network.Stream) {
 		defer s.Close()
-		if err := n.handlePeerExchange(relayAddr, s); err != nil {
-			log.Println(err) // TODO: better error messaging
+		if err := handlePeerExchange(host, context, relayAddr, s); err != nil {
+			log.Println(err) // TODO: better logging?
 		}
 	})
 
-	n.host = host
-	n.context, n.cancel = context.WithCancel(context.Background())
-
-	if err := n.connectToPeer(args.RelayAddr); err != nil {
+	if err := connectToPeer(host, context, args.RelayAddr); err != nil {
 		n.closeHost()
 		err = fmt.Errorf("failed to connect to relay: %w", err)
 		log.Printf("CreateHost: %v\n", err)
 		return err
 	}
-	if err := n.makeReservation(args.RelayAddr); err != nil {
+	if err := makeReservation(host, context, args.RelayAddr); err != nil {
 		n.closeHost()
 		err = fmt.Errorf("failed to make reservation: %w", err)
 		log.Printf("CreateHost: %v\n", err)
 		return err
 	}
-	if err := n.connectToPeer(args.BootstrapAddr); err != nil {
-		n.closeHost()
-		err = fmt.Errorf("failed to connect to bootstrap node: %w", err)
-		log.Printf("CreateHost: %v\n", err)
-		return err
+	for _, addr := range args.BootstrapAddrs {
+		if err := connectToPeer(host, context, addr); err != nil {
+			log.Printf("CreateHost: failed to connect to bootstrap node: %v\n", err)
+		}
 	}
+
+	n.host = host
+	n.context, n.cancel = context, cancel
 
 	reply.ID = host.ID()
 	reply.Addrs = host.Addrs()
@@ -234,6 +229,7 @@ func (n *NodeService) closeHost() error {
 	}
 
 	n.Cancel()
+	n.host.RemoveStreamHandler(peerExchangeProtocolID)
 	if err := n.host.Close(); err != nil {
 		return fmt.Errorf("failed to close host: %w", err)
 	}

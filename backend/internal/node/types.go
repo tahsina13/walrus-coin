@@ -21,11 +21,11 @@ type GetHostInfoReply struct {
 }
 
 type CreateHostArgs struct {
-	NodeID        string `json:"node_id"`
-	IPAddr        string `json:"ip_addr"`
-	Port          int    `json:"port"`
-	RelayAddr     string `json:"relay_addr"`
-	BootstrapAddr string `json:"bootstrap_addr"`
+	NodeID         string   `json:"nodeId"`
+	IPAddr         string   `json:"ipAddr"`
+	Port           int      `json:"port"`
+	RelayAddr      string   `json:"relayAddr"`
+	BootstrapAddrs []string `json:"bootstrapAddrs"`
 }
 type CreateHostReply struct {
 	ID    peer.ID        `json:"id"`
