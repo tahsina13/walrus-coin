@@ -259,6 +259,10 @@ body {
   flex: 0.1;
 }
 
+.FilesPage .hash_col {
+  flex: 0.5;
+}
+
 .FilesPage .name_col {
   flex: 0.5;
   cursor: pointer;
