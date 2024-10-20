@@ -1,77 +1,48 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import FilesIcon from '../assets/file-icon.png'
 
 function FilesPage(): JSX.Element {
-  const [storage, set_storage] = useState<number>(0)
+  const [storage, set_storage] = useState("")
   const [sorting_order, set_sorting_order] = useState<String>('time')
   const [inverse, set_inverse] = useState<{time: boolean, name: boolean, size: boolean}>({time: false, name: false, size: false});
   const [search, setSearch] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [updateDate, setUpdateDate] = useState(true);
   let files = [
     // for testing
     {
       type: 'txt',
       name: 'XNew Text Document.txt',
-      size: 10,
+      size: 101233,
       path: 'ANew-Text-Document',
-      create_date: new Date(20010101)
+      create_date: new Date(20010101),
+      CID: "gmx286mbXoaWmaszRzTG4R8yvptfGCZPLdY3KoRTauSX3C"
     },
     {
       type: 'txt',
       name: 'BNew Text Document2.txt',
-      size: 100,
+      size: 100224423,
       path: 'BNew-Text-Document2',
-      create_date: new Date()
+      create_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      CID: "zdN4U62G1FMyWVhUXSrdKSGxHDeyCDmCCCZyVgpdc58SiM"
     },
     {
       type: 'txt',
       name: 'CNew Text Document2.txt',
-      size: 100,
+      size: 103230,
       path: 'BNew-Text-Document2',
-      create_date: new Date()
-    },
-    {
-      type: 'txt',
-      name: 'DNew Text Document2.txt',
-      size: 10000,
-      path: 'BNew-Text-Document2',
-      create_date: new Date()
-    },
-    {
-      type: 'txt',
-      name: 'ENew Text Document2.txt',
-      size: 100,
-      path: 'BNew-Text-Document2',
-      create_date: new Date()
-    },
-    {
-      type: 'txt',
-      name: 'KNew Text Document2.txt',
-      size: 1000,
-      path: 'BNew-Text-Document2',
-      create_date: new Date()
+      create_date: new Date(Date.now() - 30 * 60 * 1000),
+      CID: "mL6VNFF1wHFhfeXbio8iGRmSc7Z9wyX5Ng1gNXacuC5Ro8"
     },
     {
       type: 'txt',
       name: 'ASNew Text Document2.txt',
-      size: 1001,
+      size: 44214,
       path: 'BNew-Text-Document2',
-      create_date: new Date()
+      create_date: new Date(Date.now() - 20 * 60 * 60 * 1000),
+      CID: "fwzPoUwFVJF8RwNiBEM9VH1rQ6EkhEJPyjfH25EKSG5FVd"
     },
-    {
-      type: 'txt',
-      name: 'CCCNew Text Document2.txt',
-      size: 100,
-      path: 'BNew-Text-Document2',
-      create_date: new Date()
-    },
-    {
-      type: 'txt',
-      name: 'ZNew Text Document2.txt',
-      size: 100,
-      path: 'BNew-Text-Document2',
-      create_date: new Date()
-    }
   ]
   const [file_list, set_file_list] = useState(files)
 
@@ -110,63 +81,99 @@ function FilesPage(): JSX.Element {
   const handleClick = event => {
     hiddenFileInput.current.click();
   };
-
+  
   const handleFileChange = event => {
-    alert(event.target.files[0]) //TODO upload
+    setSelectedFile(event.target.files[0]);
   };
+
+  function searchFiles(event){
+    setSearch(event.target.value)
+  }
+
+  function deleteFile(delete_file){
+    set_file_list(file_list.filter(file => file.CID !== delete_file.CID))
+  }
+
+  //add a file to the list
+  useEffect(() => {
+    if (selectedFile) {
+      if(file_list.filter(file => file.path === selectedFile.path).length > 0){
+        return
+      }
+      let temp = {
+        type: selectedFile.type,
+        name: selectedFile.name,
+        size: selectedFile.size,
+        path: selectedFile.path,
+        create_date: new Date(),
+        CID: generateRandomCID()
+      }
+      set_file_list(prevFileList => [...prevFileList, temp])
+      setSelectedFile(null);
+    }
+  }, [selectedFile, updateDate])
+
+  useEffect(() => {
+    let timer = setInterval(() => {
+      setUpdateDate(prevUpdateDate => !prevUpdateDate);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [])
+
+  //update total file size
+  useEffect(()=>{
+    let temp = 0;
+    for(let x of file_list){
+      temp += x.size
+    }
+    set_storage(formatFileSize(temp))
+  }, [file_list])
 
   return (
     <div className="FilesPage">
       <div className="row_1">
-        <div className="file_storage">{storage} MB Files</div>
+        <div className="file_storage">Total File Size: {storage}</div>
         <input type="file" onChange={handleFileChange} ref={hiddenFileInput} style={{display: 'none'}} />
         <button className="import_file" onClick={handleClick}>
           Upload
         </button>
       </div>
-      <SearchBar setSearch={setSearch} />
+      
+      <div className="container rounded" style={{width: "90%", marginLeft: "5%", marginRight: "5%", border: "1px solid black"}}>
+        <input id = "searchbar" type="text" placeholder="Search.."  className="text-3xl w-full" onKeyUp={(event) => searchFiles(event)} />
+      </div>
+      
       <div className="files">
         <div className="files_header">
           <div className="icon_col"></div>
           <div className="name_col" onMouseDown={() => sort_by_name()}>Name:</div>
-          <div className="last_modified_col" onMouseDown={() => sort_by_time()}>Last Modified:</div>
+          <div className="last_modified_col" onMouseDown={() => sort_by_time()}>Upload Date:</div>
           <div className="size_col" onMouseDown={() => sort_by_size()}>Size:</div>
+          <div className="delete_col"></div>
         </div>
         <ul className="files_list">
-          {file_list.map((file, index) => (
+          {file_list.filter(file => file.name.toLowerCase().includes(search.toLowerCase()) || file.CID.toLowerCase().includes(search.toLowerCase())).map((file, index) => (
             <li key={index} className="menu-item">
-              <Link to={file.path} className="file_row">
+              <div className="file_row">
                 <div className="icon_col">
                   <img src={FilesIcon} alt={file.type} className="w-10 h-10 ml-3" />
                 </div>
-                <div className="name_col">{file.name}</div>
+                <div className="name_col">
+                  <div>{file.name}</div>
+                  <div style={{color: 'gray', fontSize: '15px'}}>{file.CID}</div>
+                </div>
                 <div className="last_modified_col">{time_convert(file.create_date)}</div>
-                <div className="size_col">{file.size} KB</div>
-              </Link>
+                <div className="size_col">{formatFileSize(file.size)}</div>
+                <div className="delete_col">
+                  <img src={"/src/assets/trash.png"} alt="delete" className="w-10 h-10 ml-3" onClick={(e) => {e.stopPropagation();deleteFile(file)}}/>
+                </div>
+              </div>
             </li>
           ))}
         </ul>
       </div>
     </div>
   )
-}
-
-function SearchBar({setSearch}): JSX.Element {
-  const searchFile = (event) => {
-    if(event.keyCode === 13){
-      setSearch(event.target.value);
-      event.target.value = '';
-    }
-  }
-  return (
-    <div className="container ml-10 w-1/2 rounded bg-blue-100">
-      <input id = "searchbar" type="text" placeholder="Search.."  className="text-3xl w-full" onKeyUp={(event) => searchFiles(event)} />
-    </div>
-  );
-}
-
-function searchFiles(event): null{
-  return null
 }
 
 const time_convert = (date: Date) => {
@@ -187,7 +194,7 @@ const time_convert = (date: Date) => {
         // check if post date and view date are within 60 seconds
         if(diff_seconds < 60) {
           return <div>
-              {Math.floor(diff_seconds)} second{Math.floor(diff_seconds) > 1 ? "s" : ""} ago
+              {Math.floor(diff_seconds)} second{Math.floor(diff_seconds) > 1 || Math.floor(diff_seconds) == 0 ? "s" : ""} ago
           </div>;
         }
         // if difference between post time and view time are not within 60 seconds
@@ -217,6 +224,29 @@ const time_convert = (date: Date) => {
           {date.toLocaleString("en-us", {month: "short"})} {date.getDate()}, {date.getFullYear()} at {date.toLocaleTimeString("en-us", {hour: "2-digit", minute: "2-digit"})}
       </div>;
   }
+}
+
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024; // 1 KB
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+function generateRandomCID(length = 46) {
+  // Base58 character set (without 0, O, I, and l to avoid confusion)
+  const base58Chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+  let randomCID = '';
+  for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * base58Chars.length);
+      randomCID += base58Chars[randomIndex];
+  }
+  
+  return randomCID;
 }
 
 export default FilesPage;
