@@ -1,11 +1,13 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import { join } from 'path'
+import path, { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png'
 import { create } from 'ipfs';
 const { generateKeyPairSync } = require('crypto');
 import { randomBytes } from 'crypto';
 import { createSign, createVerify } from 'crypto';
+import { spawn } from 'child_process';
+import pty from 'node-pty';
 
 let ipfs: any;
 
@@ -87,6 +89,24 @@ async function downloadFile(cid:String) {
   return data;
 }
 
+function startBtcd() {
+  const btcd = spawn('../backend/btcd/btcd');
+
+  btcd.stdout.on('data', (data) => {
+    console.log(`btcd stdout: ${data}`);
+  });
+}
+
+// function startBtcwallet() {
+
+
+//   const btcd = spawn('../backend/btcwallet/btcwallet');
+
+//   btcd.stdout.on('data', (data) => {
+//     console.log(`btcwallet stdout: ${data}`);
+//   });
+// }
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -96,7 +116,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false
     }
   })
@@ -119,6 +139,10 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  // start btcd
+  startBtcd();
+  // startBtcwallet();
 }
 
 // This method will be called when Electron has finished
@@ -163,7 +187,155 @@ app.whenReady().then(() => {
 
 
   // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+  ipcMain.handle('ping', () => console.log('pong'))
+
+  ipcMain.handle('start-process', (event, command, args, inputs) => {
+    return new Promise((resolve, reject) => {  
+      const procPath = path.join(process.cwd(), command); 
+      console.log(procPath, [args, inputs]);
+      const child = spawn(procPath, args);
+      let output = '';
+
+      child.stdout.on('data', (data) => {
+        console.log("stdout event: " + data);
+        resolve(data);
+      });
+      
+      child.stderr.on('data', (data) => {
+        data = data.toString();
+        console.error(`Error event: ${data}`);
+        reject(data);
+      });
+  
+      child.on('close', (code) => {
+        if (code == 0) {
+          resolve(output); 
+        } else {
+          reject(new Error(`Process exited with code: ${code}`));  
+        }
+      });
+  
+      child.on('error', (err) => {
+        reject(new Error(`Failed to start process: ${err.message}`));  
+      });
+
+      if (inputs && inputs.length > 0) {
+        console.log("in input");
+        inputs.forEach((input, index) => {
+          // child.stdin.write(input + '\n');
+          console.log("input: " + input);
+        });
+        child.stdin.end();  
+      };
+    });
+  });
+
+  ipcMain.handle('create-wallet', (event, command, args, inputs) => {
+      const procPath = path.join(process.cwd(), command);
+      const child = pty.spawn(procPath, ['--create'], {
+        name: 'xterm-color',
+        cols: 80,
+        rows: 30,
+        cwd: process.env.HOME,
+        env: process.env,
+      });
+
+      child.onData((data) => {
+        console.log(data);
+        if (data.includes('Enter the private passphrase')) {
+          child.write(`${inputs[0]}\n`);
+          // setTimeout(() => {console.log(`writing ${inputs[0]}`);child.write(`${inputs[0]}`);}, 1000);
+        } else if (data.includes('Confirm passphrase:')) {
+          child.write(`${inputs[0]}\n`);
+        } else if (data.includes('encryption for public data?')) {
+          child.write('n\n');
+        } else if (data.includes('existing wallet seed')) {
+          child.write('n\n');
+        } else if (data.includes('wallet generation seed')) {
+          child.write('OK\n');
+        }
+      });
+
+      child.onExit((code) => {
+        console.error("exiting");
+      });
+  });
+  // ipcMain.handle('create-wallet', (event, command, args, inputs) => {
+  //   return new Promise((resolve, reject) => {  
+  //     const procPath = path.join(process.cwd(), command); 
+  //     console.log(procPath, args);
+  //     const child = spawn(procPath, ['--create']);  
+  //     let output = '';  
+      
+  //     child.stdout.on('data', (data) => {
+  //       output += data.toString();
+  //       resolve([child, output]);
+  //     });
+  
+  //     child.stderr.on('data', (data) => {
+  //       console.error(`Error: ${data}`);
+  //       reject(data);
+  //     });
+  
+  //     child.on('close', (code) => {
+  //       if (code == 0) {
+  //         resolve(output); 
+  //       } else {
+  //         reject(new Error(`Process exited with code: ${code}`));  
+  //       }
+  //     });
+  
+  //     child.on('error', (err) => {
+  //       reject(new Error(`Failed to start process: ${err.message}`));  
+  //     });
+
+  //     if (inputs && inputs.length > 0) {
+  //       inputs.forEach((input, index) => {
+  //         child.stdin.write(input + '\n'); 
+  //       });
+  //       child.stdin.end();  
+  //     };
+  //   });
+  // });
+
+  // ipcMain.handle('com-process', (event, child, input) => {
+  //   return new Promise((resolve, reject) => {  
+      
+  //     let output = '';
+
+  //     child.stdin.write(`${input}\n`);
+  //     resolve(void);
+  //     // child.stdout.on('data', (data) => {
+  //     //   output += data.toString();
+  //     //   resolve([child, output]);
+  //     // });
+  
+  //     // child.stderr.on('data', (data) => {
+  //     //   console.error(`Error: ${data}`);
+  //     //   resolve(data);
+  //     // });
+  
+  //     // child.on('close', (code) => {
+  //     //   if (code == 0) {
+  //     //     resolve(output); 
+  //     //   } else {
+  //     //     reject(new Error(`Process exited with code: ${code}`));  
+  //     //   }
+  //     // });
+  
+  //     // child.on('error', (err) => {
+  //     //   reject(new Error(`Failed to start process: ${err.message}`));  
+  //     // });
+
+  //     // if (inputs && inputs.length > 0) {
+  //     //   inputs.forEach((input, index) => {
+  //     //     child.stdin.write(input + '\n'); 
+  //     //   });
+  //     //   child.stdin.end();  
+  //     // };
+  //   });
+  // });
+  
 
   createWindow()
 
