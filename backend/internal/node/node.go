@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/client"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -74,7 +74,7 @@ func connectToPeer(h host.Host, ctx context.Context, peerAddr string) error {
 		return fmt.Errorf("failed to connect to peer: %w", err)
 	}
 
-	log.Printf("Connected to peer: %s\n", addrInfo.ID)
+	logrus.Infof("Connected to peer: %s", addrInfo.ID)
 	return nil
 }
 
@@ -89,7 +89,7 @@ func makeReservation(h host.Host, ctx context.Context, relayAddr string) error {
 		return fmt.Errorf("failed to make reservation: %w", err)
 	}
 
-	log.Printf("Reservation successful\n")
+	logrus.Infof("Reservation successful")
 	return nil
 }
 
@@ -106,7 +106,7 @@ func connectToPeerUsingRelay(h host.Host, ctx context.Context, relayAddr multiad
 		return fmt.Errorf("failed to connect to peer through relay: %w", err)
 	}
 
-	log.Printf("Connected to peer via relay: %s\n", targetPeerID)
+	logrus.Infof("Connected to peer via relay: %s", targetPeerID)
 	return nil
 }
 
@@ -147,7 +147,7 @@ func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *C
 	addr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", args.IPAddr, args.Port))
 	if err != nil {
 		err = fmt.Errorf("failed to parse address: %w", err)
-		log.Printf("CreateHost: %v\n", err)
+		logrus.Errorf("CreateHost: %v", err)
 		return err
 	}
 
@@ -155,21 +155,21 @@ func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *C
 	privKey, err := generatePrivateKeyFromSeed(seed)
 	if err != nil {
 		err = fmt.Errorf("failed to generate private key: %w", err)
-		log.Printf("CreateHost: %v\n", err)
+		logrus.Errorf("CreateHost: %v", err)
 		return err
 	}
 
 	relayAddr, err := multiaddr.NewMultiaddr(args.RelayAddr)
 	if err != nil {
 		err = fmt.Errorf("failed to parse relay address: %w", err)
-		log.Printf("CreateHost: %v\n", err)
+		logrus.Errorf("CreateHost: %v", err)
 		return err
 	}
 
 	relayInfo, err := peer.AddrInfoFromP2pAddr(relayAddr)
 	if err != nil {
 		err = fmt.Errorf("failed to get relay address info: %w", err)
-		log.Printf("CreateHost: %v\n", err)
+		logrus.Errorf("CreateHost: %v", err)
 		return err
 	}
 
@@ -184,7 +184,7 @@ func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *C
 	)
 	if err != nil {
 		err = fmt.Errorf("failed to create host: %w", err)
-		log.Printf("CreateHost: %v\n", err)
+		logrus.Errorf("CreateHost: %v", err)
 		return err
 	}
 
@@ -193,25 +193,25 @@ func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *C
 	host.SetStreamHandler(peerExchangeProtocolID, func(s network.Stream) {
 		defer s.Close()
 		if err := handlePeerExchange(host, context, relayAddr, s); err != nil {
-			log.Println(err) // TODO: better logging?
+			logrus.Errorln(err) // TODO: better logrusging?
 		}
 	})
 
 	if err := connectToPeer(host, context, args.RelayAddr); err != nil {
 		n.closeHost()
 		err = fmt.Errorf("failed to connect to relay: %w", err)
-		log.Printf("CreateHost: %v\n", err)
+		logrus.Errorf("CreateHost: %v", err)
 		return err
 	}
 	if err := makeReservation(host, context, args.RelayAddr); err != nil {
 		n.closeHost()
 		err = fmt.Errorf("failed to make reservation: %w", err)
-		log.Printf("CreateHost: %v\n", err)
+		logrus.Errorf("CreateHost: %v", err)
 		return err
 	}
 	for _, addr := range args.BootstrapAddrs {
 		if err := connectToPeer(host, context, addr); err != nil {
-			log.Printf("CreateHost: failed to connect to bootstrap node: %v\n", err)
+			logrus.Errorf("CreateHost: failed to connect to bootstrap node: %v", err)
 		}
 	}
 
@@ -241,7 +241,7 @@ func (n *NodeService) closeHost() error {
 
 func (n *NodeService) CloseHost(r *http.Request, args *CloseHostArgs, reply *CloseHostReply) error {
 	if err := n.closeHost(); err != nil {
-		log.Printf("CloseHost: %v\n", err)
+		logrus.Errorf("CloseHost: %v", err)
 		return err
 	}
 	return nil

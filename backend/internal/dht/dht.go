@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 
@@ -19,10 +18,11 @@ import (
 	record "github.com/libp2p/go-libp2p-record"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/sirupsen/logrus"
 	"github.com/tahsina13/walrus-coin/backend/internal/node"
 )
 
-const bitswapProtocolID = "/orcanet/bitswap/1.0.0"
+const bitswapProtocolID = "/orcanet/bitswap"
 
 func NewDhtService(nodeService *node.NodeService) (*DhtService, error) {
 	if nodeService == nil {
@@ -54,7 +54,7 @@ func (d *DhtService) InitDht(r *http.Request, args *InitDhtArgs, reply *InitDhtR
 	kadDHT, err := dht.New(ctx, h, dht.Mode(dht.ModeClient), dht.Datastore(dstore))
 	if err != nil {
 		err = fmt.Errorf("failed to create dht client: %w", err)
-		log.Printf("CreateDht: %v\n", err)
+		logrus.Errorf("InitDht: %v", err)
 		return err
 	}
 
@@ -67,21 +67,22 @@ func (d *DhtService) InitDht(r *http.Request, args *InitDhtArgs, reply *InitDhtR
 	err = kadDHT.Bootstrap(ctx)
 	if err != nil {
 		err = fmt.Errorf("failed to bootstrap dht client: %w", err)
-		log.Printf("CreateDht: %v\n", err)
+		logrus.Errorf("InitDht: %v", err)
 		return err
 	}
 
 	h.SetStreamHandler(bitswapProtocolID, func(s network.Stream) {
+		logrus.Debugf("new stream: %s", s.Protocol())
 		defer s.Close()
-		if err := d.handleDownloadFile(ctx, bstore, s); err != nil {
-			log.Println(err) // TODO: better logging?
+		if err := handleDownloadFile(ctx, bstore, s); err != nil {
+			logrus.Errorln(err) // TODO: better logrusging?
 		}
 	})
 
 	go func() {
 		<-ctx.Done()
 		if err := d.closeDht(); err != nil {
-			log.Println(err) // TODO: better logging?
+			logrus.Errorln(err) // TODO: better logrusging?
 		}
 	}()
 
@@ -106,7 +107,7 @@ func (d *DhtService) closeDht() error {
 
 func (d *DhtService) CloseDht(r *http.Request, args *CloseDhtArgs, reply *CloseDhtReply) error {
 	if err := d.closeDht(); err != nil {
-		log.Printf("CloseDht: %v\n", err)
+		logrus.Errorf("CloseDht: %v", err)
 		return err
 	}
 	return nil
@@ -125,7 +126,7 @@ func (d *DhtService) GetValue(r *http.Request, args *GetValueArgs, reply *GetVal
 	value, err := client.GetValue(ctx, dhtKey)
 	if err != nil {
 		err = fmt.Errorf("failed to get value: %w", err)
-		log.Printf("GetValue: %v\n", err)
+		logrus.Errorf("GetValue: %v", err)
 		return err
 	}
 	reply.Value = string(value)
@@ -144,7 +145,7 @@ func (d *DhtService) GetProviders(r *http.Request, args *GetProvidersArgs, reply
 	c, err := cid.Decode(args.Cid)
 	if err != nil {
 		err = fmt.Errorf("error decoding cid: %w", err)
-		log.Printf("GetProviders: %v\n", err)
+		logrus.Errorf("GetProviders: %v", err)
 		return err
 	}
 	providers := client.FindProvidersAsync(ctx, c, args.Count)
@@ -173,7 +174,7 @@ func (d *DhtService) PutValue(r *http.Request, args *PutValueArgs, reply *PutVal
 	dhtKey := "/orcanet/" + args.Key
 	if err := client.PutValue(ctx, dhtKey, []byte(args.Value)); err != nil {
 		err = fmt.Errorf("failed to put value: %w", err)
-		log.Printf("PutValue: %v\n", err)
+		logrus.Errorf("PutValue: %v", err)
 		return err
 	}
 	return nil
@@ -191,14 +192,14 @@ func (d *DhtService) PutProvider(r *http.Request, args *PutProviderArgs, reply *
 	c, err := cid.Decode(args.Cid)
 	if err != nil {
 		err = fmt.Errorf("error decoding cid: %w", err)
-		log.Printf("PutProvider: %v\n", err)
+		logrus.Errorf("PutProvider: %v", err)
 		return err
 	}
 
 	// Start providing the key
 	if err := client.Provide(ctx, c, true); err != nil {
 		err = fmt.Errorf("failed to start providing key: %w", err)
-		log.Printf("PutProvider: %v\n", err)
+		logrus.Errorf("PutProvider: %v", err)
 		return err
 	}
 	return nil
@@ -208,13 +209,13 @@ func (d *DhtService) UploadFile(r *http.Request, args *UploadFileArgs, reply *Up
 	ctx := d.nodeService.GetContext()
 	if ctx == nil {
 		err := errors.New("context not initialized")
-		log.Printf("UploadFile: %v\n", err)
+		logrus.Errorf("UploadFile: %v", err)
 		return err
 	}
 	bstore := d.bstore
 	if bstore == nil {
 		err := errors.New("blockstore not initialized")
-		log.Printf("UploadFile: %v\n", err)
+		logrus.Errorf("UploadFile: %v", err)
 		return err
 	}
 
@@ -226,7 +227,7 @@ func (d *DhtService) UploadFile(r *http.Request, args *UploadFileArgs, reply *Up
 		} else {
 			err = fmt.Errorf("failed to stat file: %w", err)
 		}
-		log.Printf("UploadFile: %v\n", err)
+		logrus.Errorf("UploadFile: %v", err)
 		return err
 	}
 
@@ -235,7 +236,7 @@ func (d *DhtService) UploadFile(r *http.Request, args *UploadFileArgs, reply *Up
 	file, err := os.Open(args.Path)
 	if err != nil {
 		err = fmt.Errorf("failed to open file: %w", err)
-		log.Printf("UploadFile: %v\n", err)
+		logrus.Errorf("UploadFile: %v", err)
 		return err
 	}
 	defer file.Close()
@@ -245,14 +246,14 @@ func (d *DhtService) UploadFile(r *http.Request, args *UploadFileArgs, reply *Up
 	data, err := io.ReadAll(file)
 	if err != nil {
 		err = fmt.Errorf("failed to read file: %w", err)
-		log.Printf("UploadFile: %v\n", err)
+		logrus.Errorf("UploadFile: %v", err)
 		return err
 	}
 
 	blk := blocks.NewBlock(data)
 	if err := bstore.Put(ctx, blk); err != nil {
 		err = fmt.Errorf("failed to put block: %w", err)
-		log.Printf("UploadFile: %v\n", err)
+		logrus.Errorf("UploadFile: %v", err)
 		return err
 	}
 
@@ -260,10 +261,10 @@ func (d *DhtService) UploadFile(r *http.Request, args *UploadFileArgs, reply *Up
 	return nil
 }
 
-func (d *DhtService) handleDownloadFile(ctx context.Context, bstore blockstore.Blockstore, s network.Stream) error {
+func handleDownloadFile(ctx context.Context, bstore blockstore.Blockstore, s network.Stream) error {
 	// Read CID from stream
-	reader := bufio.NewReader(s)
-	data, err := reader.ReadString('\n')
+	buf := bufio.NewReader(s)
+	data, err := buf.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("failed to read cid from stream: %w", err)
 	}
@@ -281,12 +282,10 @@ func (d *DhtService) handleDownloadFile(ctx context.Context, bstore blockstore.B
 	}
 
 	// Write databytes to stream
-	writer := bufio.NewWriter(s)
-	_, err = writer.Write(blk.RawData())
+	_, err = s.Write(blk.RawData())
 	if err != nil {
 		return fmt.Errorf("failed to write block to stream: %w", err)
 	}
-	writer.Flush()
 
 	return nil
 }
@@ -295,64 +294,62 @@ func (d *DhtService) DownloadFile(r *http.Request, args *DownloadFileArgs, reply
 	h := d.nodeService.GetHost()
 	if h == nil {
 		err := errors.New("host not initialized")
-		log.Printf("DownloadFile: %v\n", err)
+		logrus.Errorf("DownloadFile: %v", err)
 		return err
 	}
 	ctx := d.nodeService.GetContext()
 	if ctx == nil {
 		err := errors.New("context not initialized")
-		log.Printf("DownloadFile: %v\n", err)
+		logrus.Errorf("DownloadFile: %v", err)
 		return err
 	}
 
 	peerAddr, err := peer.AddrInfoFromString(args.PeerAddr)
 	if err != nil {
 		err = fmt.Errorf("failed to parse peer address: %w", err)
-		log.Printf("DownloadFile: %v\n", err)
+		logrus.Errorf("DownloadFile: %v", err)
 		return err
 	}
 
 	// Connect to peer with file
 	if err := h.Connect(ctx, *peerAddr); err != nil {
 		err = fmt.Errorf("failed to connect to peer: %w", err)
-		log.Printf("DownloadFile: %v\n", err)
+		logrus.Errorf("DownloadFile: %v", err)
 		return err
 	}
 	defer h.Network().ClosePeer(peerAddr.ID)
-
-	// Create file is not exist
-	file, err := os.Create(args.Path)
-	if err != nil {
-		err = fmt.Errorf("failed to create file: %w", err)
-		log.Printf("DownloadFile: %v\n", err)
-		return err
-	}
-	defer file.Close()
 
 	// Open stream for file transfer
 	stream, err := h.NewStream(ctx, peerAddr.ID, bitswapProtocolID)
 	if err != nil {
 		err = fmt.Errorf("failed to create stream: %w", err)
-		log.Printf("DownloadFile: %v\n", err)
+		logrus.Errorf("DownloadFile: %v", err)
 		return err
 	}
 	defer stream.Close()
 
 	// Request file by CID
-	writer := bufio.NewWriter(stream)
-	_, err = writer.Write([]byte(args.Cid))
+	_, err = stream.Write([]byte(args.Cid + "\n"))
 	if err != nil {
 		err = fmt.Errorf("failed to write cid to stream: %w", err)
-		log.Printf("DownloadFile: %v\n", err)
+		logrus.Errorf("DownloadFile: %v", err)
 		return err
 	}
-	writer.Flush()
+
+	// Create file if not exists
+	file, err := os.Create(args.Path)
+	if err != nil {
+		err = fmt.Errorf("failed to create file: %w", err)
+		logrus.Errorf("DownloadFile: %v", err)
+		return err
+	}
+	defer file.Close()
 
 	// Copy databytes from stream to file
 	_, err = io.Copy(file, stream)
 	if err != nil {
 		err = fmt.Errorf("failed to copy stream to file: %w", err)
-		log.Printf("DownloadFile: %v\n", err)
+		logrus.Errorf("DownloadFile: %v", err)
 		return err
 	}
 

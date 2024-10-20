@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,7 +10,7 @@ import (
 
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
-
+	"github.com/sirupsen/logrus"
 	"github.com/tahsina13/walrus-coin/backend/internal/dht"
 	"github.com/tahsina13/walrus-coin/backend/internal/node"
 )
@@ -24,7 +23,7 @@ func main() {
 	nodeService := node.NewNodeService()
 	dhtService, err := dht.NewDhtService(nodeService)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 	// Register RPC services here
@@ -43,6 +42,6 @@ func main() {
 	}()
 
 	http.Handle("/rpc", s)
-	log.Printf("Server listening on :%d\n", *port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
+	logrus.Infof("Server listening on :%d\n", *port)
+	logrus.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }

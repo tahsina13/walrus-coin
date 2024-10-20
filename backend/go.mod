@@ -12,6 +12,7 @@ require (
 	github.com/libp2p/go-libp2p-kad-dht v0.27.0
 	github.com/libp2p/go-libp2p-record v0.2.0
 	github.com/multiformats/go-multiaddr v0.13.0
+	github.com/sirupsen/logrus v1.8.1
 	golang.org/x/net v0.27.0
 )
 
