@@ -1,9 +1,21 @@
-import { ReactElement, JSXElementConstructor, ReactNode } from 'react'
+import { ReactElement, JSXElementConstructor, ReactNode, useState, useEffect } from 'react'
 import {PageHeader} from '../components/Components'
 import AccountIcon from '../assets/avatar.png'
 import Dollar from '../assets/DollarIcon.png'
 
 function AccountPage(): JSX.Element {
+  const [defaultFileCost, setDefaultFileCost] = useState(() => {
+    const defaultFileCost = localStorage.getItem("defaultFileCost");
+    if (defaultFileCost) {
+      return parseInt(defaultFileCost);
+    }
+    return 1; 
+  })
+
+  useEffect(() => {
+    localStorage.setItem("defaultFileCost", defaultFileCost.toString());
+  })
+
   return (
     <div className="container flex flex-col h-screen pl-10">
       <PageHeader name={'Account'} />
@@ -12,6 +24,12 @@ function AccountPage(): JSX.Element {
       <div className="mt-10"></div>
       <Setting name={'Security'} bg={false} />
       <Setting name={'Two-Factor Authentification'} bg={true} />
+      <div>
+        <div className="mt-10">{"Default File Cost:  "}
+          {/* prettier-ignore */}
+          <input style={{width: `${defaultFileCost.toString().length + 2}ch`}} value={defaultFileCost} onChange={(event) => setDefaultFileCost(parseInt(event.target.value))} type='number'></input>
+        </div>
+      </div>
     </div>
   )
 }
