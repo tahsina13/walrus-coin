@@ -12,8 +12,8 @@ function RegisterPage(): JSX.Element {
   const navigate = useNavigate();
 
   const handleCreateWallet = async () => {
-    setWalletExists(true);
-    await window.versions.createWallet("../backend/btcwallet/btcwallet", ["--create"], [walletPassword, walletPassword, "n", "n", "OK"]);
+    await window.versions.createWallet("../backend/btcwallet/btcwallet.exe", ["--create"], [walletPassword, walletPassword, "n", "n", "OK"]);
+    returnHome();
     // await window.versions.startProcess("../backed/btcd/cmd/btcctl", ["--wallet", "--rpcuser=user", "--rpcpass=password", "--rpcserver=localhost:8332", "listaccounts"]);
   }
   const handleCreateAccount = async () => {
@@ -29,11 +29,14 @@ function RegisterPage(): JSX.Element {
   useEffect(() => {
     const checkIfWalletExists = async () => {
       try {
-          await window.versions.startProcess("../backend/btcwallet/btcwallet", []);  
-          setWalletExists(true)
+
+        let log =  await window.versions.startProcess("../backend/btcwallet/btcwallet", []);
+        console.log(log)
+        setWalletExists(true)
+
       } catch (error) {
-          
-          setWalletExists(false)
+        console.log(error)
+        setWalletExists(false)
       }
     };
     checkIfWalletExists();

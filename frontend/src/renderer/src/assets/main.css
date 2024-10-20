@@ -274,6 +274,11 @@ body {
   cursor: pointer;
 }
 
+.FilesPage .delete_col {
+  flex: 0.05;
+  cursor: pointer;
+}
+
 .FilesPage .file_row {
   display: flex;
   border-bottom: 2px solid black;

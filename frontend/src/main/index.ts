@@ -197,13 +197,14 @@ app.whenReady().then(() => {
       let output = '';
 
       child.stdout.on('data', (data) => {
-        console.log("stdout: " + data);
+        console.log("stdout event: " + data);
         resolve(data);
       });
       
       child.stderr.on('data', (data) => {
-        console.error(`Error: ${data}`);
-        resolve(data);
+        data = data.toString();
+        console.error(`Error event: ${data}`);
+        reject(data);
       });
   
       child.on('close', (code) => {
@@ -243,6 +244,7 @@ app.whenReady().then(() => {
         console.log(data);
         if (data.includes('Enter the private passphrase')) {
           child.write(`${inputs[0]}\n`);
+          // setTimeout(() => {console.log(`writing ${inputs[0]}`);child.write(`${inputs[0]}`);}, 1000);
         } else if (data.includes('Confirm passphrase:')) {
           child.write(`${inputs[0]}\n`);
         } else if (data.includes('encryption for public data?')) {
