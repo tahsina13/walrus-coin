@@ -36,14 +36,14 @@ function StatusPage(): JSX.Element {
         </div>
 
         {/* <img src={MiningIcon} alt="WalrusCoin" className="h-3/4 object-cover rounded w-1/2" /> */}
-        <div className="container flex flex-row justify-center items-center h-screen bg-yellow-200 w-1/2">
+        <div className="container flex flex-row justify-center items-center bg-yellow-200 content-center p-8 w-1/2 rounded-xl">
           <div className="flex flex-row items-center w-3/4">
             <img src={Dollar} alt="Dollar" className="h-20" />
             <text className="text-5xl ml-10">{waco} WACO</text>
           </div>
-          <div className="flex-col justify-center items-center ml-20 bg-blue-200 w-1/4 h-full">
-            <div className="text-xl ml-4 mt-10"> {status} </div>
-            <div className="text-xl ml-4 mt-10">Peers: {peers}</div>
+          <div className="flex-col justify-center items-center ml-20 bg-blue-200 w-1/4 h-full rounded-xl">
+            <div className="text-xl ml-4 mt-10 items-center"> {status} </div>
+            <div className="text-xl ml-4 mt-10 items-center">Peers: {peers}</div>
           </div>
         </div>
 

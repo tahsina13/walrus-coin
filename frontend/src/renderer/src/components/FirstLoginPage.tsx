@@ -5,7 +5,7 @@ import { electronAPI } from '@electron-toolkit/preload';
 import { ipcRenderer } from 'electron';
 import path from 'path';
 import axios from 'axios';
-import GreenCheck from '../assets/green_check.png';
+import GreenCheck from '../assets/check.png';
 import Copy from '../assets/copy.png'
 
 function sleep(ms) {
@@ -31,11 +31,11 @@ function FirstLoginPage(): JSX.Element {
                 </div>
                 <div style={{backgroundColor: "#f1e1bf"}} className='text-center p-4 rounded-xl content-center flex'>
                     <div>Your public key: {public_key}</div>
-                    <button className='ml-2' onClick={() => copy(public_key)} disabled={!public_key}><img src={Copy} alt='Copy' className='w-8 h-7 content-center'/></button>
+                    <button className='ml-2' onClick={() => copy(public_key)} disabled={!public_key}><img src={Copy} alt='Copy' className='w-8 h-8 content-center'/></button>
                 </div>
                 <div style={{backgroundColor: "#f1e1bf"}} className='text-center p-4 rounded-xl content-center flex'>
                     <div>Your private key: {private_key}</div>
-                    <button className='ml-2' onClick={() => copy(private_key)} disabled={!private_key}><img src={Copy} alt='Copy' className='w-8 h-7'/></button>
+                    <button className='ml-2' onClick={() => copy(private_key)} disabled={!private_key}><img src={Copy} alt='Copy' className='w-8 h-8'/></button>
                 </div>
                 <div className="flex">
                     <div className="BackHome-container">
