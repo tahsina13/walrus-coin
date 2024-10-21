@@ -14,7 +14,7 @@ function FilesPage(): JSX.Element {
   const [search, setSearch] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [updateDate, setUpdateDate] = useState(true)
-  const defaultFileCost = localStorage.getItem('defaultFileCost') ? parseInt(localStorage.getItem('defaultFileCost') as string) : 1
+  const defaultFileCost = localStorage.getItem('defaultFileCost') ? parseFloat(localStorage.getItem('defaultFileCost') as string) : 1
 
   type File = {
     type: string
@@ -35,7 +35,7 @@ function FilesPage(): JSX.Element {
       path: 'ANew-Text-Document',
       upload_date: new Date(20010101),
       CID: 'gmx286mbXoaWmaszRzTG4R8yvptfGCZPLdY3KoRTauSX3C',
-      price: 10,
+      price: .0002,
     },
     {
       type: 'txt',
@@ -44,7 +44,7 @@ function FilesPage(): JSX.Element {
       path: 'BNew-Text-Document2',
       upload_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
       CID: 'zdN4U62G1FMyWVhUXSrdKSGxHDeyCDmCCCZyVgpdc58SiM',
-      price: 5,
+      price: .4,
     },
     {
       type: 'txt',
@@ -62,7 +62,7 @@ function FilesPage(): JSX.Element {
       path: 'BNew-Text-Document2',
       upload_date: new Date(Date.now() - 20 * 60 * 60 * 1000),
       CID: 'fwzPoUwFVJF8RwNiBEM9VH1rQ6EkhEJPyjfH25EKSG5FVd',
-      price: 8,
+      price: .42,
     },
   ]
   const [file_list, set_file_list] = useState(files)
@@ -178,8 +178,8 @@ function FilesPage(): JSX.Element {
           <div className="name_col" onMouseDown={() => sort_by_name()}>
             Name:
           </div>
-          <div className="size_col" onMouseDown={() => sort_by_price()}>
-            Price:
+          <div className="price_col" onMouseDown={() => sort_by_price()}>
+            Price (WACO):
           </div>
           <div className="last_modified_col" onMouseDown={() => sort_by_time()}>
             Upload Date:
@@ -200,31 +200,24 @@ function FilesPage(): JSX.Element {
                   </div>
                   <div className="name_col">
                     <div>{file.name}</div>
-                    <div style={{ color: 'gray', fontSize: '15px' }}>{file.CID}</div>
+                    <div style={{ color: 'gray', fontSize: '15px', }}>{file.CID}</div>
                   </div>
-                  <div className="size_col">
+                  <div className="price_col">
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                      {/* prettier-ignore */}
-                      <button onClick={() => set_file_list(file_list.map(f => f.CID === file.CID ? { ...f, price: Math.max(0, Number(file.price) - 1) } : f))}>
-                        -
-                      </button>
                       <input
                         style={{
-                          width: '4ch',
+                          width: '100%',
                           minWidth: '50px',
-                          textAlign: 'center',
+                          textAlign: 'left',
                         }}
                         type="number"
                         value={file.price}
                         onChange={(e) => {
                           // prettier-ignore
-                          set_file_list(file_list.map(f => f.CID === file.CID ? { ...f, price: Math.min(9999, Math.max(0, isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value))) } : f));
+                          set_file_list(file_list.map(f => f.CID === file.CID ? { ...f, price: Math.min(9999, Math.max(0, isNaN(parseFloat(e.target.value)) ? 0 : parseFloat(e.target.value))) } : f));
                         }}
                       />
                       {/* prettier-ignore */}
-                      <button onClick={() => set_file_list(file_list.map(f => f.CID === file.CID ? { ...f, price: Math.min(9999, Number(file.price) + 1) } : f))}>
-                        +
-                      </button>
                     </div>
                   </div>
                   <div className="last_modified_col">{time_convert(file.upload_date)}</div>

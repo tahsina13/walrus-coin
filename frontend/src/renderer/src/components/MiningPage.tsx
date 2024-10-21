@@ -12,7 +12,7 @@ function MiningPage(): JSX.Element {
   })
   const [balance, setBalance] = useState<number>(() => {
     const savedBalance = localStorage.getItem('balance')
-    return savedBalance ? parseInt(savedBalance) : 10
+    return savedBalance ? parseFloat(savedBalance) : 10
   })
   const [currentSessionDuration, setCurrentSessionDuration] = useState<number>(() => {
     const savedSessionDuration = sessionStorage.getItem('currentSessionDuration')

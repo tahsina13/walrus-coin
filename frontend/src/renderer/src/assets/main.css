@@ -278,6 +278,11 @@ body {
   cursor: pointer;
 }
 
+.FilesPage .price_col {
+  flex: 0.2;
+  cursor: pointer;
+}
+
 .FilesPage .delete_col {
   flex: 0.05;
   cursor: pointer;
@@ -293,12 +298,12 @@ body {
   font-size: 24px;
 }
 
-.FilesPage input[type="number"]::-webkit-inner-spin-button,
-.FilesPage input[type="number"]::-webkit-outer-spin-button {
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-.FilesPage input[type="number"]{
+[type="number"]{
   -moz-appearance: textfield;
 }
