@@ -13,8 +13,7 @@ function sleep(ms) {
 function LoginPage(): JSX.Element {
     const [error_message, set_error_message] = useState('');
     const [walletPassword, setWalletPassword] = useState('');
-    const [walletExists, setWalletExists] = useState(false);
-
+    const [walletExists, setWalletExists] = useState(()=> localStorage.getItem("walletExists") == "true");
   // const [inputValue, setInputValue] = useState('');
   // const [inputValue2, setInputValue2] = useState('');
   const navigate = useNavigate();
@@ -61,21 +60,21 @@ function LoginPage(): JSX.Element {
     }
   };
 
-  useEffect(() => {
-    const checkIfWalletExists = async () => {
-      try {
+  // useEffect(() => {
+  //   const checkIfWalletExists = async () => {
+  //     try {
 
-        let log =  await window.versions.startProcess("../backend/btcwallet/btcwallet", []);
-        console.log(log)
-        setWalletExists(true)
+  //       let log =  await window.versions.startProcess("../backend/btcwallet/btcwallet", []);
+  //       console.log(log)
+  //       setWalletExists(true)
 
-      } catch (error) {
-        console.log(error)
-        setWalletExists(false)
-      }
-    };
-    checkIfWalletExists();
-  }, []);
+  //     } catch (error) {
+  //       console.log(error)
+  //       setWalletExists(false)
+  //     }
+  //   };
+  //   checkIfWalletExists();
+  // }, []);
 
   if(walletExists) {
     return (

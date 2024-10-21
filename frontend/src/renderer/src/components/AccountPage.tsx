@@ -145,6 +145,16 @@ function AccountPage(): JSX.Element {
         >
           Logout
         </button>
+
+        <button
+          className="logout-button"
+          style={{ background: 'lightblue', display: 'block', marginTop: '50px', width: '300px' }}
+          onClick={()=>{
+            localStorage.clear()
+            handleLogout()}}
+        >
+          Reset(testing)
+        </button>
       </div>
     </div>
   )

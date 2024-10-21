@@ -15,6 +15,7 @@ function RegisterPage(): JSX.Element {
   const handleCreateWallet = async () => {
     if(walletPassword) {
       await window.versions.createWallet("../backend/btcwallet/btcwallet.exe", ["--create"], [walletPassword, walletPassword, "n", "n", "OK"]);
+      localStorage.setItem("walletExists", "true");
       navigate('/firstLogin');
       // await window.versions.startProcess("../backed/btcd/cmd/btcctl", ["--wallet", "--rpcuser=user", "--rpcpass=password", "--rpcserver=localhost:8332", "listaccounts"]);
     }
