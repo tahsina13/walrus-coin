@@ -1,9 +1,13 @@
 # Walrus Coin
 
-To start frontend for midterm: 
-```bash 
-cd frontend
+## How to run
+
+```bash
+cd /path/to/repo/backend
+./build.sh
+cd ../frontend
 npm install
 npm run dev
 ```
+
 if there are problems with node-gyp there is relevant documentation here: https://github.com/nodejs/node-gyp  
