@@ -14,7 +14,7 @@ function FilesPage(): JSX.Element {
   const [search, setSearch] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [updateDate, setUpdateDate] = useState(true)
-  const defaultFileCost = localStorage.getItem('defaultFileCost') ? parseInt(localStorage.getItem('defaultFileCost') as string) : 1
+  const defaultFileCost = localStorage.getItem('defaultFileCost') ? parseFloat(localStorage.getItem('defaultFileCost') as string) : 1
 
   type File = {
     type: string

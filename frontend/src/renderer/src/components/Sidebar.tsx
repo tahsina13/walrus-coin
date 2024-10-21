@@ -9,7 +9,6 @@ import MiningIcon from '../assets/mining-icon.png'
 import AccountIcon from '../assets/avatar.png'
 import WalrusCoinLogo from '../assets/walrus-coin-icon.png'
 import ProxyIcon2 from '../assets/proxy-icon.jpg'
-import Profile from './Profile'
 
 function Sidebar(): JSX.Element {
   const menuItems = [
@@ -45,7 +44,6 @@ function Sidebar(): JSX.Element {
         ))}
       </ul>
       <div className="float-right">
-        <Profile />
       </div>
     </div>
   )
