@@ -278,6 +278,11 @@ body {
   cursor: pointer;
 }
 
+.FilesPage .price_col {
+  flex: 0.2;
+  cursor: pointer;
+}
+
 .FilesPage .delete_col {
   flex: 0.05;
   cursor: pointer;
