@@ -8,32 +8,7 @@ import { randomBytes } from 'crypto';
 import { createSign, createVerify } from 'crypto';
 import { spawn } from 'child_process';
 import pty from 'node-pty';
-
-let ipfs: any;
-
-async function initIPFS() {
-  try {
-    ipfs = await create();
-    console.log("IPFS node is ready")
-  }
-  catch (error) {
-    console.log("error: ", error)
-  }
-}
-
-async function getIPFSIdentity() {
-  try {
-    const identity = await ipfs.id();
-    console.log("Node Identity:", identity);
-  } catch (error) {
-    console.error("Error retrieving identity:", error);
-  }
-}
-
-function generateKeys() {
-  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
-  return { publicKey: publicKey.export({ type: 'spki', format: 'pem' }), privateKey: privateKey.export({ type: 'pkcs8', format: 'pem' }) };
-}
+import axios from 'axios';
 
 async function login(publicKey, privateKey) {
   // Generate a challenge
@@ -97,6 +72,37 @@ function startBtcd() {
   });
 }
 
+async function startServer() {
+  const server = spawn('../backend/cmd/server/server'); 
+
+  server.stdout.on('data', (data) => {
+    console.log(`server stdout: ${data}`);
+  });
+
+  // Create the host
+  await axios.post('http://localhost:8080/rpc', {
+    jsonrpc: '2.0',
+    method: 'NodeService.CreateHost',
+    params: {
+      nodeId: '123456789',
+      ipAddr: '0.0.0.0',
+      port: 0,
+      relayAddr: '/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN',
+      bootstrapAddr: [
+        '/ip4/130.245.173.222/tcp/61000/p2p/12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE'
+      ]
+    },
+    id: 1
+  }); 
+  
+  // Init dht
+  await axios.post('http://localhost:8080/rpc', {
+    jsonrpc: '2.0',
+    method: 'DhtService.InitDht',
+    id: 2
+  }); 
+}
+
 // function startBtcwallet() {
 
 
@@ -143,6 +149,7 @@ function createWindow(): void {
   // start btcd
   startBtcd();
   // startBtcwallet();
+  startServer(); 
 }
 
 // This method will be called when Electron has finished
@@ -159,7 +166,7 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  initIPFS().then(getIPFSIdentity);
+  // initIPFS().then(getIPFSIdentity);
 
   ipcMain.on('register', (event) => {
     const keys = generateKeys();
