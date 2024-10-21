@@ -292,3 +292,13 @@ body {
 .FilesPage .file_row div {
   font-size: 24px;
 }
+
+.FilesPage input[type="number"]::-webkit-inner-spin-button,
+.FilesPage input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.FilesPage input[type="number"]{
+  -moz-appearance: textfield;
+}

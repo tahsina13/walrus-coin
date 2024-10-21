@@ -10,6 +10,7 @@ function Profile(): JSX.Element {
     const handleLogout = () => {
         // Add your logout logic here
         console.log('Logged out');
+        sessionStorage.clear();
         navigate('/sign-in');
     };
 
