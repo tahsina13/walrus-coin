@@ -11,7 +11,10 @@ enum ConnectionStatus {
 }
 
 function StatusPage(): JSX.Element {
-  const [waco, set_waco] = useState<number>(0)
+  const [waco, set_waco] = useState<number>(()=>{
+    const savedWaco = localStorage.getItem('balance')
+    return savedWaco ? parseInt(savedWaco) : 0
+  })
   const [peers, set_peers] = useState<number>(0)
   const [status, set_status] = useState<ConnectionStatus>(ConnectionStatus.Connected);
   const [sampleData, setSampleData] = useState<{ timestamp: string; bandwidth: number }[]>([]);
