@@ -64,16 +64,6 @@ function SignInLogIn(): JSX.Element {
                           Use Existing Wallet
                         </button>
                     </div>
-
-                    <div className="submit-container flex">
-                        <button 
-                          className="w-40 duration-300 mx-2 submit bg-yellow-900 text-white py-3 rounded-lg hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
-                          type='button'
-                          onClick={()=>{navigate('/status')}}
-                        >
-                          Enter as a Guest
-                        </button>
-                    </div>
                   </div>
               </div>
           </div>

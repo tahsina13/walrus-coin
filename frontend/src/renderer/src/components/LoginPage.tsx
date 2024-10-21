@@ -1,4 +1,4 @@
-import React, { useState }from 'react';
+import React, { useState, useEffect }from 'react';
 import { useNavigate } from 'react-router-dom';
 import WalrusCoinLogo from '../assets/walrus-coin-icon.png';
 import { electronAPI } from '@electron-toolkit/preload';
@@ -13,7 +13,7 @@ function sleep(ms) {
 function LoginPage(): JSX.Element {
     const [error_message, set_error_message] = useState('');
     const [walletPassword, setWalletPassword] = useState('');
-
+    const [walletExists, setWalletExists] = useState(()=> localStorage.getItem("walletExists") == "true");
   // const [inputValue, setInputValue] = useState('');
   // const [inputValue2, setInputValue2] = useState('');
   const navigate = useNavigate();
@@ -60,42 +60,89 @@ function LoginPage(): JSX.Element {
     }
   };
 
-  return (
-    <div style={{ backgroundColor: '#997777' }} className="container flex justify-center items-center h-screen w-screen">
-    <div className="flex flex-col items-center">
-      <div className="header">
-          <div className="text-xl text-white"> Please enter your password: </div>
-      </div>
-      <div className="inputs mt-4">
-        <div className="input mb-4 flex space-x-2">
-            <input 
-                type="password" 
-                placeholder='Password' 
-                className="border border-gray-300 p-2 rounded focus:outline-none"
-                onChange={(event)=>{setWalletPassword(event.target.value)}}
-                required
-                />
-                <div className="register-container flex justify-end w-full">
-            <div className="submit-container flex">
-              <button 
-                  className="submit bg-yellow-900 text-white px-4 py-2 rounded hover:bg-black duration-300 disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
-                  type='button'
-                  onClick={() => handleLogin()}
-                  // disabled={!inputValue}
-                  >
-                    Login
-              </button>
+  // useEffect(() => {
+  //   const checkIfWalletExists = async () => {
+  //     try {
+
+  //       let log =  await window.versions.startProcess("../backend/btcwallet/btcwallet", []);
+  //       console.log(log)
+  //       setWalletExists(true)
+
+  //     } catch (error) {
+  //       console.log(error)
+  //       setWalletExists(false)
+  //     }
+  //   };
+  //   checkIfWalletExists();
+  // }, []);
+
+  if(walletExists) {
+    return (
+        <div style={{ backgroundColor: '#997777' }} className="container flex justify-center items-center h-screen w-screen">
+        <div className="flex flex-col items-center">
+          <div className="header">
+              <div className="text-xl text-white"> Please enter your password: </div>
+          </div>
+          <div className="inputs mt-4">
+            <div className="input mb-4 flex space-x-2">
+                <input 
+                    type="password" 
+                    placeholder='Password' 
+                    className="border border-gray-300 p-2 rounded focus:outline-none"
+                    onChange={(event)=>{setWalletPassword(event.target.value)}}
+                    required
+                    />
+                    <div className="register-container flex justify-end w-full">
+                <div className="submit-container flex">
+                  <button 
+                      className="submit bg-yellow-900 text-white px-4 py-2 rounded hover:bg-black duration-300 disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                      type='button'
+                      onClick={() => handleLogin()}
+                      // disabled={!inputValue}
+                      >
+                        Login
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+          <div className='text-white'>{error_message}</div>
+          <div className='flex space-x-1'>
+            <div>Not sure yet?</div><div onClick={()=>{navigate('/sign-in')}} className='cursor-pointer text-blue-800 underline'>Return to home</div>
+          </div>
         </div>
-      </div>
-      <div className='text-white'>{error_message}</div>
-      <div className='flex space-x-1'>
-        <div>Not decide yet?</div><div onClick={()=>{navigate('/sign-in')}} className='cursor-pointer text-blue-800 underline'>Back to home</div>
-      </div>
     </div>
-</div>
-  );
+    );
+  }
+  else {
+    return (
+        <div style={{ backgroundColor: '#997777' }} className="container flex justify-center items-center h-screen w-screen">
+            <div className="flex flex-col items-center">
+                <div className="header">
+                    <div className="text-white"> You don't have a wallet! </div>
+                </div>
+                <div className="inputs mt-4">
+                    <div className="submit-container flex">
+                        <div className="register-container flex justify-end w-full">
+                            <button 
+                                className="submit bg-yellow-900 text-white px-4 py-2 rounded hover:bg-black duration-300 disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                                type='button'
+                                onClick={() => navigate('/register')}
+                                >
+                                Generate a New Wallet
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div className='flex space-x-1 mt-4'>
+                    <div>Not sure yet?</div><div onClick={()=>{navigate('/sign-in')}} className='cursor-pointer text-blue-800 underline'>Return to home</div>
+                </div>
+            </div>
+        </div>
+    );
+  }
+
+
 }
 
 export default LoginPage;

@@ -15,6 +15,7 @@ function RegisterPage(): JSX.Element {
   const handleCreateWallet = async () => {
     if(walletPassword) {
       await window.versions.createWallet("../backend/btcwallet/btcwallet.exe", ["--create"], [walletPassword, walletPassword, "n", "n", "OK"]);
+      localStorage.setItem("walletExists", "true");
       navigate('/firstLogin');
       // await window.versions.startProcess("../backed/btcd/cmd/btcctl", ["--wallet", "--rpcuser=user", "--rpcpass=password", "--rpcserver=localhost:8332", "listaccounts"]);
     }
@@ -77,14 +78,14 @@ function RegisterPage(): JSX.Element {
               </div>
               <div className='text-white'>{error_message}</div>
               <div className='flex space-x-1'>
-                <div>Not decide yet?</div><div onClick={()=>{navigate('/sign-in')}} className='cursor-pointer text-blue-800 underline'>Back to home</div>
+                <div>Not sure yet?</div><div onClick={()=>{navigate('/sign-in')}} className='cursor-pointer text-blue-800 underline'>Return to home</div>
               </div>
             </div>
         </div>
     );
   } else{
     return (
-        <div className="container flex justify-center items-center h-screen w-screen">
+        <div style={{ backgroundColor: '#997777' }} className="container flex justify-center items-center h-screen w-screen">
             <div className="flex flex-col items-center">
                 <div className="header">
                     <div className="text"> You already have a wallet! </div>
@@ -93,7 +94,7 @@ function RegisterPage(): JSX.Element {
                     <div className="submit-container flex">
                       <div className="register-container flex justify-end w-full">
                           <button 
-                            className="submit bg-blue-500 text-white p-2 rounded disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                            className="submit bg-yellow-900 text-white px-4 py-2 rounded hover:bg-black duration-300 disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                             type='button'
                             onClick={returnHome}
                             >

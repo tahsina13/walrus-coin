@@ -11,7 +11,10 @@ enum ConnectionStatus {
 }
 
 function StatusPage(): JSX.Element {
-  const [waco, set_waco] = useState<number>(0)
+  const [waco, set_waco] = useState<number>(()=>{
+    const savedWaco = localStorage.getItem('balance')
+    return savedWaco ? parseFloat(savedWaco) : 0
+  })
   const [peers, set_peers] = useState<number>(0)
   const [status, set_status] = useState<ConnectionStatus>(ConnectionStatus.Connected);
   const [sampleData, setSampleData] = useState<{ timestamp: string; bandwidth: number }[]>([]);
@@ -24,9 +27,9 @@ function StatusPage(): JSX.Element {
       setSampleData(prevData => [...prevData, { timestamp, bandwidth }]);
       
       // Keep the last 24 hours of data
-      if (prevData.length >= 24) {
-        prevData.shift();
-      }
+      // if (prevData.length >= 24) {
+      //   prevData.shift();
+      // }
     }, 1000); // Update every second
 
     return () => clearInterval(interval);
@@ -57,7 +60,7 @@ function StatusPage(): JSX.Element {
         <div className="container flex flex-row justify-center items-center bg-yellow-200 w-1/2 rounded-xl">
           <div className="flex flex-row items-center w-3/4">
             <img src={Dollar} alt="Dollar" className="h-20" />
-            <text className="text-5xl ml-10">{waco} WACO</text>
+            <div className="text-5xl ml-10">{waco} WACO</div>
           </div>
           <div className="flex-col justify-center items-center ml-20 bg-blue-200 w-1/4 h-full rounded-xl">
             <div className="text-xl mt-10 flex items-center">
