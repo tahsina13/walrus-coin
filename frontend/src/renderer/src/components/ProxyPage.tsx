@@ -2,42 +2,38 @@ import { PageHeader, PageSubheader, VerticalSpace1, VerticalSpace2, HorizontalSp
 import React, {useState, useRef} from "react"
 import ProxyIcon from '../assets/proxy2.png'
 
-const testProxies = [{name:"node1000", id:1, cost:9}, {name:"node2", id:2, cost:10}, {name:"node3", id:3, cost:13}, {name:"node4", id:4, cost:5}, {name:"bob", id:5, cost:10000}]
+
+const testProxies = [{name:"node1", id:1, cost:0.004353}, {name:"node2", id:2, cost:0.343251}, {name:"node3", id:3, cost:0.004321}, {name:"node4", id:4, cost:1.002121}, {name:"bob", id:5, cost:10000.0}]
 
 function Input({setCost}): JSX.Element {
   const [isSwitched, setIsSwitched] = useState(false)
+  const inputRef = useRef(null)
 
   const setSetCost = (event) => {
-    if(event.keyCode === 13 && !isNaN(+event.target.value)){
+    if(event.keyCode === 13 && !isNaN(+event.target.value) && (event.target.value > 0)){
       setCost(event.target.value)
       handleSwitch()
     }
   }
 
+
   const handleSwitch = () => {
     setIsSwitched(!isSwitched)
   }
 
-  if(isSwitched){
-    return (
-      <div>
-        <input type="number" placeholder="0" className="text-black text-xl h-8 w-2/3 pl-2 pr-2 rounded bg-blue-100" onKeyUp={(event) => setSetCost(event)} />
-      </div>
-    )
-  }
   return (
-    <button className="bg-blue-500 hover:bg-blue-700 text-white text-xl px-4 rounded w-2/3" onClick={() => handleSwitch()}>
-      Change Sell Cost
-    </button>
+    <div>
+      <input ref={inputRef} type="number" className={"" + (isSwitched? "" : "hidden") + " text-black text-xl h-8 w-2/3 pl-2 pr-2 rounded bg-blue-100"} onKeyUp={(event) => setSetCost(event)} />
+      <button className={"" + (isSwitched? "hidden" : "") + " bg-blue-500 hover:bg-blue-700 text-white text-xl px-4 rounded w-2/3"} onClick={() => handleSwitch()}>
+        Change Sell Cost
+      </button>
+    </div>
   )
 }
 
 function Switch({text, onClick, isChecked}): JSX.Element {
   const handleCheckboxChange = () => {
-    if (!isChecked){
-      if (window.confirm('Are you sure you want to be a proxy?'))
-        onClick()
-    }
+    onClick()
   }
 
   const checkedClassName="translate-x-10"
@@ -91,11 +87,7 @@ function SmallSwitch({text, onClick, isChecked}): JSX.Element {
 function ProxyNode({node, onClick, selectedID}): JSX.Element {
   
   const handleClicked = () => {
-    if(node.id !== selectedID){
-      if (window.confirm('Are you sure you want' + node.name + ' to be your proxy for ' + node.cost + ' WACO?')){
-        onClick(node)
-      }
-    }
+    onClick(node)
   }
 
   return (
@@ -132,7 +124,7 @@ function ProxyHeader(): JSX.Element {
         </div>
         <div className="box flex flex-row justify-left w-1/3">
           <HorizontalSpace2 />
-          <BigText name="Cost (WACO): "/>
+          <BigText name="Cost (WACO/MB): "/>
         </div>
         <div className="box flex flex-row justify-left w-1/3">
           <HorizontalSpace2 />
@@ -162,9 +154,18 @@ function ProxyPage(): JSX.Element {
   const [selfnode, setSelfnode] = useState({name:"self", id:0, cost:10})
 
   const handleSelectProxy = (node) => {
-    setCurrentProxyName(node.name)
-    setSelectedID(node.id)
-    setSelectedCost(node.cost)
+    if(selectedID == node.id)
+    {
+      setCurrentProxyName("none")
+      setSelectedID(-1)
+      setSelectedCost(0)
+    }
+    else 
+    {
+      setCurrentProxyName(node.name)
+      setSelectedID(node.id)
+      setSelectedCost(node.cost)
+    } 
   }
 
   const handleSelectSelfProxy = () => {
@@ -175,32 +176,34 @@ function ProxyPage(): JSX.Element {
     setSelfnode({name:"self", id:0, cost:cost})
   }
 
-    return (
-      <div className="container flex flex-col h-screen">
-        <div className="ml-10">
-          <PageHeader name={'Proxy'} />
-          <VerticalSpace1 />
-          <div className="container flex flex-row">
-            <div className="w-1/4">
-              <Switch text="Serve As Proxy:" onClick={handleSelectSelfProxy} isChecked={selectedID === selfnode.id} />
-            </div>
-            <div className="w-1/4">
-              <BigText name={"Current Proxy: " + CurrentProxyName} />
-            </div>
-            {((CurrentProxyName === "self") ? <><div className="w-1/4"><BigText name={"Selling for: " + selfnode.cost + " WACO"}/></div> <div className="w-1/4"> <Input setCost={setSelfCost}/></div></>
-            : <div className="w-1/4"><BigText name={"Proxy Cost: " + selectedCost + " WACO"} /></div>)}
-          </div>
-        </div>
+  return (
+    <div className="container flex flex-col h-screen">
+      <div className="ml-10">
+        <PageHeader name={'Proxy'} />
         <VerticalSpace1 />
-        <HorizontalLine />
-        <div className="ml-10">
-          <PageSubheader name={'Available Proxies:'} />
-          <VerticalSpace1 />
+        <div className="container flex flex-row">
+          <div className="w-1/4">
+            <Switch text="Serve As Proxy:" onClick={handleSelectSelfProxy} isChecked={selectedID === selfnode.id} />
+          </div>
+          <div className="w-1/4">
+            <BigText name={"Current Proxy: " + CurrentProxyName} />
+          </div>
+          {((CurrentProxyName === "self") ? <><div className="w-1/4"><BigText name={"Selling for: " + selfnode.cost + " WACO/MB"}/></div> <div className="w-1/4"> <Input setCost={setSelfCost}/></div></>
+          : <div className="w-1/4"><BigText name={"Proxy Cost: " + selectedCost + " WACO/MB"} /></div>)}
         </div>
-        <ProxyList proxies={testProxies} handleClicked={handleSelectProxy} selectedID={selectedID}/>
       </div>
-    )
-  }
-  
+      <VerticalSpace1 />
+      <HorizontalLine />
+      <div className="ml-10">
+        <PageSubheader name={'Available Proxies:'} />
+        <VerticalSpace1 />
+      </div>
+      <ProxyList proxies={testProxies} handleClicked={handleSelectProxy} selectedID={selectedID}/>
+    </div>
+  )
+}
+
+
+//add list of files
+
 export default ProxyPage
-//add list of proxies
