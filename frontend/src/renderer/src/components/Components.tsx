@@ -1,11 +1,15 @@
 import React, { useState } from 'react'
 
 function HorizontalLine(): JSX.Element {
-  return(<hr className="h-px my-4 bg-gray-900 border-0 dark:bg-gray-900"></hr>)
+  return(<hr className="h-px bg-gray-900 border-0 dark:bg-gray-900"></hr>)
 }
 
 function VerticalSpace1(): JSX.Element {
     return(<div className="mt-10"></div>)
+}
+
+function VerticalSpace2(): JSX.Element {
+  return(<div className="mt-4"></div>)
 }
 
 function HorizontalSpace1(): JSX.Element {
@@ -62,7 +66,7 @@ function Switch({text, onClick, check}): JSX.Element {
 }
 
 function SearchBar({setSearch}): JSX.Element {
-  const searchFile = (event) => {
+  const searchFiles = (event) => {
     if(event.keyCode === 13){
       setSearch(event.target.value);
       event.target.value = '';
@@ -76,11 +80,30 @@ function SearchBar({setSearch}): JSX.Element {
 }
 
 function Input({text, onEnter}): JSX.Element {
+  const [isSwitched, setIsSwitched] = useState(false)
+
+  const setCost = (event) => {
+    if(event.keyCode === 13){
+      handleSwitch()
+    }
+  }
+
+  const handleSwitch = () => {
+    setIsSwitched(!isSwitched)
+  }
+
+  if(isSwitched){
+    return (
+      <div className="container w-1/3 rounded bg-blue-100">
+        <input type="text" placeholder="Set cost" className="text-xl w-full" onKeyUp={(event) => setCost(event)} />
+      </div>
+    )
+  }
   return (
-    <div>
-      <input type="text" placeholder="cost" className="text-3xl w-full" />
-    </div>
+    <button className="bg-blue-500 hover:bg-blue-700 text-white text-xl py-2 px-4 rounded">
+      Button
+    </button>
   )
 }
 
-export {PageHeader, PageSubheader, Switch, VerticalSpace1, HorizontalSpace1, HorizontalSpace2, HorizontalSpace3, BigText, HorizontalLine}
+export {PageHeader, PageSubheader, Switch, VerticalSpace1, VerticalSpace2, HorizontalSpace1, HorizontalSpace2, HorizontalSpace3, BigText, HorizontalLine}
