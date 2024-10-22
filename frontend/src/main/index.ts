@@ -1,7 +1,117 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import { join } from 'path'
+import path, { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import icon from '../../resources/icon.png'
+import { create } from 'ipfs';
+const { generateKeyPairSync } = require('crypto');
+import { randomBytes } from 'crypto';
+import { createSign, createVerify } from 'crypto';
+import { spawn } from 'child_process';
+import pty from 'node-pty';
+import axios from 'axios';
+
+async function login(publicKey, privateKey) {
+  // Generate a challenge
+  const challenge = randomBytes(32).toString('hex');
+  
+  // Sign the challenge
+  const sign = createSign('SHA256');
+  sign.update(challenge);
+  const signature = sign.sign(privateKey, 'hex');
+
+  return { challenge, signature }; // Send this to the server
+}
+
+async function verifyLogin(publicKey, signature, challenge) {
+  const verify = createVerify('SHA256');
+  verify.update(challenge);
+  const isVerified = verify.verify(publicKey, signature, 'hex');
+  
+  if (isVerified) {
+    console.log("Login successful!");
+  } else {
+    console.log("Login failed!");
+  }
+  return isVerified;
+}
+
+
+// async function generateKeyPair() {
+//   const privateKey = randomBytes(32).toString('hex');
+//   const publicKey = generatePublicKey(privateKey);
+//   return { privateKey, publicKey };
+// }
+
+// async function generatePublicKey(privateKey: String){
+
+// }
+
+async function uploadFile(file:Buffer) {
+  const { path } = await ipfs.add(file);
+  console.log(`${file} uploaded to IPFS with path: ${path}`)
+  return path;
+}
+
+async function downloadFile(cid:String) {
+  const stream = ipfs.cat(cid);
+  let data = '';
+
+  for await (const chunk of stream) {
+    data += chunk.toString();
+  }
+
+  console.log(`File downloaded from IPFS: ${data}`);
+  return data;
+}
+
+function startBtcd() {
+  const btcd = spawn('../backend/btcd/btcd');
+
+  btcd.stdout.on('data', (data) => {
+    console.log(`btcd stdout: ${data}`);
+  });
+}
+
+async function startServer() {
+  const server = spawn('../backend/cmd/server/server'); 
+
+  server.stdout.on('data', (data) => {
+    console.log(`server stdout: ${data}`);
+  });
+
+  // Create the host
+  await axios.post('http://localhost:8080/rpc', {
+    jsonrpc: '2.0',
+    method: 'NodeService.CreateHost',
+    params: {
+      nodeId: '123456789',
+      ipAddr: '0.0.0.0',
+      port: 0,
+      relayAddr: '/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN',
+      bootstrapAddr: [
+        '/ip4/130.245.173.222/tcp/61000/p2p/12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE'
+      ]
+    },
+    id: 1
+  }); 
+  
+  // Init dht
+  await axios.post('http://localhost:8080/rpc', {
+    jsonrpc: '2.0',
+    method: 'DhtService.InitDht',
+    id: 2
+  }); 
+}
+
+// function startBtcwallet() {
+
+
+//   const btcd = spawn('../backend/btcwallet/btcwallet');
+
+//   btcd.stdout.on('data', (data) => {
+//     console.log(`btcwallet stdout: ${data}`);
+//   });
+// }
 
 function createWindow(): void {
   // Create the browser window.
@@ -12,10 +122,12 @@ function createWindow(): void {
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false
     }
   })
+
+  mainWindow.maximize();
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -33,6 +145,11 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  // start btcd
+  startBtcd();
+  // startBtcwallet();
+  startServer(); 
 }
 
 // This method will be called when Electron has finished
@@ -49,8 +166,183 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  // initIPFS().then(getIPFSIdentity);
+
+  ipcMain.on('register', (event) => {
+    const keys = generateKeys();
+    event.reply('registration-result', { publicKey: keys.publicKey });
+  });
+  
+  ipcMain.on('login', async (event, { publicKey, privateKey }) => {
+    const { challenge, signature } = await login(publicKey, privateKey);
+    
+    const isVerified = await verifyLogin(publicKey, signature, challenge);
+    event.reply('login-result', { success: isVerified });
+  });
+  
+
+  ipcMain.on('upload-file', async (event, file) => {
+    try {
+      const cid = await uploadFile(file);
+      event.reply('file-uploaded', cid);
+    }
+    catch (error) {
+      console.log('Upload failed: ', error)
+      event.reply('file-upload-error', error.message)
+    }
+  })
+
+
   // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+  ipcMain.handle('ping', () => console.log('pong'))
+
+  ipcMain.handle('start-process', (event, command, args, inputs) => {
+    return new Promise((resolve, reject) => {  
+      const procPath = path.join(process.cwd(), command); 
+      console.log(procPath, [args, inputs]);
+      const child = spawn(procPath, args);
+      let output = '';
+
+      child.stdout.on('data', (data) => {
+        console.log("stdout event: " + data);
+        resolve(data);
+      });
+      
+      child.stderr.on('data', (data) => {
+        data = data.toString();
+        console.error(`Error event: ${data}`);
+        reject(data);
+      });
+  
+      child.on('close', (code) => {
+        if (code == 0) {
+          resolve(output); 
+        } else {
+          reject(new Error(`Process exited with code: ${code}`));  
+        }
+      });
+  
+      child.on('error', (err) => {
+        reject(new Error(`Failed to start process: ${err.message}`));  
+      });
+
+      if (inputs && inputs.length > 0) {
+        console.log("in input");
+        inputs.forEach((input, index) => {
+          // child.stdin.write(input + '\n');
+          console.log("input: " + input);
+        });
+        child.stdin.end();  
+      };
+    });
+  });
+
+  ipcMain.handle('create-wallet', (event, command, args, inputs) => {
+      const procPath = path.join(process.cwd(), command);
+      const child = pty.spawn(procPath, ['--create'], {
+        name: 'xterm-color',
+        cols: 80,
+        rows: 30,
+        cwd: process.env.HOME,
+        env: process.env,
+      });
+
+      child.onData((data) => {
+        console.log(data);
+        if (data.includes('Enter the private passphrase')) {
+          child.write(`${inputs[0]}\n`);
+          // setTimeout(() => {console.log(`writing ${inputs[0]}`);child.write(`${inputs[0]}`);}, 1000);
+        } else if (data.includes('Confirm passphrase:')) {
+          child.write(`${inputs[0]}\n`);
+        } else if (data.includes('encryption for public data?')) {
+          child.write('n\n');
+        } else if (data.includes('existing wallet seed')) {
+          child.write('n\n');
+        } else if (data.includes('wallet generation seed')) {
+          child.write('OK\n');
+        }
+      });
+
+      child.onExit((code) => {
+        console.error("exiting");
+      });
+  });
+  // ipcMain.handle('create-wallet', (event, command, args, inputs) => {
+  //   return new Promise((resolve, reject) => {  
+  //     const procPath = path.join(process.cwd(), command); 
+  //     console.log(procPath, args);
+  //     const child = spawn(procPath, ['--create']);  
+  //     let output = '';  
+      
+  //     child.stdout.on('data', (data) => {
+  //       output += data.toString();
+  //       resolve([child, output]);
+  //     });
+  
+  //     child.stderr.on('data', (data) => {
+  //       console.error(`Error: ${data}`);
+  //       reject(data);
+  //     });
+  
+  //     child.on('close', (code) => {
+  //       if (code == 0) {
+  //         resolve(output); 
+  //       } else {
+  //         reject(new Error(`Process exited with code: ${code}`));  
+  //       }
+  //     });
+  
+  //     child.on('error', (err) => {
+  //       reject(new Error(`Failed to start process: ${err.message}`));  
+  //     });
+
+  //     if (inputs && inputs.length > 0) {
+  //       inputs.forEach((input, index) => {
+  //         child.stdin.write(input + '\n'); 
+  //       });
+  //       child.stdin.end();  
+  //     };
+  //   });
+  // });
+
+  // ipcMain.handle('com-process', (event, child, input) => {
+  //   return new Promise((resolve, reject) => {  
+      
+  //     let output = '';
+
+  //     child.stdin.write(`${input}\n`);
+  //     resolve(void);
+  //     // child.stdout.on('data', (data) => {
+  //     //   output += data.toString();
+  //     //   resolve([child, output]);
+  //     // });
+  
+  //     // child.stderr.on('data', (data) => {
+  //     //   console.error(`Error: ${data}`);
+  //     //   resolve(data);
+  //     // });
+  
+  //     // child.on('close', (code) => {
+  //     //   if (code == 0) {
+  //     //     resolve(output); 
+  //     //   } else {
+  //     //     reject(new Error(`Process exited with code: ${code}`));  
+  //     //   }
+  //     // });
+  
+  //     // child.on('error', (err) => {
+  //     //   reject(new Error(`Failed to start process: ${err.message}`));  
+  //     // });
+
+  //     // if (inputs && inputs.length > 0) {
+  //     //   inputs.forEach((input, index) => {
+  //     //     child.stdin.write(input + '\n'); 
+  //     //   });
+  //     //   child.stdin.end();  
+  //     // };
+  //   });
+  // });
+  
 
   createWindow()
 
