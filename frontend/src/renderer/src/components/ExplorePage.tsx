@@ -1,6 +1,8 @@
 import axios from "axios";
 import { ChangeEvent, FormEvent, useState } from "react";
 
+const testProviders = ["QmHash1", "QmHash2", "QmHash3", "QmHash4", "QmHash5"]
+
 function ExplorePage(): JSX.Element {
   return (
     <div>
@@ -64,5 +66,23 @@ function SearchBar(): JSX.Element {
     </div>
   );
 };
+
+function ProviderList(): JSX.Element {
+  return (
+    <div>
+      {testProviders.map((provider) => (
+        <ProviderCard key={provider} provider={provider} />
+      ))}
+    </div>
+  )
+}
+
+function ProviderCard({ provider }): JSX.Element {
+  return (
+    <div>
+      <h3>{provider}</h3>
+    </div>
+  )
+}
 
 export default ExplorePage
