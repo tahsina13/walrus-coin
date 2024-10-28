@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import Pickaxe from '../assets/pickaxe.png'
+import { PageHeader } from './Components'
 
 function MiningPage(): JSX.Element {
   const [isMining, setIsMining] = useState<boolean>(() => {
@@ -94,8 +95,9 @@ function MiningPage(): JSX.Element {
   }
 
   return (
-    <div className="mining-container flex justify-center mt-10">
-      <div className="flex flex-col items-center">
+    <div className="mining-container pl-10">
+      <PageHeader name={'Mining'}/>
+      <div className="flex flex-col items-center justify-center mt-10">
         <div>
           <img className={`w-64 h-64 mb-4 ${isMining ? 'animate-spin' : ''}`} src={Pickaxe} alt="Mining" />
         </div>

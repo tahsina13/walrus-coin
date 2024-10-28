@@ -278,7 +278,16 @@ function TransactionsPage(): JSX.Element {
       </div>
       
       <div className="container rounded" style={{width: "90%", marginLeft: "5%", marginRight: "5%", border: "1px solid black"}}>
-        <input id = "searchbar" type="text" placeholder="Search By Hash..."  className="text-3xl w-full" onKeyUp={(event) => searchFiles(event)} />
+        <input 
+          id = "searchbar" 
+          type="text" 
+          placeholder="Search By Hash..."  
+          className="text-3xl w-full" 
+          onKeyUp={(event) => searchFiles(event)}
+          style={{
+            borderRadius: '4px',
+            border: '1px solid #ccc'
+          }} />
       </div>
       
       <div className="files">
