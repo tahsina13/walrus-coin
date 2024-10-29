@@ -29,7 +29,7 @@ function SignInLogIn(): JSX.Element {
 
   const handleLogin = async () => {
     // start wallet (ADD: check for error)
-    const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", []);
+    const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", ['--noclienttls', '--noservertls']);
 
     console.log(res);
     console.log("started btcwallet");
