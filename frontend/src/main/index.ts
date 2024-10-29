@@ -65,7 +65,7 @@ async function downloadFile(cid:String) {
 }
 
 function startBtcd() {
-  const btcd = spawn('../backend/btcd/btcd');
+  const btcd = spawn('../backend/btcd/btcd', ['--notls']);
 
   btcd.stdout.on('data', (data) => {
     console.log(`btcd stdout: ${data}`);
@@ -260,11 +260,13 @@ app.whenReady().then(() => {
           child.write('n\n');
         } else if (data.includes('wallet generation seed')) {
           child.write('OK\n');
+          console.log("LAST STEP");
         }
       });
 
       child.onExit((code) => {
         console.error("exiting");
+        console.log(code);
       });
   });
   // ipcMain.handle('create-wallet', (event, command, args, inputs) => {
