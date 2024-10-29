@@ -65,8 +65,10 @@ async function downloadFile(cid:String) {
 }
 
 function startBtcd() {
-  const btcd = spawn('../backend/btcd/btcd', ['--notls']);
+  const btcd = spawn('../backend/btcd/btcd', ['-C', '../backend/btcd/btcd.conf']);
 
+  console.log(btcd);
+  
   btcd.stdout.on('data', (data) => {
     console.log(`btcd stdout: ${data}`);
   });
