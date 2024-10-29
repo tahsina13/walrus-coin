@@ -28,7 +28,28 @@ function SignInLogIn(): JSX.Element {
   // });
 
   const handleLogin = async () => {
-    navigate('/login');
+    // start wallet (ADD: check for error)
+    const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", []);
+
+    console.log(res);
+    console.log("started btcwallet");
+
+    // wait for btcwallet to start (maybe add loading symbol of some sort?)
+    await sleep(1000);
+    console.log("started btcwallet");
+    // test rpc call
+    // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "listaccounts", params: []}, {
+    //   auth: {
+    //     username: 'user',
+    //     password: 'password'
+    //   },
+    //   headers: {
+    //     'Content-Type': 'text/plain;',
+    //   },
+    // });
+
+    // console.log(resrpc);
+    navigate('/status');
   };
 
   const handleRegister = async () => {
@@ -38,9 +59,9 @@ function SignInLogIn(): JSX.Element {
   return (
       <div style={{ backgroundColor: '#997777' }} className="container flex justify-center items-center h-screen w-screen">
           <div className="flex flex-col items-center">
-              <img src={WalrusCoinLogo} alt="WalrusCoin" className="w-64 h-64" />
-              <div className="justify-center p-4">
-                  <span className="text-white text-5xl">{"Welcom to WalrusCoin"}</span>
+              <img src={WalrusCoinLogo} alt="WalrusCoin" className="w-80 h-80" />
+              <div className="flex justify-center p-4">
+                  <span className="text-white text-5xl">{"WalrusCoin"}</span>
               </div>
               <div className="header">
               </div>
@@ -48,7 +69,7 @@ function SignInLogIn(): JSX.Element {
                   <div className="submit-container flex">
                     <div className="register-container">
                         <button 
-                            className="w-40 duration-300 mx-2 submit bg-yellow-900 text-white py-3 rounded-lg hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                            className="submit bg-yellow-900 text-white p-2 rounded hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                             type='button'
                             onClick={handleRegister}
                           >
@@ -57,7 +78,7 @@ function SignInLogIn(): JSX.Element {
                     </div>
                     <div className="submit-container flex">
                         <button 
-                          className="w-40 duration-300 mx-2 submit bg-yellow-900 text-white py-3 rounded-lg hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                          className="submit bg-yellow-900 text-white p-2 rounded hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                           type='button'
                           onClick={handleLogin}
                         >
