@@ -1,7 +1,11 @@
 import React, { useState, useEffect }from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ipcRenderer } from 'electron';
+import axios from 'axios';
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 function RegisterPage(): JSX.Element {
 
@@ -12,16 +16,42 @@ function RegisterPage(): JSX.Element {
   const navigate = useNavigate();
 
   const handleCreateWallet = async () => {
-    // await window.versions
     await window.versions.createWallet("../backend/btcwallet/btcwallet", ["--create"], [walletPassword, walletPassword, "n", "n", "OK"]);
-    returnHome();
-    // await window.versions.startProcess("../backed/btcd/cmd/btcctl", ["--wallet", "--rpcuser=user", "--rpcpass=password", "--rpcserver=localhost:8332", "listaccounts"]);
+
+    await sleep(2000);
+    await window.versions.startProcess("../backend/btcwallet/btcwallet", ['-C', '../backend/btcwallet.conf']);
+    await sleep(500);
+    // rpc call for createaccount
+    const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [walletPassword, 999999]}, {
+      auth: {
+        username: 'user',
+        password: 'password'
+      },
+      headers: {
+        'Content-Type': 'text/plain;',
+      },
+    });
+
+    console.log(passres);
+
+    // const newaccres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "createnewaccount", params: ["default_account"]}, {
+    //   auth: {
+    //     username: 'user',
+    //     password: 'password'
+    //   },
+    //   headers: {
+    //     'Content-Type': 'text/plain;',
+    //   },
+    // });
+    // console.log(newaccres);
+    navigate('/status');
+    // returnHome();
   }
-  const handleCreateAccount = async () => {
-    if (true){ // add conditions when we figure out login
-      navigate('/status');
-    }
-  }
+  // const handleCreateAccount = async () => {
+  //   if (true){ // add conditions when we figure out login
+  //     navigate('/status');
+  //   }
+  // }
   const returnHome = async () => {
     navigate('/sign-in')
   }

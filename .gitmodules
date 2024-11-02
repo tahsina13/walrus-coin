@@ -4,3 +4,6 @@
 [submodule "backend/btcwallet"]
 	path = backend/btcwallet
 	url = git@github.com:tahsina13/btcwallet.git
+[submodule "backend/cgminer"]
+	path = backend/cgminer
+	url = https://github.com/ckolivas/cgminer.git

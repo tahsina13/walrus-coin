@@ -29,14 +29,12 @@ function SignInLogIn(): JSX.Element {
 
   const handleLogin = async () => {
     // start wallet (ADD: check for error)
-    const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", ['--noclienttls', '--noservertls', '-C', '../backend/btcwallet.conf']);
-
+    const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", ['-C', '../backend/btcwallet.conf']);
+    
     console.log(res);
-    console.log("started btcwallet");
 
     // wait for btcwallet to start (maybe add loading symbol of some sort?)
     await sleep(1000);
-    console.log("started btcwallet");
     // test rpc call
     // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "listaccounts", params: []}, {
     //   auth: {

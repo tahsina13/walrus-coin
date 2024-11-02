@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Pickaxe from '../assets/pickaxe.png'
 import { PageHeader } from './Components'
+import axios from 'axios'
 
 function MiningPage(): JSX.Element {
   const [isMining, setIsMining] = useState<boolean>(() => {
@@ -52,6 +53,7 @@ function MiningPage(): JSX.Element {
 
   useEffect(() => {
     sessionStorage.setItem('isMining', String(isMining))
+    startMining()
     let timer: NodeJS.Timeout
     if (isMining) {
       timer = setInterval(() => {
@@ -92,6 +94,42 @@ function MiningPage(): JSX.Element {
     const seconds = Math.floor(duration % 60)
 
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  async function startMining() {
+    const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getaccountaddress", params: ["default"]}, {
+      auth: {
+        username: 'user',
+        password: 'password'
+      },
+      headers: {
+        'Content-Type': 'text/plain;',
+      },
+    });
+    const acc_addr = resrpc.data.result;
+    console.log(acc_addr);
+    const numblocks = 99999;
+    const maxtries = 99999;
+    const confrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "setgenerate", params: [true]}, {
+      auth: {
+        username: 'user',
+        password: 'password'
+      },
+      headers: {
+        'Content-Type': 'text/plain;',
+      },
+    });
+    console.log(confrpc);
+    const minerpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "generatetoaddress", params: [numblocks, '1AGwoXXbQeXbHxSCkjqTQWvqysa3djAU4S', maxtries]}, {
+      auth: {
+        username: 'user',
+        password: 'password'
+      },
+      headers: {
+        'Content-Type': 'text/plain;',
+      },
+    });
+    console.log(minerpc);
   }
 
   return (
