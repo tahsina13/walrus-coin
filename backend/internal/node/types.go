@@ -9,9 +9,9 @@ import (
 )
 
 type NodeService struct {
-	context context.Context
+	Host    host.Host
+	Context context.Context
 	cancel  context.CancelFunc
-	host    host.Host
 }
 
 type GetHostInfoArgs struct{}

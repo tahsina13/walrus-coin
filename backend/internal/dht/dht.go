@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/ipfs/boxo/blockstore"
 	blocks "github.com/ipfs/go-block-format"
@@ -22,7 +23,9 @@ import (
 	"github.com/tahsina13/walrus-coin/backend/internal/node"
 )
 
-const bitswapProtocolID = "/orcanet/bitswap"
+const (
+	bitswapProtocolID = "/orcanet/bitswap"
+)
 
 func NewDhtService(nodeService *node.NodeService) (*DhtService, error) {
 	if nodeService == nil {
@@ -34,12 +37,10 @@ func NewDhtService(nodeService *node.NodeService) (*DhtService, error) {
 }
 
 func (d *DhtService) InitDht(r *http.Request, args *InitDhtArgs, reply *InitDhtReply) error {
-	ctx := d.nodeService.GetContext()
-	if ctx == nil {
+	if d.nodeService.Context == nil {
 		return errors.New("context not initialized")
 	}
-	h := d.nodeService.GetHost()
-	if h == nil {
+	if d.nodeService.Host == nil {
 		return errors.New("host not initialized")
 	}
 	if d.client != nil {
@@ -51,7 +52,7 @@ func (d *DhtService) InitDht(r *http.Request, args *InitDhtArgs, reply *InitDhtR
 	bstore := blockstore.NewBlockstore(dstore)
 
 	// Set up the DHT instance
-	kadDHT, err := dht.New(ctx, h, dht.Mode(dht.ModeClient), dht.Datastore(dstore))
+	kadDHT, err := dht.New(d.nodeService.Context, d.nodeService.Host, dht.Mode(dht.ModeClient), dht.Datastore(dstore))
 	if err != nil {
 		err = fmt.Errorf("failed to create dht client: %w", err)
 		logrus.Errorf("InitDht: %v", err)
@@ -64,25 +65,23 @@ func (d *DhtService) InitDht(r *http.Request, args *InitDhtArgs, reply *InitDhtR
 	}
 
 	// Bootstrap the DHT (connect to other peers to join the DHT network)
-	err = kadDHT.Bootstrap(ctx)
-	if err != nil {
+	if err := kadDHT.Bootstrap(d.nodeService.Context); err != nil {
 		err = fmt.Errorf("failed to bootstrap dht client: %w", err)
 		logrus.Errorf("InitDht: %v", err)
 		return err
 	}
 
-	h.SetStreamHandler(bitswapProtocolID, func(s network.Stream) {
-		logrus.Debugf("new stream: %s", s.Protocol())
+	d.nodeService.Host.SetStreamHandler(bitswapProtocolID, func(s network.Stream) {
 		defer s.Close()
-		if err := handleDownloadFile(ctx, bstore, s); err != nil {
-			logrus.Errorln(err) // TODO: better logrusging?
+		if err := handleDownloadFile(d.nodeService.Context, bstore, s); err != nil {
+			logrus.Errorln(err) // TODO: better logging?
 		}
 	})
 
 	go func() {
-		<-ctx.Done()
+		<-d.nodeService.Context.Done()
 		if err := d.closeDht(); err != nil {
-			logrus.Errorln(err) // TODO: better logrusging?
+			logrus.Errorln(err) // TODO: better logging?
 		}
 	}()
 
@@ -93,9 +92,8 @@ func (d *DhtService) InitDht(r *http.Request, args *InitDhtArgs, reply *InitDhtR
 
 func (d *DhtService) closeDht() error {
 	if d.client != nil {
-		h := d.nodeService.GetHost()
-		if h != nil {
-			h.RemoveStreamHandler(bitswapProtocolID)
+		if d.nodeService.Host != nil {
+			d.nodeService.Host.RemoveStreamHandler(bitswapProtocolID)
 		}
 		if err := d.client.Close(); err != nil {
 			return fmt.Errorf("failed to close dht client: %w", err)
@@ -114,16 +112,14 @@ func (d *DhtService) CloseDht(r *http.Request, args *CloseDhtArgs, reply *CloseD
 }
 
 func (d *DhtService) GetValue(r *http.Request, args *GetValueArgs, reply *GetValueReply) error {
-	ctx := d.nodeService.GetContext()
-	if ctx == nil {
+	if d.nodeService.Context == nil {
 		return errors.New("context not initialized")
 	}
-	client := d.client
-	if client == nil {
+	if d.client == nil {
 		return errors.New("dht client not initialized")
 	}
 	dhtKey := "/orcanet/" + args.Key
-	value, err := client.GetValue(ctx, dhtKey)
+	value, err := d.client.GetValue(d.nodeService.Context, dhtKey)
 	if err != nil {
 		err = fmt.Errorf("failed to get value: %w", err)
 		logrus.Errorf("GetValue: %v", err)
@@ -134,11 +130,9 @@ func (d *DhtService) GetValue(r *http.Request, args *GetValueArgs, reply *GetVal
 }
 
 func (d *DhtService) GetProviders(r *http.Request, args *GetProvidersArgs, reply *GetProvidersReply) error {
-	ctx := d.nodeService.GetContext()
-	if ctx == nil {
+	if d.nodeService.Context == nil {
 		return errors.New("context not initialized")
 	}
-	client := d.client
 	if d.client == nil {
 		return errors.New("dht client not initialized")
 	}
@@ -148,7 +142,7 @@ func (d *DhtService) GetProviders(r *http.Request, args *GetProvidersArgs, reply
 		logrus.Errorf("GetProviders: %v", err)
 		return err
 	}
-	providers := client.FindProvidersAsync(ctx, c, args.Count)
+	providers := d.client.FindProvidersAsync(d.nodeService.Context, c, args.Count)
 
 	var addrs []peer.AddrInfo
 	for p := range providers {
@@ -163,16 +157,14 @@ func (d *DhtService) GetProviders(r *http.Request, args *GetProvidersArgs, reply
 }
 
 func (d *DhtService) PutValue(r *http.Request, args *PutValueArgs, reply *PutValueReply) error {
-	ctx := d.nodeService.GetContext()
-	if ctx == nil {
+	if d.nodeService.Context == nil {
 		return errors.New("context not initialized")
 	}
-	client := d.client
 	if d.client == nil {
 		return errors.New("dht client not initialized")
 	}
 	dhtKey := "/orcanet/" + args.Key
-	if err := client.PutValue(ctx, dhtKey, []byte(args.Value)); err != nil {
+	if err := d.client.PutValue(d.nodeService.Context, dhtKey, []byte(args.Value)); err != nil {
 		err = fmt.Errorf("failed to put value: %w", err)
 		logrus.Errorf("PutValue: %v", err)
 		return err
@@ -181,12 +173,10 @@ func (d *DhtService) PutValue(r *http.Request, args *PutValueArgs, reply *PutVal
 }
 
 func (d *DhtService) PutProvider(r *http.Request, args *PutProviderArgs, reply *PutProviderReply) error {
-	ctx := d.nodeService.GetContext()
-	if ctx == nil {
+	if d.nodeService.Context == nil {
 		return errors.New("context not initialized")
 	}
-	client := d.client
-	if client == nil {
+	if d.client == nil {
 		return errors.New("dht client not initialized")
 	}
 	c, err := cid.Decode(args.Cid)
@@ -197,7 +187,7 @@ func (d *DhtService) PutProvider(r *http.Request, args *PutProviderArgs, reply *
 	}
 
 	// Start providing the key
-	if err := client.Provide(ctx, c, true); err != nil {
+	if err := d.client.Provide(d.nodeService.Context, c, true); err != nil {
 		err = fmt.Errorf("failed to start providing key: %w", err)
 		logrus.Errorf("PutProvider: %v", err)
 		return err
@@ -206,14 +196,11 @@ func (d *DhtService) PutProvider(r *http.Request, args *PutProviderArgs, reply *
 }
 
 func (d *DhtService) UploadFile(r *http.Request, args *UploadFileArgs, reply *UploadFileReply) error {
-	ctx := d.nodeService.GetContext()
-	if ctx == nil {
+	if d.nodeService.Context == nil {
 		err := errors.New("context not initialized")
 		logrus.Errorf("UploadFile: %v", err)
-		return err
 	}
-	bstore := d.bstore
-	if bstore == nil {
+	if d.bstore == nil {
 		err := errors.New("blockstore not initialized")
 		logrus.Errorf("UploadFile: %v", err)
 		return err
@@ -251,7 +238,7 @@ func (d *DhtService) UploadFile(r *http.Request, args *UploadFileArgs, reply *Up
 	}
 
 	blk := blocks.NewBlock(data)
-	if err := bstore.Put(ctx, blk); err != nil {
+	if err := d.bstore.Put(d.nodeService.Context, blk); err != nil {
 		err = fmt.Errorf("failed to put block: %w", err)
 		logrus.Errorf("UploadFile: %v", err)
 		return err
@@ -264,13 +251,14 @@ func (d *DhtService) UploadFile(r *http.Request, args *UploadFileArgs, reply *Up
 func handleDownloadFile(ctx context.Context, bstore blockstore.Blockstore, s network.Stream) error {
 	// Read CID from stream
 	buf := bufio.NewReader(s)
-	data, err := buf.ReadString('\n')
+	rawCid, err := buf.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("failed to read cid from stream: %w", err)
 	}
+	rawCid = strings.TrimSpace(rawCid)
 
 	// Decode CID
-	c, err := cid.Decode(data)
+	c, err := cid.Decode(rawCid)
 	if err != nil {
 		return fmt.Errorf("failed to decode cid: %w", err)
 	}
@@ -291,19 +279,18 @@ func handleDownloadFile(ctx context.Context, bstore blockstore.Blockstore, s net
 }
 
 func (d *DhtService) DownloadFile(r *http.Request, args *DownloadFileArgs, reply *DownloadFileReply) error {
-	h := d.nodeService.GetHost()
-	if h == nil {
+	if d.nodeService.Host == nil {
 		err := errors.New("host not initialized")
 		logrus.Errorf("DownloadFile: %v", err)
 		return err
 	}
-	ctx := d.nodeService.GetContext()
-	if ctx == nil {
+
+	if d.nodeService.Context == nil {
 		err := errors.New("context not initialized")
 		logrus.Errorf("DownloadFile: %v", err)
-		return err
 	}
 
+	// Parse peer address
 	peerAddr, err := peer.AddrInfoFromString(args.PeerAddr)
 	if err != nil {
 		err = fmt.Errorf("failed to parse peer address: %w", err)
@@ -312,15 +299,15 @@ func (d *DhtService) DownloadFile(r *http.Request, args *DownloadFileArgs, reply
 	}
 
 	// Connect to peer with file
-	if err := h.Connect(ctx, *peerAddr); err != nil {
+	if err := d.nodeService.Host.Connect(d.nodeService.Context, *peerAddr); err != nil {
 		err = fmt.Errorf("failed to connect to peer: %w", err)
 		logrus.Errorf("DownloadFile: %v", err)
 		return err
 	}
-	defer h.Network().ClosePeer(peerAddr.ID)
+	defer d.nodeService.Host.Network().ClosePeer(peerAddr.ID)
 
 	// Open stream for file transfer
-	stream, err := h.NewStream(ctx, peerAddr.ID, bitswapProtocolID)
+	stream, err := d.nodeService.Host.NewStream(d.nodeService.Context, peerAddr.ID, bitswapProtocolID)
 	if err != nil {
 		err = fmt.Errorf("failed to create stream: %w", err)
 		logrus.Errorf("DownloadFile: %v", err)

@@ -29,8 +29,8 @@ func main() {
 	// Register RPC services here
 	s := rpc.NewServer()
 	s.RegisterCodec(json2.NewCodec(), "application/json")
-	s.RegisterService(nodeService, "NodeService")
-	s.RegisterService(dhtService, "DhtService")
+	s.RegisterService(nodeService, "node")
+	s.RegisterService(dhtService, "dht")
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

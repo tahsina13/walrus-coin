@@ -23,18 +23,12 @@ import (
 	"golang.org/x/net/context"
 )
 
-const peerExchangeProtocolID = "/orcanet/p2p"
+const (
+	peerExchangeProtocolID = "/orcanet/p2p"
+)
 
 func NewNodeService() *NodeService {
 	return &NodeService{}
-}
-
-func (n *NodeService) GetContext() context.Context {
-	return n.context
-}
-
-func (n *NodeService) GetHost() host.Host {
-	return n.host
 }
 
 func (n *NodeService) Cancel() {
@@ -44,11 +38,11 @@ func (n *NodeService) Cancel() {
 }
 
 func (n *NodeService) GetHostInfo(r *http.Request, args *GetHostInfoArgs, reply *GetHostInfoReply) error {
-	if n.host == nil {
+	if n.Host == nil {
 		return errors.New("host not initialized")
 	}
-	reply.ID = n.host.ID()
-	reply.Addrs = n.host.Addrs()
+	reply.ID = n.Host.ID()
+	reply.Addrs = n.Host.Addrs()
 	return nil
 }
 
@@ -140,7 +134,7 @@ func handlePeerExchange(h host.Host, ctx context.Context, relayAddr multiaddr.Mu
 }
 
 func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *CreateHostReply) error {
-	if n.host != nil {
+	if n.Host != nil {
 		return errors.New("host already initialized")
 	}
 
@@ -188,35 +182,33 @@ func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *C
 		return err
 	}
 
-	context, cancel := context.WithCancel(context.Background())
+	n.Host = host
+	n.Context, n.cancel = context.WithCancel(context.Background())
 
-	host.SetStreamHandler(peerExchangeProtocolID, func(s network.Stream) {
-		defer s.Close()
-		if err := handlePeerExchange(host, context, relayAddr, s); err != nil {
-			logrus.Errorln(err) // TODO: better logrusging?
-		}
-	})
+	// n.Host.SetStreamHandler(peerExchangeProtocolID, func(s network.Stream) {
+	// 	defer s.Close()
+	// 	if err := handlePeerExchange(n.Host, n.Context, relayAddr, s); err != nil {
+	// 		logrus.Errorln(err) // TODO: better logging?
+	// 	}
+	// })
 
-	if err := connectToPeer(host, context, args.RelayAddr); err != nil {
+	if err := connectToPeer(n.Host, n.Context, args.RelayAddr); err != nil {
 		n.closeHost()
 		err = fmt.Errorf("failed to connect to relay: %w", err)
 		logrus.Errorf("CreateHost: %v", err)
 		return err
 	}
-	if err := makeReservation(host, context, args.RelayAddr); err != nil {
+	if err := makeReservation(n.Host, n.Context, args.RelayAddr); err != nil {
 		n.closeHost()
 		err = fmt.Errorf("failed to make reservation: %w", err)
 		logrus.Errorf("CreateHost: %v", err)
 		return err
 	}
 	for _, addr := range args.BootstrapAddrs {
-		if err := connectToPeer(host, context, addr); err != nil {
+		if err := connectToPeer(n.Host, n.Context, addr); err != nil {
 			logrus.Errorf("CreateHost: failed to connect to bootstrap node: %v", err)
 		}
 	}
-
-	n.host = host
-	n.context, n.cancel = context, cancel
 
 	reply.ID = host.ID()
 	reply.Addrs = host.Addrs()
@@ -224,18 +216,18 @@ func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *C
 }
 
 func (n *NodeService) closeHost() error {
-	if n.host == nil {
+	if n.Host == nil {
 		return errors.New("host not initialized")
 	}
 
 	n.Cancel()
-	n.host.RemoveStreamHandler(peerExchangeProtocolID)
-	if err := n.host.Close(); err != nil {
+	// n.Host.RemoveStreamHandler(peerExchangeProtocolID)
+	if err := n.Host.Close(); err != nil {
 		return fmt.Errorf("failed to close host: %w", err)
 	}
 
-	n.host = nil
-	n.context, n.cancel = nil, nil
+	n.Host = nil
+	n.Context, n.cancel = nil, nil
 	return nil
 }
 
