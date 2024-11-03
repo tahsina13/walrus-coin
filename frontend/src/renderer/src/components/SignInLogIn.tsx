@@ -15,6 +15,7 @@ function SignInLogIn(): JSX.Element {
   // const [inputValue, setInputValue] = useState('');
   // const [inputValue2, setInputValue2] = useState('');
   const navigate = useNavigate();
+  const [hasError, setHasError] = useState(false)
 
   // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   //   setInputValue(e.target.value);
@@ -28,26 +29,36 @@ function SignInLogIn(): JSX.Element {
   // });
 
   const handleLogin = async () => {
-    // start wallet (ADD: check for error)
-    const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", ['-C', '../backend/btcwallet.conf']);
-    
-    console.log(res);
+    try {
+      // start wallet (ADD: check for error)
+      const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", ['-C', '../backend/btcwallet.conf']);
+      
+      console.log(res);
 
-    // wait for btcwallet to start (maybe add loading symbol of some sort?)
-    await sleep(1000);
-    // test rpc call
-    // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "listaccounts", params: []}, {
-    //   auth: {
-    //     username: 'user',
-    //     password: 'password'
-    //   },
-    //   headers: {
-    //     'Content-Type': 'text/plain;',
-    //   },
-    // });
+      // wait for btcwallet to start (maybe add loading symbol of some sort?)
+      await sleep(1000);
+      // test rpc call
+      // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "listaccounts", params: []}, {
+      //   auth: {
+      //     username: 'user',
+      //     password: 'password'
+      //   },
+      //   headers: {
+      //     'Content-Type': 'text/plain;',
+      //   },
+      // });
 
-    // console.log(resrpc);
-    navigate('/status');
+      // console.log(resrpc);
+      navigate('/status');
+    }
+    catch (error) {
+      setHasError(true);
+      console.log(error);
+    }
+  };
+
+  const closeErrorMessage = () => {
+    setHasError(false);
   };
 
   const handleRegister = async () => {
@@ -84,6 +95,14 @@ function SignInLogIn(): JSX.Element {
                         </button>
                     </div>
                   </div>
+              </div>
+              <div>
+                {hasError && (
+                  <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-200 text-red-600 p-2 rounded flex items-start">
+                    <span>Oops! We couldn't find your wallet. Please create a new wallet.</span>
+                    <button onClick={closeErrorMessage} className="ml-2 text-gray-500 font-bold">x</button>
+                  </div>
+                )}
               </div>
           </div>
       </div>

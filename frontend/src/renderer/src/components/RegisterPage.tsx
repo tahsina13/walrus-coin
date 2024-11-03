@@ -74,7 +74,7 @@ function RegisterPage(): JSX.Element {
 
   if(!walletExists){
     return (
-        <div className="container flex justify-center items-center h-screen w-screen">
+        <div style={{ backgroundColor: '#997777' }} className="container flex justify-center items-center h-screen w-screen">
             <div className="flex flex-col items-center">
                 <div className="header">
                     <div className="text"> Create a Wallet </div>
@@ -92,7 +92,7 @@ function RegisterPage(): JSX.Element {
                     <div className="submit-container flex">
                       <div className="register-container flex justify-end w-full">
                           <button 
-                            className="submit bg-blue-500 text-white p-2 rounded disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                            className="submit bg-yellow-900 text-white p-2 rounded hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                             type='button'
                             onClick={handleCreateWallet}
                             // disabled={!inputValue}
