@@ -8,10 +8,12 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/boxo/blockstore"
-	blocks "github.com/ipfs/go-block-format"
+	"github.com/ipfs/boxo/ipld/merkledag"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	ds "github.com/ipfs/go-datastore/sync"
@@ -49,11 +51,15 @@ func (d *DhtService) InitDht(r *http.Request, args *InitDhtArgs, reply *InitDhtR
 
 	// TODO: use database like leveldb or badger
 	dstore := ds.MutexWrap(datastore.NewMapDatastore())
-	bstore := blockstore.NewBlockstore(dstore)
+	d.bstore = blockstore.NewBlockstore(dstore)
+	d.dagService = merkledag.NewDAGService(blockservice.New(d.bstore, nil))
 
 	// Set up the DHT instance
 	kadDHT, err := dht.New(d.nodeService.Context, d.nodeService.Host, dht.Mode(dht.ModeClient), dht.Datastore(dstore))
 	if err != nil {
+		if err := d.closeDht(); err != nil {
+			logrus.Errorf("InitDht: %v", err)
+		}
 		err = fmt.Errorf("failed to create dht client: %w", err)
 		logrus.Errorf("InitDht: %v", err)
 		return err
@@ -63,9 +69,13 @@ func (d *DhtService) InitDht(r *http.Request, args *InitDhtArgs, reply *InitDhtR
 	kadDHT.Validator = record.NamespacedValidator{
 		"orcanet": &CustomValidator{}, // Add a custom validator for the "orcanet" namespace
 	}
+	d.client = kadDHT
 
 	// Bootstrap the DHT (connect to other peers to join the DHT network)
 	if err := kadDHT.Bootstrap(d.nodeService.Context); err != nil {
+		if err := d.closeDht(); err != nil {
+			logrus.Errorf("InitDht: %v", err)
+		}
 		err = fmt.Errorf("failed to bootstrap dht client: %w", err)
 		logrus.Errorf("InitDht: %v", err)
 		return err
@@ -73,8 +83,9 @@ func (d *DhtService) InitDht(r *http.Request, args *InitDhtArgs, reply *InitDhtR
 
 	d.nodeService.Host.SetStreamHandler(bitswapProtocolID, func(s network.Stream) {
 		defer s.Close()
-		if err := handleDownloadFile(d.nodeService.Context, bstore, s); err != nil {
+		if err := handleDownload(d.nodeService.Context, d.bstore, s); err != nil {
 			logrus.Errorln(err) // TODO: better logging?
+			// TODO: send error json
 		}
 	})
 
@@ -85,8 +96,6 @@ func (d *DhtService) InitDht(r *http.Request, args *InitDhtArgs, reply *InitDhtR
 		}
 	}()
 
-	d.client = kadDHT
-	d.bstore = bstore
 	return nil
 }
 
@@ -100,6 +109,8 @@ func (d *DhtService) closeDht() error {
 		}
 		d.client = nil
 	}
+	d.bstore = nil
+	d.dagService = nil
 	return nil
 }
 
@@ -113,10 +124,14 @@ func (d *DhtService) CloseDht(r *http.Request, args *CloseDhtArgs, reply *CloseD
 
 func (d *DhtService) GetValue(r *http.Request, args *GetValueArgs, reply *GetValueReply) error {
 	if d.nodeService.Context == nil {
-		return errors.New("context not initialized")
+		err := errors.New("context not initialized")
+		logrus.Errorf("GetValue: %v", err)
+		return err
 	}
 	if d.client == nil {
-		return errors.New("dht client not initialized")
+		err := errors.New("dht client not initialized")
+		logrus.Errorf("GetValue: %v", err)
+		return err
 	}
 	dhtKey := "/orcanet/" + args.Key
 	value, err := d.client.GetValue(d.nodeService.Context, dhtKey)
@@ -131,10 +146,14 @@ func (d *DhtService) GetValue(r *http.Request, args *GetValueArgs, reply *GetVal
 
 func (d *DhtService) GetProviders(r *http.Request, args *GetProvidersArgs, reply *GetProvidersReply) error {
 	if d.nodeService.Context == nil {
-		return errors.New("context not initialized")
+		err := errors.New("context not initialized")
+		logrus.Errorf("GetProviders: %v", err)
+		return err
 	}
 	if d.client == nil {
-		return errors.New("dht client not initialized")
+		err := errors.New("dht client not initialized")
+		logrus.Errorf("GetProviders: %v", err)
+		return err
 	}
 	c, err := cid.Decode(args.Cid)
 	if err != nil {
@@ -158,10 +177,14 @@ func (d *DhtService) GetProviders(r *http.Request, args *GetProvidersArgs, reply
 
 func (d *DhtService) PutValue(r *http.Request, args *PutValueArgs, reply *PutValueReply) error {
 	if d.nodeService.Context == nil {
-		return errors.New("context not initialized")
+		err := errors.New("context not initialized")
+		logrus.Errorf("PutValue: %v", err)
+		return err
 	}
 	if d.client == nil {
-		return errors.New("dht client not initialized")
+		err := errors.New("dht client not initialized")
+		logrus.Errorf("PutValue: %v", err)
+		return err
 	}
 	dhtKey := "/orcanet/" + args.Key
 	if err := d.client.PutValue(d.nodeService.Context, dhtKey, []byte(args.Value)); err != nil {
@@ -174,10 +197,14 @@ func (d *DhtService) PutValue(r *http.Request, args *PutValueArgs, reply *PutVal
 
 func (d *DhtService) PutProvider(r *http.Request, args *PutProviderArgs, reply *PutProviderReply) error {
 	if d.nodeService.Context == nil {
-		return errors.New("context not initialized")
+		err := errors.New("context not initialized")
+		logrus.Errorf("PutProvider: %v", err)
+		return err
 	}
 	if d.client == nil {
-		return errors.New("dht client not initialized")
+		err := errors.New("dht client not initialized")
+		logrus.Errorf("PutProvider: %v", err)
+		return err
 	}
 	c, err := cid.Decode(args.Cid)
 	if err != nil {
@@ -195,60 +222,82 @@ func (d *DhtService) PutProvider(r *http.Request, args *PutProviderArgs, reply *
 	return nil
 }
 
-func (d *DhtService) UploadFile(r *http.Request, args *UploadFileArgs, reply *UploadFileReply) error {
-	if d.nodeService.Context == nil {
-		err := errors.New("context not initialized")
-		logrus.Errorf("UploadFile: %v", err)
-	}
-	if d.bstore == nil {
-		err := errors.New("blockstore not initialized")
-		logrus.Errorf("UploadFile: %v", err)
-		return err
-	}
-
-	// Check if path exists
-	_, err := os.Stat(args.Path)
+func createDAGNode(ctx context.Context, bstore blockstore.Blockstore, name string) (*merkledag.ProtoNode, error) {
+	logrus.Debugf("Creating DAG node for '%s'", name)
+	info, err := os.Stat(name)
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = fmt.Errorf("file does not exist: %w", err)
 		} else {
 			err = fmt.Errorf("failed to stat file: %w", err)
 		}
-		logrus.Errorf("UploadFile: %v", err)
-		return err
+		return nil, err
 	}
 
-	// TODO: create merkle dag for directories
-	// Open the file
-	file, err := os.Open(args.Path)
+	if !info.IsDir() {
+		// TODO: chunk large files
+		bytes, err := os.ReadFile(name)
+		if err != nil {
+			err = fmt.Errorf("failed to read file '%s': %w", name, err)
+			return nil, err
+		}
+
+		node := merkledag.NodeWithData(bytes)
+		if err := bstore.Put(ctx, node); err != nil {
+			err = fmt.Errorf("failed to put node: %w", err)
+			return nil, err
+		}
+		return node, nil
+	}
+
+	node := merkledag.NodeWithData(nil)
+	entries, err := os.ReadDir(name)
 	if err != nil {
-		err = fmt.Errorf("failed to open file: %w", err)
-		logrus.Errorf("UploadFile: %v", err)
+		err = fmt.Errorf("failed to read directory '%s': %w", name, err)
+		return nil, err
+	}
+
+	for _, entry := range entries {
+		child, err := createDAGNode(ctx, bstore, filepath.Join(name, entry.Name()))
+		if err != nil {
+			return nil, err
+		}
+
+		if err := node.AddNodeLink(entry.Name(), child); err != nil {
+			err = fmt.Errorf("failed to add node link '%s': %w", entry.Name(), err)
+			return nil, err
+		}
+	}
+
+	if err := bstore.Put(ctx, node); err != nil {
+		err = fmt.Errorf("failed to put node: %w", err)
+		return nil, err
+	}
+	return node, nil
+}
+
+func (d *DhtService) Upload(r *http.Request, args *UploadArgs, reply *UploadReply) error {
+	if d.nodeService.Context == nil {
+		err := errors.New("context not initialized")
+		logrus.Errorf("Upload: %v", err)
 		return err
 	}
-	defer file.Close()
-
-	// TODO: chunk large files
-	// Read file into byte slice
-	data, err := io.ReadAll(file)
+	if d.bstore == nil {
+		err := errors.New("blockstore not initialized")
+		logrus.Errorf("Upload: %v", err)
+		return err
+	}
+	node, err := createDAGNode(d.nodeService.Context, d.bstore, args.Name)
 	if err != nil {
-		err = fmt.Errorf("failed to read file: %w", err)
-		logrus.Errorf("UploadFile: %v", err)
+		err := fmt.Errorf("failed to create dag node: %w", err)
+		logrus.Errorf("Upload: %v", err)
 		return err
 	}
-
-	blk := blocks.NewBlock(data)
-	if err := d.bstore.Put(d.nodeService.Context, blk); err != nil {
-		err = fmt.Errorf("failed to put block: %w", err)
-		logrus.Errorf("UploadFile: %v", err)
-		return err
-	}
-
-	reply.Cid = blk.Cid().String()
+	reply.Cid = node.Cid().String()
 	return nil
 }
 
-func handleDownloadFile(ctx context.Context, bstore blockstore.Blockstore, s network.Stream) error {
+func handleDownload(ctx context.Context, bstore blockstore.Blockstore, s network.Stream) error {
 	// Read CID from stream
 	buf := bufio.NewReader(s)
 	rawCid, err := buf.ReadString('\n')
@@ -278,30 +327,30 @@ func handleDownloadFile(ctx context.Context, bstore blockstore.Blockstore, s net
 	return nil
 }
 
-func (d *DhtService) DownloadFile(r *http.Request, args *DownloadFileArgs, reply *DownloadFileReply) error {
+func (d *DhtService) Download(r *http.Request, args *DownloadArgs, reply *DownloadReply) error {
 	if d.nodeService.Host == nil {
 		err := errors.New("host not initialized")
-		logrus.Errorf("DownloadFile: %v", err)
+		logrus.Errorf("Download: %v", err)
 		return err
 	}
 
 	if d.nodeService.Context == nil {
 		err := errors.New("context not initialized")
-		logrus.Errorf("DownloadFile: %v", err)
+		logrus.Errorf("Download: %v", err)
 	}
 
 	// Parse peer address
 	peerAddr, err := peer.AddrInfoFromString(args.PeerAddr)
 	if err != nil {
 		err = fmt.Errorf("failed to parse peer address: %w", err)
-		logrus.Errorf("DownloadFile: %v", err)
+		logrus.Errorf("Download: %v", err)
 		return err
 	}
 
 	// Connect to peer with file
 	if err := d.nodeService.Host.Connect(d.nodeService.Context, *peerAddr); err != nil {
 		err = fmt.Errorf("failed to connect to peer: %w", err)
-		logrus.Errorf("DownloadFile: %v", err)
+		logrus.Errorf("Download: %v", err)
 		return err
 	}
 	defer d.nodeService.Host.Network().ClosePeer(peerAddr.ID)
@@ -310,7 +359,7 @@ func (d *DhtService) DownloadFile(r *http.Request, args *DownloadFileArgs, reply
 	stream, err := d.nodeService.Host.NewStream(d.nodeService.Context, peerAddr.ID, bitswapProtocolID)
 	if err != nil {
 		err = fmt.Errorf("failed to create stream: %w", err)
-		logrus.Errorf("DownloadFile: %v", err)
+		logrus.Errorf("Download: %v", err)
 		return err
 	}
 	defer stream.Close()
@@ -319,15 +368,15 @@ func (d *DhtService) DownloadFile(r *http.Request, args *DownloadFileArgs, reply
 	_, err = stream.Write([]byte(args.Cid + "\n"))
 	if err != nil {
 		err = fmt.Errorf("failed to write cid to stream: %w", err)
-		logrus.Errorf("DownloadFile: %v", err)
+		logrus.Errorf("Download: %v", err)
 		return err
 	}
 
 	// Create file if not exists
-	file, err := os.Create(args.Path)
+	file, err := os.Create(args.Name)
 	if err != nil {
 		err = fmt.Errorf("failed to create file: %w", err)
-		logrus.Errorf("DownloadFile: %v", err)
+		logrus.Errorf("Download: %v", err)
 		return err
 	}
 	defer file.Close()
@@ -336,7 +385,7 @@ func (d *DhtService) DownloadFile(r *http.Request, args *DownloadFileArgs, reply
 	_, err = io.Copy(file, stream)
 	if err != nil {
 		err = fmt.Errorf("failed to copy stream to file: %w", err)
-		logrus.Errorf("DownloadFile: %v", err)
+		logrus.Errorf("Download: %v", err)
 		return err
 	}
 

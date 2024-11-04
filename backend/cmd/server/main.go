@@ -17,7 +17,12 @@ import (
 
 func main() {
 	port := flag.Int64("port", 8080, "Port to listen on")
+	debug := flag.Bool("debug", false, "Enable debug logging")
 	flag.Parse()
+
+	if debug != nil && *debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
 
 	// Create RPC services here
 	nodeService := node.NewNodeService()

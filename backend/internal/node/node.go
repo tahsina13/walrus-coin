@@ -1,30 +1,21 @@
 package node
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/sha256"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"strings"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/client"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
-)
-
-const (
-	peerExchangeProtocolID = "/orcanet/p2p"
 )
 
 func NewNodeService() *NodeService {
@@ -87,52 +78,6 @@ func makeReservation(h host.Host, ctx context.Context, relayAddr string) error {
 	return nil
 }
 
-func connectToPeerUsingRelay(h host.Host, ctx context.Context, relayAddr multiaddr.Multiaddr, targetPeerID string) error {
-	targetPeerID = strings.TrimSpace(targetPeerID)
-	peerMultiaddr := relayAddr.Encapsulate(multiaddr.StringCast("/p2p-circuit/p2p/" + targetPeerID))
-
-	relayedAddrInfo, err := peer.AddrInfoFromP2pAddr(peerMultiaddr)
-	if err != nil {
-		return fmt.Errorf("failed to get relayed address info: %w", err)
-	}
-	// Connect to the peer through the relay
-	if err := h.Connect(ctx, *relayedAddrInfo); err != nil {
-		return fmt.Errorf("failed to connect to peer through relay: %w", err)
-	}
-
-	logrus.Infof("Connected to peer via relay: %s", targetPeerID)
-	return nil
-}
-
-func handlePeerExchange(h host.Host, ctx context.Context, relayAddr multiaddr.Multiaddr, s network.Stream) error {
-	relayInfo, err := peer.AddrInfoFromP2pAddr(relayAddr)
-	if err != nil {
-		return err
-	}
-	buf := bufio.NewReader(s)
-	peerAddr, err := buf.ReadString('\n')
-	if err != nil && err != io.EOF {
-		return err
-	}
-	peerAddr = strings.TrimSpace(peerAddr)
-	var data map[string]interface{}
-	if err := json.Unmarshal([]byte(peerAddr), &data); err != nil {
-		return err
-	}
-	if knownPeers, ok := data["known_peers"].([]interface{}); ok {
-		for _, peer := range knownPeers {
-			if peerMap, ok := peer.(map[string]interface{}); ok {
-				if peerID, ok := peerMap["peer_id"].(string); ok {
-					if string(peerID) != string(relayInfo.ID) {
-						connectToPeerUsingRelay(h, ctx, relayAddr, peerID)
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
 func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *CreateHostReply) error {
 	if n.Host != nil {
 		return errors.New("host already initialized")
@@ -185,21 +130,18 @@ func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *C
 	n.Host = host
 	n.Context, n.cancel = context.WithCancel(context.Background())
 
-	// n.Host.SetStreamHandler(peerExchangeProtocolID, func(s network.Stream) {
-	// 	defer s.Close()
-	// 	if err := handlePeerExchange(n.Host, n.Context, relayAddr, s); err != nil {
-	// 		logrus.Errorln(err) // TODO: better logging?
-	// 	}
-	// })
-
 	if err := connectToPeer(n.Host, n.Context, args.RelayAddr); err != nil {
-		n.closeHost()
+		if err := n.closeHost(); err != nil {
+			logrus.Errorf("CreateHost: %v", err)
+		}
 		err = fmt.Errorf("failed to connect to relay: %w", err)
 		logrus.Errorf("CreateHost: %v", err)
 		return err
 	}
 	if err := makeReservation(n.Host, n.Context, args.RelayAddr); err != nil {
-		n.closeHost()
+		if err := n.closeHost(); err != nil {
+			logrus.Errorf("CreateHost: %v", err)
+		}
 		err = fmt.Errorf("failed to make reservation: %w", err)
 		logrus.Errorf("CreateHost: %v", err)
 		return err
@@ -216,17 +158,14 @@ func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *C
 }
 
 func (n *NodeService) closeHost() error {
-	if n.Host == nil {
-		return errors.New("host not initialized")
-	}
-
 	n.Cancel()
-	// n.Host.RemoveStreamHandler(peerExchangeProtocolID)
-	if err := n.Host.Close(); err != nil {
-		return fmt.Errorf("failed to close host: %w", err)
+	if n.Host != nil {
+		// n.Host.RemoveStreamHandler(peerExchangeProtocolID)
+		if err := n.Host.Close(); err != nil {
+			return fmt.Errorf("failed to close host: %w", err)
+		}
+		n.Host = nil
 	}
-
-	n.Host = nil
 	n.Context, n.cancel = nil, nil
 	return nil
 }

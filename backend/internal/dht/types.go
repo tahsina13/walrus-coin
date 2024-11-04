@@ -2,6 +2,7 @@ package dht
 
 import (
 	"github.com/ipfs/boxo/blockstore"
+	format "github.com/ipfs/go-ipld-format"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/tahsina13/walrus-coin/backend/internal/node"
@@ -11,6 +12,7 @@ type DhtService struct {
 	nodeService *node.NodeService
 	client      *dht.IpfsDHT
 	bstore      blockstore.Blockstore
+	dagService  format.NodeGetter
 }
 
 type InitDhtArgs struct{}
@@ -45,16 +47,16 @@ type PutProviderArgs struct {
 }
 type PutProviderReply struct{}
 
-type UploadFileArgs struct {
-	Path string `json:"path"`
+type UploadArgs struct {
+	Name string `json:"name"`
 }
-type UploadFileReply struct {
+type UploadReply struct {
 	Cid string `json:"cid"`
 }
 
-type DownloadFileArgs struct {
+type DownloadArgs struct {
 	PeerAddr string `json:"peerAddr"`
 	Cid      string `json:"cid"`
-	Path     string `json:"path"`
+	Name     string `json:"name"`
 }
-type DownloadFileReply struct{}
+type DownloadReply struct{}
