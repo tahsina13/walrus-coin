@@ -97,30 +97,30 @@ function MiningPage(): JSX.Element {
   }
 
   async function startMining() {
-    const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getaccountaddress", params: ["default"]}, {
-      auth: {
-        username: 'user',
-        password: 'password'
-      },
-      headers: {
-        'Content-Type': 'text/plain;',
-      },
-    });
-    const acc_addr = resrpc.data.result;
-    console.log(acc_addr);
+    // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getaccountaddress", params: ["default"]}, {
+    //   auth: {
+    //     username: 'user',
+    //     password: 'password'
+    //   },
+    //   headers: {
+    //     'Content-Type': 'text/plain;',
+    //   },
+    // });
+    // const acc_addr = resrpc.data.result;
+    // console.log(acc_addr);
     const numblocks = 99999;
     const maxtries = 99999;
-    const confrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "setgenerate", params: [true]}, {
-      auth: {
-        username: 'user',
-        password: 'password'
-      },
-      headers: {
-        'Content-Type': 'text/plain;',
-      },
-    });
-    console.log(confrpc);
-    const minerpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "generatetoaddress", params: [numblocks, '1AGwoXXbQeXbHxSCkjqTQWvqysa3djAU4S', maxtries]}, {
+    // const confrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "setgenerate", params: [true]}, {
+    //   auth: {
+    //     username: 'user',
+    //     password: 'password'
+    //   },
+    //   headers: {
+    //     'Content-Type': 'text/plain;',
+    //   },
+    // });
+    // console.log(confrpc);
+    const minerpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "generate", params: [numblocks]}, {
       auth: {
         username: 'user',
         password: 'password'

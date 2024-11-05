@@ -27,13 +27,58 @@ function SignInLogIn(): JSX.Element {
     // endpoint: 'http://localhost:8332/rpc',
   // });
 
+  // const startBtcd = async () => {
+  //   await fetch('http://localhost:3001/start-process', {
+  //     method: 'POST',
+  //   });
+  // };
+  // }
+
+  // const startBtcd = async () => {
+  //   await fetch('http://localhost:3001/start-btcd', {
+  //     method: 'POST',
+  //   });
+  // };
+
   const handleLogin = async () => {
     // start wallet (ADD: check for error)
     const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", ['-C', '../backend/btcwallet.conf']);
+    // const btcd = await startBtcd();
+    // const startBtcd = async () => {
+    //   await fetch('http://localhost:3001/start-btcd', {
+    //   method: 'POST',
+    // });
+    // };
     
+    const res2 = await window.versions.getAddress("../backend/btcd/btcd", ['-C', '../backend/btcd.conf', '--notls']);
+
+    console.log(res2);
+    console.log("started btcd and btcwallet");
+    // res.kill();
     console.log(res);
+    await sleep(5000);
+    const address = await window.versions.getItem("walletaddr");
+    console.log("ADDRESS: " + address);
+    // res.kill();
+    // get wallet address
+    // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getaccountaddress", params: ["default"]}, {
+    //   auth: {
+    //     username: 'user',
+    //     password: 'password'
+    //   },
+    //   headers: {
+    //     'Content-Type': 'text/plain;',
+    //   },
+    // });
+    // let walletaddr = resrpc.data.result;
+    // console.log(walletaddr);
+    localStorage.setItem("walletaddr", address);
+    await sleep(2000);
+    // start btcd
+    const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', '--miningaddr', address]);
 
     // wait for btcwallet to start (maybe add loading symbol of some sort?)
+    console.log(btcdres);
     await sleep(1000);
     // test rpc call
     // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "listaccounts", params: []}, {

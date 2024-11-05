@@ -9,6 +9,9 @@ import { createSign, createVerify } from 'crypto';
 import { spawn } from 'child_process';
 import pty from 'node-pty';
 import axios from 'axios';
+import Store from 'electron-store';
+
+const store = new Store();
 
 async function login(publicKey, privateKey) {
   // Generate a challenge
@@ -62,6 +65,11 @@ async function downloadFile(cid:String) {
 
   console.log(`File downloaded from IPFS: ${data}`);
   return data;
+}
+
+function getWalletAddress() {
+  const btcwallet = spawn('../backend/btcd/btcd', ['-C', '../backend/btcwallet.conf']);
+
 }
 
 function startBtcd() {
@@ -151,7 +159,7 @@ function createWindow(): void {
   }
 
   // start btcd
-  startBtcd();
+  // startBtcd();
   // startBtcwallet();
   startServer(); 
 }
@@ -241,6 +249,102 @@ app.whenReady().then(() => {
     });
   });
 
+  ipcMain.handle('get-store', (event, key) => {
+    return store.get(key);
+  });
+
+  ipcMain.handle('get-address', (event, command, args, inputs) => {
+    return new Promise((resolve, reject) => {  
+      const procPath = path.join(process.cwd(), command); 
+      console.log(procPath, [args, inputs]);
+      const child = spawn(procPath, args);
+      let output = '';
+
+      child.stdout.on('data', async (data) => {
+        console.log("stdout event: " + data);
+        if (data.includes('New websocket client')) {
+          const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getaccountaddress", params: ["default"]}, {
+            auth: {
+              username: 'user',
+              password: 'password'
+            },
+            headers: {
+              'Content-Type': 'text/plain;',
+            },
+          });
+          console.log(resrpc);
+          store.set("walletaddr", resrpc.data.result);
+          child.kill();
+        }
+        resolve(data);
+      });
+      
+      child.stderr.on('data', (data) => {
+        data = data.toString();
+        console.error(`Error event: ${data}`);
+        reject(data);
+      });
+  
+      child.on('close', (code) => {
+        if (code == 0) {
+          resolve(output); 
+        } else {
+          reject(new Error(`Process exited with code: ${code}`));  
+        }
+      });
+  
+      child.on('error', (err) => {
+        reject(new Error(`Failed to start process: ${err.message}`));  
+      });
+
+      if (inputs && inputs.length > 0) {
+        console.log("in input");
+        inputs.forEach((input, index) => {
+          // child.stdin.write(input + '\n');
+          console.log("input: " + input);
+        });
+        child.stdin.end();  
+      };
+    });
+    // const procPath = path.join(process.cwd(), command);
+    // console.log(args);
+    // console.log("command: " + command);
+    // const btcd = pty.spawn(procPath, ['-C', '/backend/btcd.conf', '--notls'], {
+    //   name: 'xterm-color',
+    //   cols: 80,
+    //   rows: 30,
+    //   cwd: process.env.HOME,
+    //   env: process.env,
+    // });
+
+    // btcd.onData(async (data) => {
+    //   console.log(data);
+    //   if (data.includes('Enter the private passphrase')) {
+    //     btcd.write(`${inputs[0]}\n`);
+    //     // setTimeout(() => {console.log(`writing ${inputs[0]}`);child.write(`${inputs[0]}`);}, 1000);
+    //   } else if (data.includes('New websocket client')) {
+    //     const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getaccountaddress", params: ["default"]}, {
+    //       auth: {
+    //         username: 'user',
+    //         password: 'password'
+    //       },
+    //       headers: {
+    //         'Content-Type': 'text/plain;',
+    //       },
+    //     });
+    //     console.log(resrpc);
+    //     console.log("HELLO");
+    //     // localStorage.setItem('walletaddr', resrpc.data.result);
+    //     btcd.kill();
+    //   }
+    // });
+
+
+    // btcd.onExit((code) => {
+    //   console.log(code);
+    // });
+  });
+
   ipcMain.handle('create-wallet', (event, command, args, inputs) => {
       const procPath = path.join(process.cwd(), command);
       const child = pty.spawn(procPath, ['--create'], {
@@ -266,6 +370,7 @@ app.whenReady().then(() => {
           child.write('OK\n');
         }
       });
+
 
       child.onExit((code) => {
         console.log(code);

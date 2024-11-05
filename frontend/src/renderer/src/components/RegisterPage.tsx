@@ -44,7 +44,7 @@ function RegisterPage(): JSX.Element {
     //   },
     // });
     // console.log(newaccres);
-    navigate('/status');
+    navigate('/sign-in');
     // returnHome();
   }
   // const handleCreateAccount = async () => {

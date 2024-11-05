@@ -14,7 +14,9 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('versions', {
       ping: () => ipcRenderer.invoke('ping'),
       startProcess: (command, args, inputs) => ipcRenderer.invoke('start-process', command, args, inputs),
-      createWallet: (command, args, inputs) => ipcRenderer.invoke('create-wallet', command, args, inputs)
+      createWallet: (command, args, inputs) => ipcRenderer.invoke('create-wallet', command, args, inputs),
+      getAddress: (command, args, inputs) => ipcRenderer.invoke('get-address', command, args, inputs),
+      getItem: (event, key) => ipcRenderer.invoke('get-store', event, key)
     })
   //   contextBridge.exposeInMainWorld('electron', {
   //     uploadFile: (file) => ipcRenderer.invoke('upload-file', file),
