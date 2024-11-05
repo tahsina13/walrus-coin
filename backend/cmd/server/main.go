@@ -36,6 +36,11 @@ func main() {
 	s.RegisterCodec(json2.NewCodec(), "application/json")
 	s.RegisterService(nodeService, "node")
 	s.RegisterService(dhtService, "dht")
+	s.RegisterAfterFunc(func(i *rpc.RequestInfo) {
+		if i.Error != nil {
+			logrus.Errorf("%s: %v", i.Method, i.Error)
+		}
+	})
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

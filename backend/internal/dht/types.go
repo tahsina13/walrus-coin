@@ -12,7 +12,7 @@ type DhtService struct {
 	nodeService *node.NodeService
 	client      *dht.IpfsDHT
 	bstore      blockstore.Blockstore
-	dagService  format.NodeGetter
+	dagService  format.DAGService
 }
 
 type InitDhtArgs struct{}
@@ -51,6 +51,25 @@ type UploadArgs struct {
 	Name string `json:"name"`
 }
 type UploadReply struct {
+	Cid string `json:"cid"`
+}
+
+type StatProtocolArgs struct {
+	Cid string `json:"cid"`
+}
+type StatProtocolReply struct {
+	Root *DAGNode `json:"root"`
+}
+
+type StatArgs struct {
+	PeerAddr string `json:"peerAddr"`
+	Cid      string `json:"cid"`
+}
+type StatReply struct {
+	Root *DAGNode `json:"root"`
+}
+
+type DownloadProtocolArgs struct {
 	Cid string `json:"cid"`
 }
 

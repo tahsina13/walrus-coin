@@ -85,31 +85,23 @@ func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *C
 
 	addr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", args.IPAddr, args.Port))
 	if err != nil {
-		err = fmt.Errorf("failed to parse address: %w", err)
-		logrus.Errorf("CreateHost: %v", err)
-		return err
+		return fmt.Errorf("failed to parse address: %w", err)
 	}
 
 	seed := []byte(args.NodeID)
 	privKey, err := generatePrivateKeyFromSeed(seed)
 	if err != nil {
-		err = fmt.Errorf("failed to generate private key: %w", err)
-		logrus.Errorf("CreateHost: %v", err)
-		return err
+		return fmt.Errorf("failed to generate private key: %w", err)
 	}
 
 	relayAddr, err := multiaddr.NewMultiaddr(args.RelayAddr)
 	if err != nil {
-		err = fmt.Errorf("failed to parse relay address: %w", err)
-		logrus.Errorf("CreateHost: %v", err)
-		return err
+		return fmt.Errorf("failed to parse relay address: %w", err)
 	}
 
 	relayInfo, err := peer.AddrInfoFromP2pAddr(relayAddr)
 	if err != nil {
-		err = fmt.Errorf("failed to get relay address info: %w", err)
-		logrus.Errorf("CreateHost: %v", err)
-		return err
+		return fmt.Errorf("failed to parse relay address: %w", err)
 	}
 
 	host, err := libp2p.New(
@@ -122,9 +114,7 @@ func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *C
 		libp2p.EnableHolePunching(),
 	)
 	if err != nil {
-		err = fmt.Errorf("failed to create host: %w", err)
-		logrus.Errorf("CreateHost: %v", err)
-		return err
+		return fmt.Errorf("failed to create host: %w", err)
 	}
 
 	n.Host = host
@@ -132,23 +122,19 @@ func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *C
 
 	if err := connectToPeer(n.Host, n.Context, args.RelayAddr); err != nil {
 		if err := n.closeHost(); err != nil {
-			logrus.Errorf("CreateHost: %v", err)
+			logrus.Errorln(err)
 		}
-		err = fmt.Errorf("failed to connect to relay: %w", err)
-		logrus.Errorf("CreateHost: %v", err)
-		return err
+		return fmt.Errorf("failed to connect to relay: %w", err)
 	}
 	if err := makeReservation(n.Host, n.Context, args.RelayAddr); err != nil {
 		if err := n.closeHost(); err != nil {
-			logrus.Errorf("CreateHost: %v", err)
+			logrus.Errorln(err)
 		}
-		err = fmt.Errorf("failed to make reservation: %w", err)
-		logrus.Errorf("CreateHost: %v", err)
-		return err
+		return fmt.Errorf("failed to make reservation: %w", err)
 	}
 	for _, addr := range args.BootstrapAddrs {
 		if err := connectToPeer(n.Host, n.Context, addr); err != nil {
-			logrus.Errorf("CreateHost: failed to connect to bootstrap node: %v", err)
+			logrus.Errorln(err)
 		}
 	}
 
@@ -160,7 +146,6 @@ func (n *NodeService) CreateHost(r *http.Request, args *CreateHostArgs, reply *C
 func (n *NodeService) closeHost() error {
 	n.Cancel()
 	if n.Host != nil {
-		// n.Host.RemoveStreamHandler(peerExchangeProtocolID)
 		if err := n.Host.Close(); err != nil {
 			return fmt.Errorf("failed to close host: %w", err)
 		}
@@ -171,9 +156,5 @@ func (n *NodeService) closeHost() error {
 }
 
 func (n *NodeService) CloseHost(r *http.Request, args *CloseHostArgs, reply *CloseHostReply) error {
-	if err := n.closeHost(); err != nil {
-		logrus.Errorf("CloseHost: %v", err)
-		return err
-	}
-	return nil
+	return n.closeHost()
 }
