@@ -5,6 +5,7 @@ import { electronAPI } from '@electron-toolkit/preload';
 import { ipcRenderer } from 'electron';
 import path from 'path';
 import axios from 'axios';
+import { LoadingButton } from '@mui/lab';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -15,7 +16,8 @@ function SignInLogIn(): JSX.Element {
   // const [inputValue, setInputValue] = useState('');
   // const [inputValue2, setInputValue2] = useState('');
   const navigate = useNavigate();
-  const [hasError, setHasError] = useState(false)
+  const [hasError, setHasError] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   //   setInputValue(e.target.value);
@@ -42,6 +44,7 @@ function SignInLogIn(): JSX.Element {
   // };
 
   const handleLogin = async () => {
+    setLoading(true);
     try {
       // start wallet (ADD: check for error)
       const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", ['-C', '../backend/btcwallet.conf']);
@@ -131,13 +134,22 @@ function SignInLogIn(): JSX.Element {
                         </button>
                     </div>
                     <div className="submit-container flex">
-                        <button 
-                          className="submit bg-yellow-900 text-white p-2 rounded hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
-                          type='button'
-                          onClick={handleLogin}
-                        >
-                          Use Existing Wallet
-                        </button>
+                    <LoadingButton
+                      loading={loading}
+                      onClick={handleLogin}
+                      variant="contained"
+                      disabled={loading}
+                      loadingPosition='end'
+                      endIcon={null}
+                      sx={{
+                        textTransform: 'none', 
+                        backgroundColor: '#78350f',  // bg-yellow-900
+                        padding: '0px 40px'
+                      }}
+                      className="bg-yellow-900 text-white rounded hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      Use Existing Wallet
+                    </LoadingButton>
                     </div>
                   </div>
               </div>
