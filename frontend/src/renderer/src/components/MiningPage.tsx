@@ -21,6 +21,10 @@ function MiningPage(): JSX.Element {
     return savedSessionDuration ? parseInt(savedSessionDuration) : 0
   })
 
+  // const hashRate:string = '0';
+
+  const [hashRate, setHashRate] = useState<string>('');
+
   type MinedBlock = {
     hash: string
     date: Date
@@ -53,12 +57,15 @@ function MiningPage(): JSX.Element {
 
   useEffect(() => {
     sessionStorage.setItem('isMining', String(isMining))
-    startMining()
+    // startMining()
     let timer: NodeJS.Timeout
     if (isMining) {
+      startMining();
       timer = setInterval(() => {
         setCurrentSessionDuration((prev) => prev + 1)
       }, 1000)
+    } else {
+      stopMining();
     }
 
     return () => clearInterval(timer)
@@ -75,6 +82,21 @@ function MiningPage(): JSX.Element {
       setMineHistory((prev) => [{ hash: generateRandomHash(), date: new Date(), reward: 5 }, ...prev])
     }
   }, [currentSessionDuration])
+
+  useEffect(() => {
+    const fetchHashRate = async () => {
+      console.log(isMining);
+      if (isMining) {
+        const rate = await getHashRate();
+        setHashRate(rate);
+      } else {
+        setHashRate('0');
+      }
+    }
+    const intervalId = setInterval(fetchHashRate, 2000);
+
+    return () => clearInterval(intervalId);
+  }, [isMining]);
 
   function generateRandomHash(length: number = 10): string {
     const characters = 'abcdef0123456789'
@@ -96,31 +118,41 @@ function MiningPage(): JSX.Element {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
   }
 
+  async function getHashRate(): Promise<string> {
+    // const numblocks = 99999;
+
+    const minerpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "gethashespersec", params: []}, {
+      auth: {
+        username: 'user',
+        password: 'password'
+      },
+      headers: {
+        'Content-Type': 'text/plain;',
+      },
+    });
+    console.log(minerpc);
+    return minerpc.data.result;
+  }
+
   async function startMining() {
-    // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getaccountaddress", params: ["default"]}, {
-    //   auth: {
-    //     username: 'user',
-    //     password: 'password'
-    //   },
-    //   headers: {
-    //     'Content-Type': 'text/plain;',
-    //   },
-    // });
-    // const acc_addr = resrpc.data.result;
-    // console.log(acc_addr);
     const numblocks = 99999;
-    const maxtries = 99999;
-    // const confrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "setgenerate", params: [true]}, {
-    //   auth: {
-    //     username: 'user',
-    //     password: 'password'
-    //   },
-    //   headers: {
-    //     'Content-Type': 'text/plain;',
-    //   },
-    // });
-    // console.log(confrpc);
+
     const minerpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "generate", params: [numblocks]}, {
+      auth: {
+        username: 'user',
+        password: 'password'
+      },
+      headers: {
+        'Content-Type': 'text/plain;',
+      },
+    });
+    console.log(minerpc);
+  }
+
+  async function stopMining() {
+    // const numblocks = 99999;
+
+    const minerpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "setgenerate", params: [false]}, {
       auth: {
         username: 'user',
         password: 'password'
@@ -148,6 +180,7 @@ function MiningPage(): JSX.Element {
         <div className="stats-container grid grid-cols-2 gap-10 p-10">
           <div className="border p-3"> {blocksMined} Blocks Mined </div>
           <div className="border p-3"> Balance: {balance} WACO</div>
+          <div className="border p-3"> Hashes Per Second: {hashRate}</div>
         </div>
         <ul style={{ height: '40%', overflowY: 'auto' }}>
           {mineHistory.map((item) => (
