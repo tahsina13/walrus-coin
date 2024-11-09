@@ -90,6 +90,7 @@ function MiningPage(): JSX.Element {
         const rate = await getHashRate();
         setHashRate(rate);
       } else {
+        console.log("off");
         setHashRate('0');
       }
     }
@@ -119,8 +120,6 @@ function MiningPage(): JSX.Element {
   }
 
   async function getHashRate(): Promise<string> {
-    // const numblocks = 99999;
-
     const minerpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "gethashespersec", params: []}, {
       auth: {
         username: 'user',
@@ -134,8 +133,28 @@ function MiningPage(): JSX.Element {
     return minerpc.data.result;
   }
 
+  async function getMiningInfo(): Promise<string> {
+    const minerpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getmininginfo", params: []}, {
+      auth: {
+        username: 'user',
+        password: 'password'
+      },
+      headers: {
+        'Content-Type': 'text/plain;',
+      },
+    });
+    console.log(minerpc);
+    const result = minerpc.data.result;
+    const blocks = result.blocks;
+    const curblocksz = result.currentblocksize;
+    const curblocktx = result.currentblocktx;
+    const hashpersec = result.hashespersec;
+    const nethasps = result.networkhashps;
+    return minerpc.data.result;
+  }
+
   async function startMining() {
-    const numblocks = 99999;
+    const numblocks = 1;
 
     const minerpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "generate", params: [numblocks]}, {
       auth: {
