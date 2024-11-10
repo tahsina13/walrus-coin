@@ -9,6 +9,7 @@ import MiningIcon from '../assets/mining-icon.png'
 import AccountIcon from '../assets/avatar.png'
 import WalrusCoinLogo from '../assets/walrus-coin-icon.png'
 import ProxyIcon2 from '../assets/proxy-icon.jpg'
+import { useState } from 'react'
 
 function Sidebar(): JSX.Element {
   const menuItems = [
@@ -21,6 +22,8 @@ function Sidebar(): JSX.Element {
     { label: 'Account', icon: AccountIcon, path: '/account' },
   ]
 
+  const [currPage, setCurPage] = useState(0);
+
   return (
     <div style={{ backgroundColor: '#997777' }} className="w-1/6 min-h-screen flex-col flex items-center">
       <div className="flex justify-center p-4 mt-6">
@@ -32,13 +35,15 @@ function Sidebar(): JSX.Element {
       <ul className="mt-0 space-y-0 w-full">
         {menuItems.map((item, index) => (
           <li key={index} className="menu-item items-center">
-            <Link to={item.path} className="flex items-center space-x-4 duration-300 hover:bg-yellow-900 py-3">
+            <Link to={item.path} 
+              className={currPage == index ? "flex items-center space-x-8 duration-300 bg-yellow-900 py-3 text-white text-2xl" : "flex items-center space-x-4 duration-300 hover:bg-yellow-900 py-3 text-white text-lg"}
+              onClick={() => setCurPage(index)}>
               {item.icon && (
-                <span className="h-12">
-                  <img src={item.icon} alt={`${item.label}`} className="w-8 h-8 ml-4 mt-2" />
+                <span className="h-12 space-x-4">
+                  <img src={item.icon} alt={`${item.label}`} className="w-8 h-8 mx-4 mt-2" />
                 </span>
               )}
-              <span className="text-white text-lg">{item.label}</span>
+              {item.label}
             </Link>
           </li>
         ))}

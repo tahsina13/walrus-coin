@@ -123,19 +123,26 @@ function SignInLogIn(): JSX.Element {
               <div className="header">
               </div>
               <div className="inputs mt-4">
+                <div className="submit-container flex h-12 space-x-10">
                   <div className="submit-container flex">
-                    <div className="register-container">
-                        <button 
-                            className="submit bg-yellow-900 text-white p-2 rounded hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
-                            type='button'
-                            onClick={handleRegister}
-                          >
-                            Create New Wallet
-                        </button>
-                    </div>
-                    <div className="submit-container flex">
                     <LoadingButton
                       loading={loading}
+                      onClick={handleRegister}
+                      variant="contained"
+                      loadingPosition='end'
+                      endIcon={null}
+                      sx={{
+                        textTransform: 'none', 
+                        backgroundColor: '#78350f',  // bg-yellow-900
+                        padding: '0px 40px'
+                      }}
+                      className="bg-yellow-900 text-white rounded over:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      Create New Wallet
+                    </LoadingButton>
+                  </div>
+                  <div className="submit-container flex">
+                    <LoadingButton
                       onClick={handleLogin}
                       variant="contained"
                       disabled={loading}
@@ -146,12 +153,12 @@ function SignInLogIn(): JSX.Element {
                         backgroundColor: '#78350f',  // bg-yellow-900
                         padding: '0px 40px'
                       }}
-                      className="bg-yellow-900 text-white rounded hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                      className="bg-yellow-900 text-white rounded over:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                     >
                       Use Existing Wallet
                     </LoadingButton>
-                    </div>
                   </div>
+                </div>
               </div>
               <div>
                 {hasError && (
