@@ -133,6 +133,7 @@ function SignInLogIn(): JSX.Element {
                       onClick={handleRegister}
                       variant="contained"
                       loadingPosition='end'
+                      disabled={existingLoading}
                       endIcon={null}
                       sx={{
                         textTransform: 'none', 
