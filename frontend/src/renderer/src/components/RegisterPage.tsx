@@ -54,6 +54,7 @@ function RegisterPage(): JSX.Element {
 
     }catch (error) {
       setHasError(true);
+      setLoading(true);
       console.log(error);
     }
   }
