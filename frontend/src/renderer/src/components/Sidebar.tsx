@@ -1,4 +1,4 @@
-import React, { Link } from 'react-router-dom'
+import React, { Link, useLocation } from 'react-router-dom'
 import StatusIcon from '../assets/status-icon.png'
 import ProxyIcon from '../assets/proxy1.png'
 import FilesIcon from '../assets/file-text.svg'
@@ -22,7 +22,10 @@ function Sidebar(): JSX.Element {
     { label: 'Account', icon: AccountIcon, path: '/account' },
   ]
 
-  const [currPage, setCurPage] = useState(0);
+  const location = useLocation()
+
+  const currentPath = location.pathname
+  const activeIndex = menuItems.findIndex(item => item.path === currentPath)
 
   return (
     <div style={{ backgroundColor: '#997777' }} className="w-1/6 min-h-screen flex-col flex items-center">
@@ -36,8 +39,8 @@ function Sidebar(): JSX.Element {
         {menuItems.map((item, index) => (
           <li key={index} className="menu-item items-center">
             <Link to={item.path} 
-              className={currPage == index ? "flex items-center space-x-8 duration-300 bg-yellow-900 py-3 text-white text-2xl" : "flex items-center space-x-4 duration-300 hover:bg-yellow-900 py-3 text-white text-lg"}
-              onClick={() => setCurPage(index)}>
+              className={activeIndex == index ? "flex items-center space-x-8 duration-300 bg-yellow-900 py-3 text-white text-2xl" : "flex items-center space-x-4 duration-300 hover:bg-yellow-900 py-3 text-white text-lg"}
+              >
               {item.icon && (
                 <span className="h-12 space-x-4">
                   <img src={item.icon} alt={`${item.label}`} className="w-8 h-8 mx-4 mt-2" />

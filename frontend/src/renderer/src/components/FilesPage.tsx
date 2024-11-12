@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import FilesIcon from '../assets/file-icon.png'
+import FilePreview from './FilePreview'
 
 function FilesPage(): JSX.Element {
   const [storage, set_storage] = useState('')
@@ -15,6 +16,23 @@ function FilesPage(): JSX.Element {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [updateDate, setUpdateDate] = useState(true)
   const defaultFileCost = localStorage.getItem('defaultFileCost') ? parseFloat(localStorage.getItem('defaultFileCost') as string) : 1
+
+  // File Preview
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [popoverFile, setPopoverFile] = useState<File | null>(null);
+
+  const handleShowPreview = (event: React.MouseEvent<HTMLDivElement>, file: File) => {
+    setAnchorEl(event.currentTarget);
+    setPopoverFile(file);
+    console.log("hi");
+  };
+
+  const handleClosePreview = () => {
+    setAnchorEl(null);
+  };
+
+  const previewOpen = Boolean(anchorEl);
+
 
   type File = {
     type: string
@@ -194,7 +212,7 @@ function FilesPage(): JSX.Element {
             .filter((file) => file.name.toLowerCase().includes(search.toLowerCase()) || file.CID.toLowerCase().includes(search.toLowerCase()))
             .map((file, index) => (
               <li key={index} className="menu-item">
-                <div className="file_row">
+                <div className="file_row" onClick={(e) => handleShowPreview(e, file)}>
                   <div className="icon_col">
                     <img src={FilesIcon} alt={file.type} className="w-10 h-10 ml-3" />
                   </div>
@@ -216,6 +234,7 @@ function FilesPage(): JSX.Element {
                           // prettier-ignore
                           set_file_list(file_list.map(f => f.CID === file.CID ? { ...f, price: Math.min(9999, Math.max(0, isNaN(parseFloat(e.target.value)) ? 0 : parseFloat(e.target.value))) } : f));
                         }}
+                        onClick={(e) => e.stopPropagation()}
                       />
                       {/* prettier-ignore */}
                     </div>
@@ -238,6 +257,14 @@ function FilesPage(): JSX.Element {
             ))}
         </ul>
       </div>
+      <FilePreview
+        open={Boolean(anchorEl)} 
+        anchorEl={anchorEl}
+        onClose={handleClosePreview}
+        file={popoverFile}
+       >
+       </FilePreview>
+       
     </div>
   )
 }
