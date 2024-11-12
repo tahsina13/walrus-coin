@@ -17,7 +17,8 @@ function SignInLogIn(): JSX.Element {
   // const [inputValue2, setInputValue2] = useState('');
   const navigate = useNavigate();
   const [hasError, setHasError] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [newLoading, setNewLoading] = useState(false);
+  const [existingLoading, setExistingLoading] = useState(false);
 
   // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   //   setInputValue(e.target.value);
@@ -44,7 +45,7 @@ function SignInLogIn(): JSX.Element {
   // };
 
   const handleLogin = async () => {
-    setLoading(true);
+    setExistingLoading(true);
     try {
       // start wallet (ADD: check for error)
       const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", ['-C', '../backend/btcwallet.conf']);
@@ -101,7 +102,7 @@ function SignInLogIn(): JSX.Element {
     }
     catch (error) {
       setHasError(true);
-      setLoading(true);
+      setExistingLoading(false);
       console.log(error);
     }
   };
@@ -111,6 +112,7 @@ function SignInLogIn(): JSX.Element {
   };
 
   const handleRegister = async () => {
+    setNewLoading(true);
     navigate('/register'); // register conditions
   };
 
@@ -127,7 +129,7 @@ function SignInLogIn(): JSX.Element {
                 <div className="submit-container flex h-12 space-x-10">
                   <div className="submit-container flex">
                     <LoadingButton
-                      loading={loading}
+                      loading={newLoading}
                       onClick={handleRegister}
                       variant="contained"
                       loadingPosition='end'
@@ -144,9 +146,10 @@ function SignInLogIn(): JSX.Element {
                   </div>
                   <div className="submit-container flex">
                     <LoadingButton
+                      loading={existingLoading}
                       onClick={handleLogin}
                       variant="contained"
-                      disabled={loading}
+                      disabled={existingLoading}
                       loadingPosition='end'
                       endIcon={null}
                       sx={{

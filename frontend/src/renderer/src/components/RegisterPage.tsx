@@ -54,7 +54,7 @@ function RegisterPage(): JSX.Element {
 
     }catch (error) {
       setHasError(true);
-      setLoading(true);
+      setLoading(false);
       console.log(error);
     }
   }
@@ -69,7 +69,6 @@ function RegisterPage(): JSX.Element {
 
   const closeErrorMessage = () => {
     setHasError(false);
-    setLoading(false);
   };
 
   
