@@ -13,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/tahsina13/walrus-coin/backend/internal/dht"
 	"github.com/tahsina13/walrus-coin/backend/internal/node"
+	"github.com/tahsina13/walrus-coin/backend/internal/proxy"
 )
 
 func main() {
@@ -30,12 +31,14 @@ func main() {
 	if err != nil {
 		logrus.Fatal(err)
 	}
+	proxyService := proxy.NewProxyService(nodeService)
 
 	// Register RPC services here
 	s := rpc.NewServer()
 	s.RegisterCodec(json2.NewCodec(), "application/json")
 	s.RegisterService(nodeService, "node")
 	s.RegisterService(dhtService, "dht")
+	s.RegisterService(proxyService, "proxy")
 	s.RegisterAfterFunc(func(i *rpc.RequestInfo) {
 		if i.Error != nil {
 			logrus.Errorf("%s: %v", i.Method, i.Error)
@@ -50,8 +53,8 @@ func main() {
 		fmt.Println("Shutting down...")
 		os.Exit(0)
 	}()
-
+	http.HandleFunc("/", proxyService.Proxy)
 	http.Handle("/rpc", s)
-	logrus.Infof("Server listening on :%d\n", *port)
+	logrus.Infof("Server listening on :%d", *port)
 	logrus.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
