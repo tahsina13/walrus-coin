@@ -12,10 +12,10 @@ function MiningPage(): JSX.Element {
     const savedBlocksMined = sessionStorage.getItem('blocksMined')
     return savedBlocksMined ? parseInt(savedBlocksMined) : 0
   })
-  const [balance, setBalance] = useState<number>(() => {
-    const savedBalance = localStorage.getItem('balance')
-    return savedBalance ? parseFloat(savedBalance) : 10
-  })
+  // const [balance, setBalance] = useState<number>(() => {
+  //   const savedBalance = localStorage.getItem('balance')
+  //   return savedBalance ? parseFloat(savedBalance) : 10
+  // })
   const [currentSessionDuration, setCurrentSessionDuration] = useState<number>(() => {
     const savedSessionDuration = sessionStorage.getItem('currentSessionDuration')
     return savedSessionDuration ? parseInt(savedSessionDuration) : 0
@@ -23,40 +23,85 @@ function MiningPage(): JSX.Element {
 
   // const hashRate:string = '0';
 
-  const [hashRate, setHashRate] = useState<string>('');
+  const [hashRate, setHashRate] = useState<string>('0');
 
   type MinedBlock = {
     hash: string
-    date: Date
-    reward: number
+    date: string
   }
 
-  const minedBlocks: MinedBlock[] = [
-    {
-      hash: '00000000df47bd925f',
-      date: new Date(Date.now() - 60 * 1000),
-      reward: 5,
-    },
-    {
-      hash: '0000000008afeec166',
-      date: new Date(Date.now() - 60 * 60 * 1000),
-      reward: 5,
-    },
-    {
-      hash: '0000000027999560b9',
-      date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-      reward: 5,
-    },
-  ]
+  // let minedBlocks: Array<MinedBlock> = [
+    // {
+    //   hash: '00000000df47bd925f',
+    //   date: new Date(Date.now() - 60 * 1000),
+    //   reward: 5,
+    // },
+    // {
+    //   hash: '0000000008afeec166',
+    //   date: new Date(Date.now() - 60 * 60 * 1000),
+    //   reward: 5,
+    // },
+    // {
+    //   hash: '0000000027999560b9',
+    //   date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    //   reward: 5,
+    // },
+  // ]
 
-  const [mineHistory, setMineHistory] = useState<MinedBlock[]>(minedBlocks)
+  const [minedBlocks, setMinedBlocks] = useState<Array<MinedBlock>>([]);
+  const [balance, setBalance] = useState<string>('0');
 
   const toggleMining = () => {
     setIsMining((prev) => !prev)
   }
 
   useEffect(() => {
+    const fetchWalletBalance = async () => {
+      try {
+        // const response = await fetch('https://api.example.com/data');
+        const balance = await getWalletBalance();
+        setBalance(balance);
+        // const result = await response.json();
+        // setData(result);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    const fetchTransactions = async () => {
+        try {
+          // const response = await fetch('https://api.example.com/data');
+          const transactions = await getTransactions();
+          // let disptrans = [];
+          // for (let i=0; i<transactions.length; i++) {
+            // if (transactions[i].category == "generate") {
+              // let minedBlock = {
+              //   hash: transactions[i].blockhash,
+              //   date: transactions[i].time,
+              // }
+              // disptrans.push(transactions[i]);
+            // }
+          // }
+          setMinedBlocks(transactions);
+          // minedBlocks = transactions
+          // const result = await response.json();
+          // setData(result);
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        }
+          
+    };
+
+    fetchWalletBalance();
+    fetchTransactions();
+  }, []); // Empty depend
+
+  useEffect(() => {
     sessionStorage.setItem('isMining', String(isMining))
+
+    // const balance = await getWalletBalance();
+    // setBalance(balance);
+    // setBalance
     // startMining()
     let timer: NodeJS.Timeout
     if (isMining) {
@@ -75,11 +120,11 @@ function MiningPage(): JSX.Element {
     sessionStorage.setItem('currentSessionDuration', String(currentSessionDuration))
 
     if (currentSessionDuration % 5 === 0 && currentSessionDuration > 0) {
-      sessionStorage.setItem('blocksMined', String(blocksMined + 1))
-      localStorage.setItem('balance', String(balance + 5))
-      setBlocksMined((prev) => prev + 1)
-      setBalance((prev) => prev + 5)
-      setMineHistory((prev) => [{ hash: generateRandomHash(), date: new Date(), reward: 5 }, ...prev])
+      sessionStorage.setItem('blocksMined', String(blocksMined))
+      localStorage.setItem('balance', String(balance))
+      setBlocksMined((prev) => prev)
+      setBalance((prev) => prev)
+      // setMineHistory((prev) => [{ hash: generateRandomHash(), date: new Date(), reward: 5 }, ...prev])
     }
   }, [currentSessionDuration])
 
@@ -89,6 +134,10 @@ function MiningPage(): JSX.Element {
       if (isMining) {
         const rate = await getHashRate();
         setHashRate(rate);
+        const balance = await getWalletBalance();
+        setBalance(balance);
+        const transactions = await getTransactions();
+        setMinedBlocks(transactions);
       } else {
         console.log("off");
         setHashRate('0');
@@ -98,6 +147,7 @@ function MiningPage(): JSX.Element {
 
     return () => clearInterval(intervalId);
   }, [isMining]);
+
 
   function generateRandomHash(length: number = 10): string {
     const characters = 'abcdef0123456789'
@@ -119,6 +169,34 @@ function MiningPage(): JSX.Element {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
   }
 
+  async function getTransactions(): Promise<Array<MinedBlock>> {
+    const transrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "listtransactions", params: []}, {
+      auth: {
+        username: 'user',
+        password: 'password'
+      },
+      headers: {
+        'Content-Type': 'text/plain;',
+      },
+    });
+    let transactions = transrpc.data.result;
+    let disptrans: Array<MinedBlock> = [];
+    console.log(transactions);
+    for (let i=0; i<transactions.length; i++) {
+      if (transactions[i].category == "generate") {
+        let minedBlock = {
+          hash: transactions[i].blockhash,
+          date: new Date(transactions[i].time * 1000).toLocaleTimeString() + " " + new Date(transactions[i].time * 1000).toLocaleDateString(),
+        }
+        console.log(minedBlock.date);
+        disptrans.push(minedBlock);
+      }
+    }
+    // console.log(transrpc);
+    console.log(disptrans);
+    return disptrans;
+  }
+
   async function getHashRate(): Promise<string> {
     const minerpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "gethashespersec", params: []}, {
       auth: {
@@ -131,6 +209,20 @@ function MiningPage(): JSX.Element {
     });
     console.log(minerpc);
     return minerpc.data.result;
+  }
+
+  async function getWalletBalance(): Promise<string> {
+    const balancerpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getbalance", params: []}, {
+      auth: {
+        username: 'user',
+        password: 'password'
+      },
+      headers: {
+        'Content-Type': 'text/plain;',
+      },
+    });
+    console.log(balancerpc);
+    return balancerpc.data.result;
   }
 
   async function getMiningInfo(): Promise<string> {
@@ -202,9 +294,9 @@ function MiningPage(): JSX.Element {
           <div className="border p-3"> Hashes Per Second: {hashRate}</div>
         </div>
         <ul style={{ height: '40%', overflowY: 'auto' }}>
-          {mineHistory.map((item) => (
+          {minedBlocks.map((item) => (
             <li key={item.hash}>
-              Block {item.hash} mined at {item.date.toLocaleString()} for a reward of {item.reward} WACO
+              Block {item.hash.substring(0, 5) + '-' + item.hash.substring(item.hash.length-5, item.hash.length)} mined at {item.date} for a reward of {50} WACO
             </li>
           ))}
         </ul>
