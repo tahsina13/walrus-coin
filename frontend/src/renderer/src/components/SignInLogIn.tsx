@@ -17,7 +17,8 @@ function SignInLogIn(): JSX.Element {
   // const [inputValue2, setInputValue2] = useState('');
   const navigate = useNavigate();
   const [hasError, setHasError] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [newLoading, setNewLoading] = useState(false);
+  const [existingLoading, setExistingLoading] = useState(false);
 
   // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   //   setInputValue(e.target.value);
@@ -44,7 +45,7 @@ function SignInLogIn(): JSX.Element {
   // };
 
   const handleLogin = async () => {
-    setLoading(true);
+    setExistingLoading(true);
     try {
       // start wallet (ADD: check for error)
       const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", ['-C', '../backend/btcwallet.conf']);
@@ -101,6 +102,7 @@ function SignInLogIn(): JSX.Element {
     }
     catch (error) {
       setHasError(true);
+      setExistingLoading(false);
       console.log(error);
     }
   };
@@ -110,6 +112,7 @@ function SignInLogIn(): JSX.Element {
   };
 
   const handleRegister = async () => {
+    setNewLoading(true);
     navigate('/register'); // register conditions
   };
 
@@ -123,22 +126,31 @@ function SignInLogIn(): JSX.Element {
               <div className="header">
               </div>
               <div className="inputs mt-4">
+                <div className="submit-container flex h-12 space-x-10">
                   <div className="submit-container flex">
-                    <div className="register-container">
-                        <button 
-                            className="submit bg-yellow-900 text-white p-2 rounded hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
-                            type='button'
-                            onClick={handleRegister}
-                          >
-                            Create New Wallet
-                        </button>
-                    </div>
-                    <div className="submit-container flex">
                     <LoadingButton
-                      loading={loading}
+                      loading={newLoading}
+                      onClick={handleRegister}
+                      variant="contained"
+                      loadingPosition='end'
+                      disabled={existingLoading}
+                      endIcon={null}
+                      sx={{
+                        textTransform: 'none', 
+                        backgroundColor: '#78350f',  // bg-yellow-900
+                        padding: '0px 40px'
+                      }}
+                      className="bg-yellow-900 text-white rounded over:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      Create New Wallet
+                    </LoadingButton>
+                  </div>
+                  <div className="submit-container flex">
+                    <LoadingButton
+                      loading={existingLoading}
                       onClick={handleLogin}
                       variant="contained"
-                      disabled={loading}
+                      disabled={existingLoading}
                       loadingPosition='end'
                       endIcon={null}
                       sx={{
@@ -146,12 +158,12 @@ function SignInLogIn(): JSX.Element {
                         backgroundColor: '#78350f',  // bg-yellow-900
                         padding: '0px 40px'
                       }}
-                      className="bg-yellow-900 text-white rounded hover:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                      className="bg-yellow-900 text-white rounded over:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                     >
                       Use Existing Wallet
                     </LoadingButton>
-                    </div>
                   </div>
+                </div>
               </div>
               <div>
                 {hasError && (

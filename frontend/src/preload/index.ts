@@ -18,13 +18,6 @@ if (process.contextIsolated) {
       getAddress: (command, args, inputs) => ipcRenderer.invoke('get-address', command, args, inputs),
       getItem: (event, key) => ipcRenderer.invoke('get-store', event, key)
     })
-  //   contextBridge.exposeInMainWorld('electron', {
-  //     uploadFile: (file) => ipcRenderer.invoke('upload-file', file),
-  //     onFileUploaded: (callback) => ipcRenderer.on('file-uploaded', callback),
-  //     onFileUploadError: (callback) => ipcRenderer.on('file-upload-error', callback),
-  //     register: () => ipcRenderer.invoke('register'),
-  //     login: (publicKey, privateKey) => ipcRenderer.invoke('login', { publicKey, privateKey }),
-  // });
   } catch (error) {
     console.error(error)
   }

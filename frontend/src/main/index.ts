@@ -13,60 +13,6 @@ import Store from 'electron-store';
 
 const store = new Store();
 
-async function login(publicKey, privateKey) {
-  // Generate a challenge
-  const challenge = randomBytes(32).toString('hex');
-  
-  // Sign the challenge
-  const sign = createSign('SHA256');
-  sign.update(challenge);
-  const signature = sign.sign(privateKey, 'hex');
-
-  return { challenge, signature }; // Send this to the server
-}
-
-async function verifyLogin(publicKey, signature, challenge) {
-  const verify = createVerify('SHA256');
-  verify.update(challenge);
-  const isVerified = verify.verify(publicKey, signature, 'hex');
-  
-  if (isVerified) {
-    console.log("Login successful!");
-  } else {
-    console.log("Login failed!");
-  }
-  return isVerified;
-}
-
-
-// async function generateKeyPair() {
-//   const privateKey = randomBytes(32).toString('hex');
-//   const publicKey = generatePublicKey(privateKey);
-//   return { privateKey, publicKey };
-// }
-
-// async function generatePublicKey(privateKey: String){
-
-// }
-
-async function uploadFile(file:Buffer) {
-  const { path } = await ipfs.add(file);
-  console.log(`${file} uploaded to IPFS with path: ${path}`)
-  return path;
-}
-
-async function downloadFile(cid:String) {
-  const stream = ipfs.cat(cid);
-  let data = '';
-
-  for await (const chunk of stream) {
-    data += chunk.toString();
-  }
-
-  console.log(`File downloaded from IPFS: ${data}`);
-  return data;
-}
-
 function getWalletAddress() {
   const btcwallet = spawn('../backend/btcd/btcd', ['-C', '../backend/btcwallet.conf']);
 
@@ -177,33 +123,6 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
-
-  // initIPFS().then(getIPFSIdentity);
-
-  ipcMain.on('register', (event) => {
-    const keys = generateKeys();
-    event.reply('registration-result', { publicKey: keys.publicKey });
-  });
-  
-  ipcMain.on('login', async (event, { publicKey, privateKey }) => {
-    const { challenge, signature } = await login(publicKey, privateKey);
-    
-    const isVerified = await verifyLogin(publicKey, signature, challenge);
-    event.reply('login-result', { success: isVerified });
-  });
-  
-
-  ipcMain.on('upload-file', async (event, file) => {
-    try {
-      const cid = await uploadFile(file);
-      event.reply('file-uploaded', cid);
-    }
-    catch (error) {
-      console.log('Upload failed: ', error)
-      event.reply('file-upload-error', error.message)
-    }
-  })
-
 
   // IPC test
   ipcMain.handle('ping', () => console.log('pong'))
