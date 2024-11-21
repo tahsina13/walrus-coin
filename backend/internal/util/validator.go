@@ -1,4 +1,4 @@
-package dht
+package util
 
 type CustomValidator struct{}
 
