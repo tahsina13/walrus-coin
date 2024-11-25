@@ -170,18 +170,20 @@ function MiningPage(): JSX.Element {
   }
 
   async function getTransactions(): Promise<Array<MinedBlock>> {
-    const transrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "listtransactions", params: []}, {
-      auth: {
-        username: 'user',
-        password: 'password'
-      },
-      headers: {
-        'Content-Type': 'text/plain;',
-      },
-    });
-    let transactions = transrpc.data.result;
+    // const transrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "listtransactions", params: []}, {
+    //   auth: {
+    //     username: 'user',
+    //     password: 'password'
+    //   },
+    //   headers: {
+    //     'Content-Type': 'text/plain;',
+    //   },
+    // });
+    // let transactions = transrpc.data.result;
+    let transactions = await window.versions.getTransactions();
     let disptrans: Array<MinedBlock> = [];
     console.log(transactions);
+    let mineCount = 0
     for (let i=0; i<transactions.length; i++) {
       if (transactions[i].category == "generate") {
         let minedBlock = {
@@ -190,6 +192,10 @@ function MiningPage(): JSX.Element {
         }
         console.log(minedBlock.date);
         disptrans.push(minedBlock);
+        mineCount += 1;
+        if (mineCount >= 5) {
+          break;
+        }
       }
     }
     // console.log(transrpc);

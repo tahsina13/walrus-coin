@@ -10,6 +10,7 @@ import { spawn } from 'child_process';
 import pty from 'node-pty';
 import axios from 'axios';
 import Store from 'electron-store';
+import fs from 'fs';
 
 const store = new Store();
 
@@ -19,7 +20,7 @@ function getWalletAddress() {
 }
 
 function startBtcd() {
-  const btcd = spawn('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls']);
+  const btcd = spawn('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', '--addrindex']);
 
   btcd.stdout.on('data', (data) => {
     console.log(`btcd stdout: ${data}`);
@@ -134,6 +135,7 @@ app.whenReady().then(() => {
       const child = spawn(procPath, args);
       let output = '';
 
+      console.log("STARTING SOMETHING AGAIN");
       child.stdout.on('data', (data) => {
         console.log("stdout event: " + data);
         resolve(data);
@@ -172,13 +174,74 @@ app.whenReady().then(() => {
     return store.get(key);
   });
 
-  ipcMain.handle('get-address', (event, command, args, inputs) => {
-    return new Promise((resolve, reject) => {  
-      const procPath = path.join(process.cwd(), command); 
-      console.log(procPath, [args, inputs]);
-      const child = spawn(procPath, args);
-      let output = '';
+  ipcMain.on('start-wallet', (event) => {
+    // return new Promise((resolve, reject) => {  
+      // const procPath = path.join(process.cwd(), command); 
+      // console.log(procPath, [args, inputs]);
+      // const child = spawn("../backend/btcd/btcd", ['-C', '../backend/btcd.conf', '--notls'], {shell: true});
+      const child = spawn("../backend/btcwallet/btcwallet", ['-C', '../backend/btcwallet.conf'], {shell: true});
+      child.stdout.on('data', async (data) => {
+        console.log("stdout event: " + data);
+        if (data.includes('Opened wallet')) {
+          // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getaccountaddress", params: ["default"]}, {
+          //   auth: {
+          //     username: 'user',
+          //     password: 'password'
+          //   },
+          //   headers: {
+          //     'Content-Type': 'text/plain;',
+          //   },
+          // });
+          // console.log(resrpc);
+          // address = resrpc.data.result;
+          // store.set("walletaddr", resrpc.data.result);
+          // console.log("ADDRESS? : " + address);
+          // event.sender.send("address-rec", resrpc.data.result);
+          // child.kill();
+          event.sender.send("wallet-started");
+        }
+        // resolve(data);
+      });
+      
+      child.stderr.on('data', (data) => {
+        data = data.toString();
+        console.error(`Error event: ${data}`);
+        // reject(data);
+      });
 
+      // child.on('close', (code) => {
+      // });
+  
+      // child.on('close', (code) => {
+      //   if (code == 0) {
+      //     resolve(output); 
+      //   } else {
+      //     reject(new Error(`Process exited with code: ${code}`));  
+      //   }
+      // });
+  
+      // child.on('error', (err) => {
+      //   reject(new Error(`Failed to start process: ${err.message}`));  
+      // });
+
+      // if (inputs && inputs.length > 0) {
+      //   console.log("in input");
+      //   inputs.forEach((input, index) => {
+      //     // child.stdin.write(input + '\n');
+      //     console.log("input: " + input);
+      //   });
+      //   child.stdin.end();  
+      // };
+    // });
+  });
+
+  ipcMain.on('get-address', (event) => {
+    // return new Promise((resolve, reject) => {  
+      console.log("GETTING ADDRESS RN");
+      // const procPath = path.join(process.cwd(), command); 
+      // console.log(procPath, [args, inputs]);
+      const child = spawn("../backend/btcd/btcd", ['-C', '../backend/btcd.conf', '--notls'], {shell: true});
+      let address = '';
       child.stdout.on('data', async (data) => {
         console.log("stdout event: " + data);
         if (data.includes('New websocket client')) {
@@ -192,75 +255,85 @@ app.whenReady().then(() => {
             },
           });
           console.log(resrpc);
-          store.set("walletaddr", resrpc.data.result);
+          address = resrpc.data.result;
+          console.log("ADDRESS? : " + address);
           child.kill();
         }
-        resolve(data);
       });
       
       child.stderr.on('data', (data) => {
         data = data.toString();
         console.error(`Error event: ${data}`);
-        reject(data);
+      });
+
+      child.on('close', (code) => {
+        event.sender.send("address-rec", address);
+      });
+  
+      // child.on('close', (code) => {
+      //   if (code == 0) {
+      //     resolve(output); 
+      //   } else {
+      //     reject(new Error(`Process exited with code: ${code}`));  
+      //   }
+      // });
+  
+      // child.on('error', (err) => {
+      //   reject(new Error(`Failed to start process: ${err.message}`));  
+      // });
+
+      // if (inputs && inputs.length > 0) {
+      //   console.log("in input");
+      //   inputs.forEach((input, index) => {
+      //     // child.stdin.write(input + '\n');
+      //     console.log("input: " + input);
+      //   });
+      //   child.stdin.end();  
+      // };
+    // });
+  });
+    
+
+  ipcMain.on('get-transactions', (event) => {
+    // return new Promise((resolve, reject) => {  
+      // const procPath = path.join(process.cwd(), command); 
+      // console.log(procPath, [args]);
+      // { shell: true }?
+      const child = spawn('../backend/btcd/cmd/btcctl/btcctl', ['--wallet', 'listtransactions', '"*"', "10000", "0"], { shell: true });
+
+      const outputFileStream = fs.createWriteStream('../backend/transactions.json');
+
+      child.stdout.pipe(outputFileStream); 
+      
+      // child.stderr.on('data', (data) => {
+      //   data = data.toString();
+      //   console.error(`Error event: ${data}`);
+      //   reject(data);
+      // });
+      child.stderr.on('data', (err) => {
+        console.log("TRANSACT ERROR:" + err);
       });
   
       child.on('close', (code) => {
-        if (code == 0) {
-          resolve(output); 
-        } else {
-          reject(new Error(`Process exited with code: ${code}`));  
-        }
+        outputFileStream.end(() => {
+          if (code == 0) {
+            event.sender.send('transactions-rec', '../backend/transactions');
+          } else {
+            console.log("exiting with code: " + code);
+            event.sender.send('transactions-rec', 'hey');
+          }
+        });
+        // if (code == 0) {
+        //   resolve(output); 
+        // } else {
+        //   reject(new Error(`Process exited with code: ${code}`));  
+        // }
       });
   
-      child.on('error', (err) => {
-        reject(new Error(`Failed to start process: ${err.message}`));  
-      });
+      // child.on('error', (err) => {
+      //   reject(new Error(`Failed to start process: ${err.message}`));  
+      // });
 
-      if (inputs && inputs.length > 0) {
-        console.log("in input");
-        inputs.forEach((input, index) => {
-          // child.stdin.write(input + '\n');
-          console.log("input: " + input);
-        });
-        child.stdin.end();  
-      };
-    });
-    // const procPath = path.join(process.cwd(), command);
-    // console.log(args);
-    // console.log("command: " + command);
-    // const btcd = pty.spawn(procPath, ['-C', '/backend/btcd.conf', '--notls'], {
-    //   name: 'xterm-color',
-    //   cols: 80,
-    //   rows: 30,
-    //   cwd: process.env.HOME,
-    //   env: process.env,
-    // });
-
-    // btcd.onData(async (data) => {
-    //   console.log(data);
-    //   if (data.includes('Enter the private passphrase')) {
-    //     btcd.write(`${inputs[0]}\n`);
-    //     // setTimeout(() => {console.log(`writing ${inputs[0]}`);child.write(`${inputs[0]}`);}, 1000);
-    //   } else if (data.includes('New websocket client')) {
-    //     const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getaccountaddress", params: ["default"]}, {
-    //       auth: {
-    //         username: 'user',
-    //         password: 'password'
-    //       },
-    //       headers: {
-    //         'Content-Type': 'text/plain;',
-    //       },
-    //     });
-    //     console.log(resrpc);
-    //     console.log("HELLO");
-    //     // localStorage.setItem('walletaddr', resrpc.data.result);
-    //     btcd.kill();
-    //   }
-    // });
-
-
-    // btcd.onExit((code) => {
-    //   console.log(code);
     // });
   });
 
@@ -295,6 +368,8 @@ app.whenReady().then(() => {
         console.log(code);
       });
   });
+
+  
   // ipcMain.handle('create-wallet', (event, command, args, inputs) => {
   //   return new Promise((resolve, reject) => {  
   //     const procPath = path.join(process.cwd(), command); 

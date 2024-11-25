@@ -48,23 +48,27 @@ function SignInLogIn(): JSX.Element {
     setExistingLoading(true);
     try {
       // start wallet (ADD: check for error)
-      const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", ['-C', '../backend/btcwallet.conf']);
+      // const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", ['-C', '../backend/btcwallet.conf']);
+      const res = await window.versions.startWallet();
       // const btcd = await startBtcd();
       // const startBtcd = async () => {
       //   await fetch('http://localhost:3001/start-btcd', {
       //   method: 'POST',
       // });
       // };
-      
-      const res2 = await window.versions.getAddress("../backend/btcd/btcd", ['-C', '../backend/btcd.conf', '--notls']);
+      // const res2 = await window.versions.getAddress("../backend/btcd/btcd", ['-C', '../backend/btcd.conf', '--notls']);
 
-      console.log(res2);
+      // console.log(res2);
       console.log("started btcd and btcwallet");
       // res.kill();
-      console.log(res);
-      await sleep(5000);
-      const address = await window.versions.getItem("walletaddr");
-      console.log("ADDRESS: " + address);
+      // console.log(res);
+      // await sleep(5000);
+      const address_res = await window.versions.getAddress();
+      console.log("returned from res");
+
+      // const address = await window.versions.getItem("walletaddr");
+      // console.log("ADDRESS: " + address);
+
       // res.kill();
       // get wallet address
       // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getaccountaddress", params: ["default"]}, {
@@ -78,14 +82,26 @@ function SignInLogIn(): JSX.Element {
       // });
       // let walletaddr = resrpc.data.result;
       // console.log(walletaddr);
-      localStorage.setItem("walletaddr", address);
-      await sleep(2000);
+      localStorage.setItem("walletaddr", address_res);
+      // await sleep(2000);
       // start btcd
-      const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', '--miningaddr', address]);
+      console.log("STARTING BTCD AGAIN IN SIGN IN");
+      const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', , '--txindex', '--addrindex', '--miningaddr', address_res]);
 
       // wait for btcwallet to start (maybe add loading symbol of some sort?)
       console.log(btcdres);
-      await sleep(1000);
+      // await sleep(1000);
+
+      const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: ["password", 99999999]}, {
+        auth: {
+          username: 'user',
+          password: 'password'
+        },
+        headers: {
+          'Content-Type': 'text/plain;',
+        },
+      });
+      console.log("passphrase: " + passres);
       // test rpc call
       // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "listaccounts", params: []}, {
       //   auth: {
