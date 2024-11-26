@@ -5,6 +5,7 @@ import FilesIcon from '../assets/file-icon.png'
 import axios from 'axios'
 import { ipcRenderer } from 'electron';
 import { open, readFile } from 'fs'
+import { useNavigate } from 'react-router-dom';
 // import fs from 'browserify-fs';
 
 
@@ -15,6 +16,8 @@ function TransactionsPage(): JSX.Element {
   const [search, setSearch] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [updateDate, setUpdateDate] = useState(true);
+
+  const navigate = useNavigate();
 
   // let transactions = [];
 
@@ -126,6 +129,11 @@ function TransactionsPage(): JSX.Element {
     setSelectedFile(event.target.files[0]);
   };
 
+  const handleRouteSend = event => {
+    navigate('/send');
+    // setSelectedFile(event.target.files[0]);k
+  };
+
   function searchFiles(event){
     setSearch(event.target.value)
   }
@@ -135,6 +143,7 @@ function TransactionsPage(): JSX.Element {
   }
 
   useEffect(() => {
+    console.log("trans use effect");
     const fetchTransactions = async () => {
       try {
         const transactions = await getTransactions();
@@ -174,24 +183,38 @@ function TransactionsPage(): JSX.Element {
   // }, [])
 
   //update total file size
-  useEffect(()=>{
-    let temp = 0;
-    for(let x of transactions_list){
-      temp += x.size
-    }
-    sort_by_time();
-    // set_storage(formatAmountSize(temp))
-  }, [transactions_list])
+  // useEffect(()=>{
+  //   let temp = 0;
+  //   for(let x of transactions_list){
+  //     temp += x.size
+  //   }
+  //   sort_by_time();
+  //   // set_storage(formatAmountSize(temp))
+  // }, [transactions_list])
 
   return (
     <div className="FilesPage">
-      <div className="ml-10" style={{ marginBottom: '30px' }}>
-        <PageHeader name={'Transactions'}  />
-        {/* <div className="file_storage">Total File Size: {storage}</div> */}
-        <input type="file" onChange={handleFileChange} ref={hiddenFileInput} style={{display: 'none'}} />
-        {/* <button className="import_file" onClick={handleClick}>
-          Upload
-        </button> */}
+      <div className="ml-10 flex items-center justify-between" 
+      style={{ 
+        marginBottom: '30px',
+        padding: '10px 20px',
+      }}>
+        <PageHeader name={'Transactions'}
+        />
+          <button
+            onClick={handleRouteSend}
+            // variant="contained"
+            // loadingPosition='end'
+            // endIcon={null}
+            // sx={{
+            //   textTransform: 'none', 
+            //   backgroundColor: '#78350f',  // bg-yellow-900
+            //   padding: '0px 40px'
+            // }}
+            className="h-8 w-16 bg-yellow-900 text-white disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+           >
+            Send Coin
+           </button>
       </div>
       
       <div className="container rounded" style={{width: "90%", marginLeft: "5%", marginRight: "5%", border: "1px solid black"}}>

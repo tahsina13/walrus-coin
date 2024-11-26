@@ -11,6 +11,7 @@ import AccountPage from './components/AccountPage'
 import ProxyPage from './components/ProxyPage'
 import LoginPage from './components/LoginPage'
 import FirstLoginPage from './components/FirstLoginPage'
+import SendPage from './components/SendPage'
 {
   /* Add the pages */
 }
@@ -40,6 +41,7 @@ function App(): JSX.Element {
           <Route path="/explore" element={<Explorepage />} />
           <Route path="/mining" element={<MiningPage />} />
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/send" element={<SendPage />} />
           {/* Add the pages */}
           <Route path="*" element={<Navigate to="/sign-in" />} />
         </Routes>

@@ -11,7 +11,7 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function SignInLogIn(): JSX.Element {
+function SendPage(): JSX.Element {
 
   // const [inputValue, setInputValue] = useState('');
   // const [inputValue2, setInputValue2] = useState('');
@@ -19,7 +19,10 @@ function SignInLogIn(): JSX.Element {
   const [hasError, setHasError] = useState(false);
   const [newLoading, setNewLoading] = useState(false);
   const [existingLoading, setExistingLoading] = useState(false);
+  const [amount, setAmount] = useState<number | undefined>(undefined);
 
+  const [destAddress, setDestAddress] = useState("");
+  // const [walletExists, setWalletExists] = useState(false);
   // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   //   setInputValue(e.target.value);
   // }
@@ -44,18 +47,20 @@ function SignInLogIn(): JSX.Element {
   //   });
   // };
 
-  const handleLogin = async () => {
+  const handleSend = async () => {
     setExistingLoading(true);
     try {
-      const res = await window.versions.startWallet();
+      // const res = await window.versions.startWallet();
 
-      const address_res = await window.versions.getAddress();
+      // const address_res = await window.versions.getAddress();
 
-      localStorage.setItem("walletaddr", address_res);
+      // localStorage.setItem("walletaddr", address_res);
       
-      const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', , '--txindex', '--addrindex', '--miningaddr', address_res]);
-
-      const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: ["password", 99999999]}, {
+      // const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', , '--txindex', '--addrindex', '--miningaddr', address_res]);
+      console.log("sending coin");
+      console.log(destAddress);
+      console.log(amount);
+      const sendres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "sendtoaddress", params: [destAddress, amount]}, {
         auth: {
           username: 'user',
           password: 'password'
@@ -64,7 +69,8 @@ function SignInLogIn(): JSX.Element {
           'Content-Type': 'text/plain;',
         },
       });
-      navigate('/status');
+      console.log(sendres);
+      navigate('/transactions');
     }
     catch (error) {
       setHasError(true);
@@ -75,11 +81,6 @@ function SignInLogIn(): JSX.Element {
 
   const closeErrorMessage = () => {
     setHasError(false);
-  };
-
-  const handleRegister = async () => {
-    setNewLoading(true);
-    navigate('/register'); // register conditions
   };
 
   return (
@@ -94,27 +95,29 @@ function SignInLogIn(): JSX.Element {
               <div className="inputs mt-4">
                 <div className="submit-container flex h-12 space-x-10">
                   <div className="submit-container flex">
-                    <LoadingButton
-                      loading={newLoading}
-                      onClick={handleRegister}
-                      variant="contained"
-                      loadingPosition='end'
-                      disabled={existingLoading}
-                      endIcon={null}
-                      sx={{
-                        textTransform: 'none', 
-                        backgroundColor: '#78350f',  // bg-yellow-900
-                        padding: '0px 40px'
-                      }}
-                      className="bg-yellow-900 text-white rounded over:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
-                    >
-                      Create New Wallet
-                    </LoadingButton>
+                    <div className="input mb-4">
+                      <input 
+                          type="number" 
+                          placeholder='WACO Amount'
+                          className="border border-gray-300 p-2 rounded focus:outline-none"
+                          value={amount || ''}
+                          onChange={(event)=>{setAmount(event.target.value ? Number(event.target.value): undefined)}}
+                        />
+                    </div>
+                    <div className="input mb-4">
+                      <input 
+                          type="text" 
+                          placeholder='Destination Address' 
+                          className="border border-gray-300 p-2 rounded focus:outline-none"
+                          value={destAddress}
+                          onChange={(event)=>{setDestAddress(event.target.value)}}
+                        />
+                    </div>
                   </div>
                   <div className="submit-container flex">
                     <LoadingButton
                       loading={existingLoading}
-                      onClick={handleLogin}
+                      onClick={handleSend}
                       variant="contained"
                       disabled={existingLoading}
                       loadingPosition='end'
@@ -126,7 +129,7 @@ function SignInLogIn(): JSX.Element {
                       }}
                       className="bg-yellow-900 text-white rounded over:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                     >
-                      Use Existing Wallet
+                      Send Coin
                     </LoadingButton>
                   </div>
                 </div>
@@ -144,4 +147,4 @@ function SignInLogIn(): JSX.Element {
   );
 }
 
-export default SignInLogIn;
+export default SendPage;
