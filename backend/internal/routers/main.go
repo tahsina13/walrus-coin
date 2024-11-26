@@ -26,16 +26,10 @@ func NewAPIRouter(node host.Host, dht *dht.IpfsDHT, bstore blockstore.Blockstore
 		return nil, err
 	}
 
-	proxyHandler, err := handlers.NewProxyHandler(node, dht)
-	if err != nil {
-		return nil, err
-	}
-
 	r := mux.NewRouter()
 	r.PathPrefix("/bootstrap").Handler(http.StripPrefix("/bootstrap", NewBootstrapRouter(bootstrapHandler)))
 	r.PathPrefix("/routing").Handler(http.StripPrefix("/routing", NewRoutingRouter(routingHandler)))
 	r.PathPrefix("/block").Handler(http.StripPrefix("/block", NewBlockRouter(blockHandler)))
-	r.PathPrefix("/proxy").Handler(http.StripPrefix("/proxy", NewProxyRouter(proxyHandler)))
 
 	return r, nil
 }

@@ -18,7 +18,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const marketProtocolID = "/orcanet/market"
+const (
+	getBlockProtocolID  = "/orcanet/block/get"
+	statBlockProtocolID = "/orcanet/block/stat"
+)
 
 type BlockHandler struct {
 	node   host.Host
@@ -26,8 +29,7 @@ type BlockHandler struct {
 }
 
 type BlockRequest struct {
-	Type string `json:"Type"`
-	Key  string `json:"Key"`
+	Key string `json:"Key"`
 }
 
 type BlockResponse struct {
@@ -44,105 +46,110 @@ func NewBlockHandler(node host.Host, bstore blockstore.Blockstore) (*BlockHandle
 		return nil, errors.New("blockstore is nil")
 	}
 	handler := &BlockHandler{node: node, bstore: bstore}
-	node.SetStreamHandler(marketProtocolID, func(s network.Stream) {
-		defer s.Close()
-
-		var bytes []byte
-		var request BlockRequest
-		var key cid.Cid
-
-		reader := bufio.NewReader(s)
-		jsonData, err := reader.ReadBytes('\n')
-		if err != nil {
-			response := BlockResponse{Error: fmt.Sprintf("failed to read block request: %s", err)}
-			bytes, err = json.Marshal(response)
-			if err != nil {
-				logrus.Errorf("failed to marshal error response: %s", err)
-				return
-			}
-			goto write
-		}
-
-		if err := json.Unmarshal(jsonData, &request); err != nil {
-			response := BlockResponse{Error: fmt.Sprintf("failed to unmarshal block request: %s", err)}
-			bytes, err = json.Marshal(response)
-			if err != nil {
-				logrus.Errorf("failed to marshal error response: %s", err)
-				return
-			}
-			goto write
-		}
-
-		if key, err = cid.Decode(request.Key); err != nil {
-			response := BlockResponse{Error: fmt.Sprintf("invalid cid: %s", err)}
-			bytes, err = json.Marshal(response)
-			if err != nil {
-				logrus.Errorf("failed to marshal error response: %s", err)
-				return
-			}
-			goto write
-		}
-
-		switch request.Type {
-		case "get":
-			var response BlockResponse
-			data, err := handler.handleGet(key)
-			if err != nil {
-				response = BlockResponse{
-					Key:   key.String(),
-					Error: fmt.Sprintf("failed to get block: %s", err),
-				}
-			} else {
-				response = BlockResponse{Key: key.String()}
-			}
-			bytes, err = json.Marshal(response)
-			if err != nil {
-				logrus.Errorf("failed to marshal response: %s", err)
-				return
-			}
-			bytes = append(bytes, '\n')
-			bytes = append(bytes, data...)
-		case "stat":
-			var response BlockResponse
-			size, err := handler.handleStat(key)
-			if err != nil {
-				response = BlockResponse{
-					Key:   key.String(),
-					Error: fmt.Sprintf("failed to get block size: %s", err),
-				}
-			} else {
-				response = BlockResponse{Key: key.String(), Size: size}
-			}
-			bytes, err = json.Marshal(response)
-			if err != nil {
-				logrus.Errorf("failed to marshal response: %s", err)
-				return
-			}
-			bytes = append(bytes, '\n')
-		}
-
-	write:
-		if _, err := s.Write(bytes); err != nil {
-			logrus.Errorf("failed to write response: %s", err)
-		}
-	})
+	node.SetStreamHandler(getBlockProtocolID, handler.handleGet)
+	node.SetStreamHandler(statBlockProtocolID, handler.handleStat)
 	return handler, nil
 }
 
-func (h *BlockHandler) handleGet(key cid.Cid) ([]byte, error) {
+func (h *BlockHandler) handleGet(s network.Stream) {
+	defer s.Close()
+
+	reader := bufio.NewReader(s)
+	jsonData, err := reader.ReadBytes('\n')
+	if err != nil {
+		response := BlockResponse{Error: fmt.Sprintf("failed to read block request: %s", err)}
+		if err := json.NewEncoder(s).Encode(response); err != nil {
+			logrus.Errorf("failed to write error response: %s", err)
+			return
+		}
+	}
+
+	var request BlockRequest
+	if err := json.Unmarshal(jsonData, &request); err != nil {
+		response := BlockResponse{Error: fmt.Sprintf("failed to unmarshal block request: %s", err)}
+		if err := json.NewEncoder(s).Encode(response); err != nil {
+			logrus.Errorf("failed to write error response: %s", err)
+			return
+		}
+	}
+
+	key, err := cid.Decode(request.Key)
+	if err != nil {
+		response := BlockResponse{Error: fmt.Sprintf("invalid cid: %s", err)}
+		if err := json.NewEncoder(s).Encode(response); err != nil {
+			logrus.Errorf("failed to write error response: %s", err)
+			return
+		}
+	}
+
 	blk, err := h.bstore.Get(context.Background(), key)
 	if err != nil {
-		return nil, err
+		response := BlockResponse{Key: key.String(), Error: fmt.Sprintf("failed to get block: %s", err)}
+		if err := json.NewEncoder(s).Encode(response); err != nil {
+			logrus.Errorf("failed to write error response: %s", err)
+			return
+		}
 	}
-	return blk.RawData(), nil
+
+	response := BlockResponse{Key: key.String()}
+	bytes, _ := json.Marshal(response)
+	bytes = append(bytes, '\n')
+	bytes = append(bytes, blk.RawData()...)
+
+	for len(bytes) > 0 {
+		n, err := s.Write(bytes)
+		if err != nil {
+			logrus.Errorf("failed to write block: %s", err)
+			return
+		}
+		bytes = bytes[n:]
+	}
 }
 
-func (h *BlockHandler) handleStat(key cid.Cid) (int, error) {
+func (h *BlockHandler) handleStat(s network.Stream) {
+	defer s.Close()
+
+	reader := bufio.NewReader(s)
+	jsonData, err := reader.ReadBytes('\n')
+	if err != nil {
+		response := BlockResponse{Error: fmt.Sprintf("failed to read block request: %s", err)}
+		if err := json.NewEncoder(s).Encode(response); err != nil {
+			logrus.Errorf("failed to write error response: %s", err)
+			return
+		}
+	}
+
+	var request BlockRequest
+	if err := json.Unmarshal(jsonData, &request); err != nil {
+		response := BlockResponse{Error: fmt.Sprintf("failed to unmarshal block request: %s", err)}
+		if err := json.NewEncoder(s).Encode(response); err != nil {
+			logrus.Errorf("failed to write error response: %s", err)
+			return
+		}
+	}
+
+	key, err := cid.Decode(request.Key)
+	if err != nil {
+		response := BlockResponse{Error: fmt.Sprintf("invalid cid: %s", err)}
+		if err := json.NewEncoder(s).Encode(response); err != nil {
+			logrus.Errorf("failed to write error response: %s", err)
+			return
+		}
+	}
+
 	size, err := h.bstore.GetSize(context.Background(), key)
 	if err != nil {
-		return 0, err
+		response := BlockResponse{Key: key.String(), Error: fmt.Sprintf("failed to get block size: %s", err)}
+		if err := json.NewEncoder(s).Encode(response); err != nil {
+			logrus.Errorf("failed to write error response: %s", err)
+			return
+		}
 	}
-	return size, nil
+
+	response := BlockResponse{Key: key.String(), Size: size}
+	if json.NewEncoder(s).Encode(response); err != nil {
+		logrus.Errorf("failed to write response: %s", err)
+	}
 }
 
 func (h *BlockHandler) Get(w http.ResponseWriter, r *http.Request) error {
@@ -169,14 +176,14 @@ func (h *BlockHandler) Get(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("failed to parse peer address: %w", err)
 	}
 
-	ctx := network.WithAllowLimitedConn(r.Context(), marketProtocolID)
-	stream, err := h.node.NewStream(ctx, peerInfo.ID, marketProtocolID)
+	ctx := network.WithAllowLimitedConn(r.Context(), getBlockProtocolID)
+	stream, err := h.node.NewStream(ctx, peerInfo.ID, getBlockProtocolID)
 	if err != nil {
 		return fmt.Errorf("failed to open stream: %w", err)
 	}
 	defer stream.Close()
 
-	request := BlockRequest{Type: "get", Key: key.String()}
+	request := BlockRequest{Key: key.String()}
 	jsonData, err := json.Marshal(request)
 	if err != nil {
 		return fmt.Errorf("failed to marshal block request: %w", err)
@@ -296,14 +303,14 @@ func (h *BlockHandler) Stat(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("failed to parse peer address: %w", err)
 	}
 
-	ctx := network.WithAllowLimitedConn(r.Context(), marketProtocolID)
-	stream, err := h.node.NewStream(ctx, peerInfo.ID, marketProtocolID)
+	ctx := network.WithAllowLimitedConn(r.Context(), statBlockProtocolID)
+	stream, err := h.node.NewStream(ctx, peerInfo.ID, statBlockProtocolID)
 	if err != nil {
 		return fmt.Errorf("failed to open stream: %w", err)
 	}
 	defer stream.Close()
 
-	request := BlockRequest{Type: "stat", Key: key.String()}
+	request := BlockRequest{Key: key.String()}
 	jsonData, err := json.Marshal(request)
 	if err != nil {
 		return fmt.Errorf("failed to marshal block request: %w", err)
