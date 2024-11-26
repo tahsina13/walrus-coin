@@ -1,6 +1,6 @@
 [submodule "backend/btcd"]
 	path = backend/btcd
-	url = git@github.com:prithesh07/btcd.git
+	url = git@github.com:josephhanrahan/btcd.git
 [submodule "backend/btcwallet"]
 	path = backend/btcwallet
 	url = git@github.com:tahsina13/btcwallet.git
