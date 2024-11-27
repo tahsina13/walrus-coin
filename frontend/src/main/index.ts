@@ -323,8 +323,8 @@ app.whenReady().then(() => {
       // { shell: true }?
 
       const btcctlPath = path.join(process.cwd(), '../backend/btcd/cmd/btcctl/btcctl');
-      const confPath = path.join(process.cwd(), '../backend/btcctl.conf');
-      const child = spawn(btcctlPath, ['-C', confPath,'--wallet', 'listtransactions', '"*"', "10000", "0"], { shell: true });
+      // const confPath = path.join(process.cwd(), '../backend/btcctl.conf');
+      const child = spawn(btcctlPath, ['--wallet', '--rpcuser=user', '--rpcpass=password', '--notls', 'listtransactions', '"*"', "10000", "0"], { shell: true });
 
       const transPath = path.join(process.cwd(), '../backend/transactions.json');
       const outputFileStream = fs.createWriteStream(transPath);
@@ -337,7 +337,9 @@ app.whenReady().then(() => {
       //   reject(data);
       // });
       child.stderr.on('data', (err) => {
-        console.log("TRANSACT ERROR:" + err);
+        if (!err.includes("config file")) {
+          console.log("transactions error: " + err);
+        }
       });
   
       child.on('close', (code) => {

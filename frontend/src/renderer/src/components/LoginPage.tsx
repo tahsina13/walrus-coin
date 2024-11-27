@@ -5,15 +5,19 @@ import { electronAPI } from '@electron-toolkit/preload';
 import { ipcRenderer } from 'electron';
 import path from 'path';
 import axios from 'axios';
+import { LoadingButton } from '@mui/lab';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function LoginPage(): JSX.Element {
-    const [error_message, set_error_message] = useState('');
-    const [walletPassword, setWalletPassword] = useState('');
-    const [walletExists, setWalletExists] = useState(()=> localStorage.getItem("walletExists") == "true");
+  const [error_message, set_error_message] = useState('');
+  const [walletPassword, setWalletPassword] = useState('');
+  const [walletExists, setWalletExists] = useState(()=> localStorage.getItem("walletExists") == "true");
+  const [startNet, setStartNet] = useState(false);
+  const [newLoading, setNewLoading] = useState(false);
+  const [existingLoading, setExistingLoading] = useState(false);
   // const [inputValue, setInputValue] = useState('');
   // const [inputValue2, setInputValue2] = useState('');
   const navigate = useNavigate();
@@ -30,17 +34,48 @@ function LoginPage(): JSX.Element {
   // });
 
   const handleLogin = async () => {
+    setExistingLoading(true);
 
-    if(walletPassword) {
+    if (startNet == true) {
+      console.log("IN STARTNEXT TRUE");
+      if (walletPassword == '') {
+        setExistingLoading(false);
+        set_error_message("The password cannot be blank.");
+        return;
+      }
+
+      const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [walletPassword, 99999999]}, {
+          auth: {
+            username: 'user',
+            password: 'password'
+          },
+          headers: {
+            'Content-Type': 'text/plain;',
+          },
+        });
+        
+        console.log(passres);
+        // error check password
+        console.log(passres.data.error);
+        if (passres.data.error != null) {
+          setExistingLoading(false);
+          set_error_message("Incorrect password, please try again.");
+          setWalletPassword('');
+          return;
+        }
+
+        navigate('/status');
+    } else if(walletPassword != '') {
+      
         // start wallet (ADD: check for error)
         // const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", []);
 
         // console.log(res);
-        console.log("started btcwallet");
+        // console.log("started btcwallet");
 
         // wait for btcwallet to start (maybe add loading symbol of some sort?)
-        await sleep(1000);
-        console.log("started btcwallet");
+        // await sleep(1000);
+        // console.log("started btcwallet");
         // test rpc call
         // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "listaccounts", params: []}, {
         //   auth: {
@@ -52,11 +87,38 @@ function LoginPage(): JSX.Element {
         //   },
         // });
 
-        // console.log(resrpc);
+        const address_res = await window.versions.getAddress();
+
+        localStorage.setItem("walletaddr", address_res);
+        
+        const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', '--txindex', '--addrindex', '--miningaddr', address_res]);
+
+        setStartNet(true);
+
+        const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [walletPassword, 99999999]}, {
+          auth: {
+            username: 'user',
+            password: 'password'
+          },
+          headers: {
+            'Content-Type': 'text/plain;',
+          },
+        });
+        
+        console.log(passres);
+        // error check password
+        console.log(passres.data.error);
+        if (passres.data.error != null) {
+          setExistingLoading(false);
+          set_error_message("Incorrect password, please try again.");
+          setWalletPassword('');
+          return;
+        }
+
         navigate('/status');
-    }
-    else {
-        set_error_message("The password cannot be blank.");
+    } else {
+      setExistingLoading(false);
+      set_error_message("The password cannot be blank.");
     }
   };
 
@@ -94,14 +156,32 @@ function LoginPage(): JSX.Element {
                     />
                     <div className="register-container flex justify-end w-full">
                 <div className="submit-container flex">
-                  <button 
+                  {/* <button 
                       className="submit bg-yellow-900 text-white px-4 py-2 rounded hover:bg-black duration-300 disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                       type='button'
                       onClick={() => handleLogin()}
                       // disabled={!inputValue}
                       >
                         Login
-                  </button>
+                  </button> */}
+                  <div className="submit-container flex">
+                    <LoadingButton
+                      loading={existingLoading}
+                      onClick={handleLogin}
+                      variant="contained"
+                      disabled={existingLoading}
+                      loadingPosition='end'
+                      endIcon={null}
+                      sx={{
+                        textTransform: 'none', 
+                        backgroundColor: '#78350f',  // bg-yellow-900
+                        padding: '0px 40px'
+                      }}
+                      className="bg-yellow-900 text-white rounded over:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      Login
+                    </LoadingButton>
+                    </div>
                 </div>
               </div>
             </div>

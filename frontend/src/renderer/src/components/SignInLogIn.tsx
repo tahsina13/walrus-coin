@@ -48,29 +48,39 @@ function SignInLogIn(): JSX.Element {
     setExistingLoading(true);
     try {
       const res = await window.versions.startWallet();
-
-      const address_res = await window.versions.getAddress();
-
-      localStorage.setItem("walletaddr", address_res);
-      
-      const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', '--txindex', '--addrindex', '--miningaddr', address_res]);
-
-      const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: ["password", 99999999]}, {
-        auth: {
-          username: 'user',
-          password: 'password'
-        },
-        headers: {
-          'Content-Type': 'text/plain;',
-        },
-      });
-      navigate('/status');
-    }
-    catch (error) {
-      setHasError(true);
+      localStorage.setItem("walletExists", "true");
+    } catch (error) {
       setExistingLoading(false);
-      console.log(error);
+      localStorage.setItem("walletExists", "false");
     }
+    navigate('/login');
+
+    // setExistingLoading(true);
+    // try {
+    //   const res = await window.versions.startWallet();
+
+    //   const address_res = await window.versions.getAddress();
+
+    //   localStorage.setItem("walletaddr", address_res);
+      
+    //   const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', '--txindex', '--addrindex', '--miningaddr', address_res]);
+
+    //   const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: ["password", 99999999]}, {
+    //     auth: {
+    //       username: 'user',
+    //       password: 'password'
+    //     },
+    //     headers: {
+    //       'Content-Type': 'text/plain;',
+    //     },
+    //   });
+    //   navigate('/status');
+    // }
+    // catch (error) {
+    //   setHasError(true);
+    //   setExistingLoading(false);
+    //   console.log(error);
+    // }
   };
 
   const closeErrorMessage = () => {
