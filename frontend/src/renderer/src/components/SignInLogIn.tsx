@@ -53,7 +53,7 @@ function SignInLogIn(): JSX.Element {
 
       localStorage.setItem("walletaddr", address_res);
       
-      const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', , '--txindex', '--addrindex', '--miningaddr', address_res]);
+      const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', '--txindex', '--addrindex', '--miningaddr', address_res]);
 
       const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: ["password", 99999999]}, {
         auth: {

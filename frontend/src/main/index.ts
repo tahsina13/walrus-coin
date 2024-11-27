@@ -17,12 +17,15 @@ import kill from 'tree-kill';
 const store = new Store();
 
 function getWalletAddress() {
-  const btcwallet = spawn('../backend/btcd/btcd', ['-C', '../backend/btcwallet.conf']);
-
+  const procPath = path.join(process.cwd(), '../backend/btcd/btcd');
+  const confPath = path.join(process.cwd(), '../backend/btcwallet.conf');
+  const btcwallet = spawn(procPath, ['-C', confPath]);
 }
 
 function startBtcd() {
-  const btcd = spawn('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', '--addrindex']);
+  const procPath = path.join(process.cwd(), '../backend/btcd/btcd');
+  const confPath = path.join(process.cwd(), '../backend/btcwallet.conf');
+  const btcd = spawn(procPath, ['-C', confPath, '--notls', '--addrindex']);
 
   btcd.stdout.on('data', (data) => {
     console.log(`btcd stdout: ${data}`);
@@ -34,7 +37,8 @@ function startBtcd() {
 }
 
 async function startServer() {
-  const server = spawn('../backend/cmd/server/server'); 
+  const serverPath = path.join(process.cwd(), '../backend/cmd/server/server');
+  const server = spawn(serverPath); 
 
   server.stdout.on('data', (data) => {
     console.log(`server stdout: ${data}`);
@@ -181,7 +185,9 @@ app.whenReady().then(() => {
       // const procPath = path.join(process.cwd(), command); 
       // console.log(procPath, [args, inputs]);
       // const child = spawn("../backend/btcd/btcd", ['-C', '../backend/btcd.conf', '--notls'], {shell: true});
-      const child = spawn("../backend/btcwallet/btcwallet", ['-C', '../backend/btcwallet.conf'], {shell: true});
+      const procPath = path.join(process.cwd(), "../backend/btcwallet/btcwallet");
+      const confPath = path.join(process.cwd(), '../backend/btcwallet.conf');
+      const child = spawn(procPath, ['-C', confPath], {shell: true});
       child.stdout.on('data', async (data) => {
         console.log("stdout event: " + data);
         if (data.includes('Opened wallet')) {
@@ -315,9 +321,13 @@ app.whenReady().then(() => {
       // const procPath = path.join(process.cwd(), command); 
       // console.log(procPath, [args]);
       // { shell: true }?
-      const child = spawn('../backend/btcd/cmd/btcctl/btcctl', ['--wallet', 'listtransactions', '"*"', "10000", "0"], { shell: true });
 
-      const outputFileStream = fs.createWriteStream('../backend/transactions.json');
+      const btcctlPath = path.join(process.cwd(), '../backend/btcd/cmd/btcctl/btcctl');
+      const confPath = path.join(process.cwd(), '../backend/btcctl.conf');
+      const child = spawn(btcctlPath, ['-C', confPath,'--wallet', 'listtransactions', '"*"', "10000", "0"], { shell: true });
+
+      const transPath = path.join(process.cwd(), '../backend/transactions.json');
+      const outputFileStream = fs.createWriteStream(transPath);
 
       child.stdout.pipe(outputFileStream); 
       
