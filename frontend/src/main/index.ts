@@ -238,9 +238,10 @@ app.whenReady().then(() => {
   ipcMain.on('get-address', (event) => {
     // return new Promise((resolve, reject) => {  
       console.log("GETTING ADDRESS RN");
-      // const procPath = path.join(process.cwd(), command); 
+      const procPath = path.join(process.cwd(), '../backend/btcd/btcd'); 
+      const confPath = path.join(process.cwd(), '../backend/btcd.conf');
       // console.log(procPath, [args, inputs]);
-      const child = spawn("../backend/btcd/btcd", ['-C', '../backend/btcd.conf', '--notls'], {shell: true});
+      const child = spawn(procPath, ['-C', confPath, '--notls'], {shell: true});
       let address = '';
       child.stdout.on('data', async (data) => {
         console.log("stdout event: " + data);
