@@ -11,6 +11,8 @@ import pty from 'node-pty';
 import axios from 'axios';
 import Store from 'electron-store';
 import fs from 'fs';
+import kill from 'tree-kill';
+// const kill = require('tree-kill');
 
 const store = new Store();
 
@@ -258,7 +260,14 @@ app.whenReady().then(() => {
           console.log(resrpc);
           address = resrpc.data.result;
           console.log("ADDRESS? : " + address);
-          child.kill();
+          // child.kill();
+          kill(child.pid, 'SIGTERM', (err) => {
+            if (err) {
+              console.error("ERROR TREE-KILL: ", err);
+            } else {
+              console.log("terminated via TREE-KILL");
+            }
+          });
         }
       });
       
@@ -268,7 +277,13 @@ app.whenReady().then(() => {
       });
 
       child.on('close', (code) => {
+        // event.sender.send("address-rec", address);
+        console.log("closing...");
+      });
+
+      child.on('exit', (code) => {
         event.sender.send("address-rec", address);
+        // console.log("EXITINGGGG");
       });
   
       // child.on('close', (code) => {
