@@ -36,8 +36,8 @@ type Config struct {
 	P2pport       int                   `cfg:"{'name':'p2pport','desc':'TCP/UDP Port for p2p','default':4001,'short':'l'}"`
 	Rpcport       int                   `cfg:"{'name':'rpcport','desc':'RPC API Port','default':5001,'short':'p'}"`
 	Seed          string                `cfg:"{'name':'seed','desc':'Seed for private key generation','default':'','short':'s'}"`
-	Relayaddr     []multiaddr.Multiaddr `cfg:"{'name':'relay-addr','desc':'Relay address','default':[],'short':'r','mapfun':'strSliceToMultiaddrList'}"`
-	Bootstrapaddr []multiaddr.Multiaddr `cfg:"{'name':'bootstrap-addr','desc':'Bootstrap address','default':[],'short':'b','mapfun':'strSliceToMultiaddrList'}"`
+	Relayaddr     []multiaddr.Multiaddr `cfg:"{'name':'relayaddr','desc':'Relay address','default':[],'short':'r','mapfun':'strSliceToMultiaddrList'}"`
+	Bootstrapaddr []multiaddr.Multiaddr `cfg:"{'name':'bootstrapaddr','desc':'Bootstrap address','default':[],'short':'b','mapfun':'strSliceToMultiaddrList'}"`
 	Dbpath        string                `cfg:"{'name':'dbpath','desc':'Path to datastore','default':'','short':'d'}"`
 	Debug         bool                  `cfg:"{'name':'debug','desc':'Enable debug logging','default':false,'short':'D'}"`
 }
