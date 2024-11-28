@@ -133,9 +133,13 @@ func main() {
 	mux := mux.NewRouter()
 	mux.PathPrefix("/api/v0").Handler(http.StripPrefix("/api/v0", apiRouter))
 
+	// Add middleware
+	corsHandler := util.EnableCors(mux)
+	loggerHandler := util.LoggerMiddleware(corsHandler)
+
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Rpcport),
-		Handler: util.LoggerMiddleware(mux),
+		Handler: loggerHandler,
 	}
 
 	logrus.Infof("Server listening on port :%d", cfg.Rpcport)

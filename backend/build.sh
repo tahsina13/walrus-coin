@@ -7,3 +7,6 @@ go build && cd ..
 
 echo "Building btcwallet..."
 cd ./btcwallet && go build && cd ..
+
+echo "Building server..."
+go build ./cmd/server

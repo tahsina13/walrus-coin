@@ -33,7 +33,7 @@ Custom config file can also be specified using the `--config-file` option.
 ### Example
 
 ```sh
-./server --p2pport 4001 --rpcport 5001 --seed "123456789" --relay-addr "/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN" --bootstrap-addr "/ip4/130.245.173.222/tcp/61000/p2p/12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE"
+go run ./cmd/server --p2pport 4001 --rpcport 5001 --seed "123456789" --relay-addr "/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN" --bootstrap-addr "/ip4/130.245.173.222/tcp/61000/p2p/12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE"
 ```
 
 ## RPC API
@@ -179,7 +179,7 @@ The block module handles uploading of files.
 ##### Arguments
 
 * `arg` [string]: The CID of existing block. **Required**.
-* `peer` [string]: The remote peer. *Optional*.
+* `peer` [string]: The remote peer. Query self if no peer. *Optional*.
 
 ##### Response
 
@@ -223,7 +223,7 @@ Argument `data` is of file type and is sent via multipart-form data.
 ##### Arguments
 
 * `arg` [string]: The CID of existing block. **Required**.
-* `peer` [string]: The remote peer. *Optional*.
+* `peer` [string]: The remote peer. Query self if not peer. *Optional*.
 
 ##### Response
 

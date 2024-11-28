@@ -168,7 +168,15 @@ func (h *BlockHandler) Get(w http.ResponseWriter, r *http.Request) error {
 
 	peerAddr, ok := query["peer"]
 	if !ok {
-		return errors.New("argument \"peer\" is required")
+		// Query local blockstore if peer not specified
+		blk, err := h.bstore.Get(r.Context(), key)
+		if err != nil {
+			return fmt.Errorf("failed to get block: %w", err)
+		}
+		if _, err := w.Write(blk.RawData()); err != nil {
+			return fmt.Errorf("failed to write block: %w", err)
+		}
+		return nil
 	}
 
 	peerInfo, err := peer.AddrInfoFromString(peerAddr[0])
@@ -295,7 +303,16 @@ func (h *BlockHandler) Stat(w http.ResponseWriter, r *http.Request) error {
 
 	peerAddr, ok := query["peer"]
 	if !ok {
-		return errors.New("argument \"peer\" is required")
+		// Query local blockstore if peer not specified
+		size, err := h.bstore.GetSize(r.Context(), key)
+		if err != nil {
+			return fmt.Errorf("failed to get block size: %w", err)
+		}
+		response := BlockResponse{Key: key.String(), Size: size}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			return fmt.Errorf("failed to encode response: %w", err)
+		}
+		return nil
 	}
 
 	peerInfo, err := peer.AddrInfoFromString(peerAddr[0])
