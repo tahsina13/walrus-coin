@@ -10,14 +10,19 @@ import (
 	"github.com/ipfs/go-cid"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/tahsina13/walrus-coin/backend/internal/util"
 )
 
 type RoutingHandler struct {
 	dht *dht.IpfsDHT
 }
 
-type RoutingResponse struct {
+type routingResponse struct {
 	Responses []peer.AddrInfo `json:"Responses"`
+}
+
+type routingError struct {
+	Message string `json:"Message"`
 }
 
 func NewRoutingHandler(dht *dht.IpfsDHT) (*RoutingHandler, error) {
@@ -31,17 +36,17 @@ func (h *RoutingHandler) FindPeer(w http.ResponseWriter, r *http.Request) error 
 	query := r.URL.Query()
 	peerID, ok := query["arg"]
 	if !ok {
-		return errors.New("argument \"peerID\" is required")
+		return util.BadRequestWithBody(routingError{Message: "no peer ID provided"})
 	}
 
 	peerInfo, err := h.dht.FindPeer(r.Context(), peer.ID(peerID[0]))
 	if err != nil {
-		return err
+		return util.BadRequestWithBody(routingError{Message: fmt.Sprintf("failed to find peer: %v", err)})
 	}
 
-	response := RoutingResponse{Responses: []peer.AddrInfo{peerInfo}}
+	response := routingResponse{Responses: []peer.AddrInfo{peerInfo}}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		return err
+		return util.BadRequest(err)
 	}
 	return nil
 }
@@ -53,18 +58,18 @@ func (h *RoutingHandler) FindProvos(w http.ResponseWriter, r *http.Request) erro
 	if arg, ok := query["arg"]; ok {
 		c, err := cid.Decode(arg[0])
 		if err != nil {
-			return fmt.Errorf("invalid cid: %w", err)
+			return util.BadRequestWithBody(routingError{Message: fmt.Sprintf("invalid cid: %v", err)})
 		}
 		key = c
 	} else {
-		return errors.New("argument \"key\" is required")
+		return util.BadRequestWithBody(routingError{Message: "argument \"key\" is required"})
 	}
 
 	var numProviders int
 	if numProvidersStr, ok := query["num-providers"]; ok {
 		val, err := strconv.Atoi(numProvidersStr[0])
 		if err != nil {
-			return err
+			return util.BadRequestWithBody(routingError{Message: fmt.Sprintf("invalid num-providers: %v", err)})
 		}
 		numProviders = val
 	} else {
@@ -79,9 +84,9 @@ func (h *RoutingHandler) FindProvos(w http.ResponseWriter, r *http.Request) erro
 		addrs = append(addrs, p)
 	}
 
-	response := RoutingResponse{Responses: addrs}
+	response := routingResponse{Responses: addrs}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		return err
+		return util.BadRequest(err)
 	}
 	return nil
 }
@@ -92,20 +97,20 @@ func (h *RoutingHandler) Provide(w http.ResponseWriter, r *http.Request) error {
 	if arg, ok := query["arg"]; ok {
 		c, err := cid.Decode(arg[0])
 		if err != nil {
-			return fmt.Errorf("invalid cid: %w", err)
+			return util.BadRequestWithBody(routingError{Message: fmt.Sprintf("invalid cid: %v", err)})
 		}
 		key = c
 	} else {
-		return fmt.Errorf("argument \"key\" is required")
+		return util.BadRequestWithBody(routingError{Message: "argument \"key\" is required"})
 	}
 
 	if err := h.dht.Provide(r.Context(), key, true); err != nil {
-		return fmt.Errorf("failed to provide key: %w", err)
+		return util.BadRequestWithBody(routingError{Message: fmt.Sprintf("failed to provide key: %v", err)})
 	}
 
-	response := RoutingResponse{}
+	response := routingResponse{}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		return err
+		return util.BadRequest(err)
 	}
 	return nil
 }

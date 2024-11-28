@@ -147,9 +147,18 @@ func main() {
 }
 
 func strSliceToMultiaddrList(rawUntypedValue interface{}, targetType reflect.Type) (interface{}, error) {
+	asStr, ok := rawUntypedValue.(string)
+	if ok {
+		addr, err := multiaddr.NewMultiaddr(asStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse multiaddr: %w", err)
+		}
+		return []multiaddr.Multiaddr{addr}, nil
+	}
+
 	rawSlice, ok := rawUntypedValue.([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("expected a string slice, got %T", rawUntypedValue)
+		return []multiaddr.Multiaddr{}, nil
 	}
 
 	var addrs []multiaddr.Multiaddr
