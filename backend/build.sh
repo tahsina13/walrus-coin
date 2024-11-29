@@ -9,4 +9,4 @@ echo "Building btcwallet..."
 cd ./btcwallet && go build && cd ..
 
 echo "Building server..."
-cd ./cmd/server && go build && cd ../..
+go build ./cmd/server
