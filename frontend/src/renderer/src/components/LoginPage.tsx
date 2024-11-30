@@ -91,7 +91,10 @@ function LoginPage(): JSX.Element {
 
         localStorage.setItem("walletaddr", address_res);
         
-        const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', '--txindex', '--addrindex', '--miningaddr', address_res]);
+        // const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', '--txindex', '--addrindex', '--miningaddr', address_res]);
+        const btcdres = await window.versions.startBtcd();
+        
+        const connect_network = await window.versions.connectNet();
 
         setStartNet(true);
 

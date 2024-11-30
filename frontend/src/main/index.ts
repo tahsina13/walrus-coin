@@ -243,6 +243,62 @@ app.whenReady().then(() => {
     // });
   });
 
+  ipcMain.on('start-btcd', (event) => {
+    // return new Promise((resolve, reject) => {  
+      // console.log("GETTING ADDRESS RN");
+      console.log("starting btcd");
+      const procPath = path.join(process.cwd(), '../backend/btcd/btcd'); 
+      const confPath = path.join(process.cwd(), '../backend/btcd.conf');
+      // console.log(procPath, [args, inputs]);
+      const child = spawn(procPath, ['-C', confPath, '--notls'], {shell: true});
+      child.stdout.on('data', async (data) => {
+        console.log("stdout event: " + data);
+        if (data.includes('RPC server listening on 127.0.0.1:8334')) {
+          console.log("here in index");
+          event.sender.send("btcd-started");
+        }
+      });
+      
+      child.stderr.on('data', (data) => {
+        data = data.toString();
+        console.error(`Error event: ${data}`);
+      });
+
+      child.on('close', (code) => {
+        // event.sender.send("address-rec", address);
+        // console.log("closing...");
+        console.log(code);
+      });
+
+      child.on('exit', (code) => {
+        // event.sender.send("address-rec", address);
+        console.log(code);
+        // console.log("EXITINGGGG");
+      });
+  
+      // child.on('close', (code) => {
+      //   if (code == 0) {
+      //     resolve(output); 
+      //   } else {
+      //     reject(new Error(`Process exited with code: ${code}`));  
+      //   }
+      // });
+  
+      // child.on('error', (err) => {
+      //   reject(new Error(`Failed to start process: ${err.message}`));  
+      // });
+
+      // if (inputs && inputs.length > 0) {
+      //   console.log("in input");
+      //   inputs.forEach((input, index) => {
+      //     // child.stdin.write(input + '\n');
+      //     console.log("input: " + input);
+      //   });
+      //   child.stdin.end();  
+      // };
+    // });
+  });
+
   ipcMain.on('get-address', (event) => {
     // return new Promise((resolve, reject) => {  
       console.log("GETTING ADDRESS RN");
@@ -313,6 +369,64 @@ app.whenReady().then(() => {
       //   child.stdin.end();  
       // };
     // });
+  });
+
+  ipcMain.on('connect-network', (event) => {
+    // return new Promise((resolve, reject) => {  
+      // console.log("GETTING ADDRESS RN");
+      console.log("connecting to btc network");
+      // const procPath = path.join(process.cwd(), '../backend/btcd/btcd'); 
+      // const confPath = path.join(process.cwd(), '../backend/btcd.conf');
+      const btcctlPath = path.join(process.cwd(), '../backend/btcd/cmd/btcctl/btcctl');
+      const confPath = path.join(process.cwd(), '../backend/btcctl.conf');
+      // addnode "130.245.173.221:8333" add | cat
+      const child = spawn(btcctlPath, ['--configfile='+confPath, '--rpcuser=user', '--rpcpass=password', '--notls', 'addnode', '"130.245.173.221:8333"', "add"], { shell: true });
+      // console.log(procPath, [args, inputs]);
+      // const child = spawn(procPath, ['-C', confPath, '--notls'], {shell: true});
+      let address = '';
+      child.stdout.on('data', async (data) => {
+        console.log("stdout event: " + data);
+        // if (data.includes('')) {
+
+        // }
+        // if (data.includes('New websocket client')) {
+          // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getaccountaddress", params: ["default"]}, {
+          //   auth: {
+          //     username: 'user',
+          //     password: 'password'
+          //   },
+          //   headers: {
+          //     'Content-Type': 'text/plain;',
+          //   },
+          // });
+          // console.log(resrpc);
+          // address = resrpc.data.result;
+          // console.log("ADDRESS? : " + address);
+          // child.kill();
+          // kill(child.pid, 'SIGTERM', (err) => {
+          //   if (err) {
+          //     console.error("ERROR TREE-KILL: ", err);
+          //   } else {
+          //     console.log("terminated via TREE-KILL");
+          //   }
+          // });
+        // }
+      });
+      
+      child.stderr.on('data', (data) => {
+        data = data.toString();
+        console.error(`Error event: ${data}`);
+      });
+
+      child.on('close', (code) => {
+        // event.sender.send("address-rec", address);
+        console.log("closing...");
+      });
+
+      child.on('exit', (code) => {
+        event.sender.send("connected-network", address);
+        // console.log("EXITINGGGG");
+      });
   });
     
 

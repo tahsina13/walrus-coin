@@ -57,6 +57,24 @@ if (process.contextIsolated) {
         });
         // ipcRenderer.invoke('get-transactions');
       },
+      startBtcd: () => {
+        return new Promise((resolve, reject) => {
+          ipcRenderer.once('btcd-started', () => {
+            console.log("btcd started");
+            resolve(1);
+          });
+          ipcRenderer.send('start-btcd');
+        });
+      },
+      connectNet: () => {
+        return new Promise((resolve, reject) => {
+          ipcRenderer.once('connected-network', () => {
+            console.log("connected to network");
+            resolve(1);
+          });
+          ipcRenderer.send('connect-network')
+        });
+      },
     })
   } catch (error) {
     console.error(error)
