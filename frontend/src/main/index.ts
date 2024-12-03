@@ -243,14 +243,15 @@ app.whenReady().then(() => {
     // });
   });
 
-  ipcMain.on('start-btcd', (event) => {
+  ipcMain.on('start-btcd', (event, address) => {
     // return new Promise((resolve, reject) => {  
       // console.log("GETTING ADDRESS RN");
       console.log("starting btcd");
+      const walletaddr = address;
       const procPath = path.join(process.cwd(), '../backend/btcd/btcd'); 
       const confPath = path.join(process.cwd(), '../backend/btcd.conf');
       // console.log(procPath, [args, inputs]);
-      const child = spawn(procPath, ['-C', confPath, '--notls'], {shell: true});
+      const child = spawn(procPath, ['-C', confPath, '--notls', '--txindex', '--miningaddr='+walletaddr], {shell: true});
       child.stdout.on('data', async (data) => {
         console.log("stdout event: " + data);
         if (data.includes('RPC server listening on 127.0.0.1:8334')) {

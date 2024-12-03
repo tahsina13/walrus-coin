@@ -80,6 +80,9 @@ function TransactionsPage(): JSX.Element {
         } else if (transaction.category == "send") {
           transaction.fromaddress = localStorage.getItem("walletaddr");
         }
+        if (transaction.confirmations == 0) {
+          transaction.category = "pending";
+        }
         console.log(transaction.date);
         disptrans.push(transaction);
       }

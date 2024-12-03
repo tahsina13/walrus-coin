@@ -57,13 +57,13 @@ if (process.contextIsolated) {
         });
         // ipcRenderer.invoke('get-transactions');
       },
-      startBtcd: () => {
+      startBtcd: (address) => {
         return new Promise((resolve, reject) => {
           ipcRenderer.once('btcd-started', () => {
             console.log("btcd started");
             resolve(1);
           });
-          ipcRenderer.send('start-btcd');
+          ipcRenderer.send('start-btcd', address);
         });
       },
       connectNet: () => {

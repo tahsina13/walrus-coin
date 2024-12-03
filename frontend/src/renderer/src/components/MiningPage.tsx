@@ -252,7 +252,7 @@ function MiningPage(): JSX.Element {
   }
 
   async function startMining() {
-    const numblocks = 1;
+    const numblocks = 100;
 
     const minerpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "generate", params: [numblocks]}, {
       auth: {
