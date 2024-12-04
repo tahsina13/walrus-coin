@@ -56,8 +56,6 @@ function SendPage(): JSX.Element {
       setDialogOpen(false);
   };
 
-  const confirmationMessage = `Are you sure you want to send ${amount} WACO to this address?`;
-
   const handleSend = async () => {
     setLoading(true);
     try {
@@ -161,11 +159,11 @@ function SendPage(): JSX.Element {
             </button>
           </div>
           <ConfirmationDialog
-                open={dialogOpen}
-                onClose={handleCloseDialog}
-                onConfirm={handleSend} // Pass the callback function here
-                title="Send Coin"
-                message={confirmationMessage}
+              open={dialogOpen}
+              onClose={handleCloseDialog}
+              onConfirm={handleSend}
+              title="Send Coin"
+              message={`Are you sure you want to send ${amount} WACO to this address?`}
             />
       </div>
   );
