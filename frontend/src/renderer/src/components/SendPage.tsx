@@ -7,6 +7,7 @@ import path from 'path';
 import axios from 'axios';
 import { LoadingButton } from '@mui/lab';
 import { PageHeader } from './Components';
+import ConfirmationDialog from './ConfirmationDialog';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -20,8 +21,8 @@ function SendPage(): JSX.Element {
   const [hasError, setHasError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState<number | undefined>(undefined);
-
   const [destAddress, setDestAddress] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
   // const [walletExists, setWalletExists] = useState(false);
   // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   //   setInputValue(e.target.value);
@@ -47,6 +48,16 @@ function SendPage(): JSX.Element {
   //   });
   // };
 
+  const handleOpenDialog = () => {
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+      setDialogOpen(false);
+  };
+
+  const confirmationMessage = `Are you sure you want to send ${amount} WACO to this address?`;
+
   const handleSend = async () => {
     setLoading(true);
     try {
@@ -60,6 +71,7 @@ function SendPage(): JSX.Element {
       console.log("sending coin");
       console.log(destAddress);
       console.log(amount);
+      setDialogOpen(false); // Closes dialog after confirmation
       const sendres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "sendtoaddress", params: [destAddress, amount]}, {
         auth: {
           username: 'user',
@@ -114,7 +126,7 @@ function SendPage(): JSX.Element {
                   <div className="submit-container">
                     <LoadingButton
                       loading={loading}
-                      onClick={handleSend}
+                      onClick={handleOpenDialog}
                       variant="contained"
                       disabled={loading || !amount || !destAddress}
                       loadingPosition='end'
@@ -148,6 +160,13 @@ function SendPage(): JSX.Element {
               Back
             </button>
           </div>
+          <ConfirmationDialog
+                open={dialogOpen}
+                onClose={handleCloseDialog}
+                onConfirm={handleSend} // Pass the callback function here
+                title="Send Coin"
+                message={confirmationMessage}
+            />
       </div>
   );
 }
