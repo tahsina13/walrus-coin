@@ -80,9 +80,6 @@ function TransactionsPage(): JSX.Element {
         } else if (transaction.category == "send") {
           transaction.fromaddress = localStorage.getItem("walletaddr");
         }
-        if (transaction.confirmations == 0) {
-          transaction.category = "pending";
-        }
         console.log(transaction.date);
         disptrans.push(transaction);
       }
@@ -202,19 +199,10 @@ function TransactionsPage(): JSX.Element {
         marginBottom: '30px',
         padding: '10px 20px',
       }}>
-        <PageHeader name={'Transactions'}
-        />
+        <PageHeader name={'Transactions'} />
           <button
             onClick={handleRouteSend}
-            // variant="contained"
-            // loadingPosition='end'
-            // endIcon={null}
-            // sx={{
-            //   textTransform: 'none', 
-            //   backgroundColor: '#78350f',  // bg-yellow-900
-            //   padding: '0px 40px'
-            // }}
-            className="h-8 w-16 bg-yellow-900 text-white disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+            className="bg-yellow-900 text-white px-5 py-2 border-2 border-black rounded"
            >
             Send Coin
            </button>
@@ -239,7 +227,6 @@ function TransactionsPage(): JSX.Element {
           <div className="hash_col">Hash:</div>
           <div className="last_modified_col" onMouseDown={() => sort_by_size()}>Amount:</div>
           <div className="size_col" onMouseDown={() => sort_by_time()}>Date:</div>
-          {/* <div className="delete_col"></div> */}
         </div>
         <ul className="files_list">
           {transactions_list.filter(file => file.txid.toLowerCase().includes(search.toLowerCase()) || file.address.toLowerCase().includes(search.toLowerCase())).map((file, index) => (

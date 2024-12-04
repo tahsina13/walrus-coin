@@ -52,7 +52,8 @@ function LoginPage(): JSX.Element {
           headers: {
             'Content-Type': 'text/plain;',
           },
-        });
+        } as any
+      );
         
         console.log(passres);
         // error check password
