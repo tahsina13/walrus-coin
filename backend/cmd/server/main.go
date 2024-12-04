@@ -103,9 +103,6 @@ func main() {
 	}
 
 	// Setup leveldb datastore
-	if cfg.Dbpath == "" {
-		cfg.Dbpath = filepath.Join(configDir, "leveldb")
-	}
 	dstore, err := leveldb.NewDatastore(cfg.Dbpath, nil)
 	if err != nil {
 		logrus.Fatal(err)
