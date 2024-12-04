@@ -21,6 +21,7 @@ Config file formats for YML, YAML, JSON and TOML are supported. Default location
 p2pport: 4001
 rpcport: 5001
 seed: "123456789"
+dbpath: "/path/to/leveldb"
 debug: true
 relayaddr: 
   - "/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
