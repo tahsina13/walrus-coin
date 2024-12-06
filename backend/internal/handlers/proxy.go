@@ -40,8 +40,10 @@ func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) err
 	proxy.Verbose = false
 
     proxy.Tr = &http.Transport{
-		Proxy: http.ProxyURL(secondHopProxyURL), // Use the second hop proxy
+		Proxy: http.ProxyURL(secondHopProxyURL),
+		ForceAttemptHTTP2: true, // Force HTTP/2 for better logging and proxy handling
 	}
+	proxy.ConnectDial = proxy.NewConnectDialToProxy(secondHopProxyURL.String())
 
 	proxy.OnResponse().DoFunc(
 		func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
@@ -84,7 +86,11 @@ func (h *ProxyHandler) StartProxyServer(w http.ResponseWriter, r *http.Request) 
     
 	proxy.OnResponse().DoFunc(
 		func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
-			resp.Header.Set("price", strconv.Itoa(priceInt*int(resp.ContentLength)))
+			if resp.ContentLength > 0{
+				resp.Header.Set("price", strconv.Itoa(priceInt*int(resp.ContentLength)))
+			} else {
+				resp.Header.Set("price", "0")
+			}
 			return resp
 		})
 
