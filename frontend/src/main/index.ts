@@ -214,6 +214,7 @@ app.whenReady().then(() => {
       child.stderr.on('data', (data) => {
         data = data.toString();
         console.error(`Error event: ${data}`);
+        event.sender.send("wallet-error", data);
         // reject(data);
       });
 
