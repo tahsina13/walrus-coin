@@ -33,7 +33,7 @@ func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) err
 	}
 
 	if secondHopProxyURL.Port() == "" {
-		secondHopProxyURL.Host = secondHopProxyURL.Hostname() + ":8084"
+		secondHopProxyURL.Host = secondHopProxyURL.Hostname()
 	}
 
 	proxy := goproxy.NewProxyHttpServer()
@@ -73,12 +73,16 @@ func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) err
 
 func (h *ProxyHandler) StartProxyServer(w http.ResponseWriter, r *http.Request) error {
 	price := r.FormValue("price")
+	port := r.FormValue("port")
 	if price == "" {
 		return util.BadRequestWithBody(bootstrapError{Message: "No price included"})
 	}
 	priceInt, err := strconv.Atoi(price)
 	if err != nil {
 		return util.BadRequestWithBody(bootstrapError{Message: "Unable to parse price to int"})
+	}
+	if port == "" {
+		port = ":8084"
 	}
 
 	proxy := goproxy.NewProxyHttpServer()
@@ -95,7 +99,7 @@ func (h *ProxyHandler) StartProxyServer(w http.ResponseWriter, r *http.Request) 
 		})
 
 	h.remoteProxy = &http.Server{
-		Addr:    ":8084",
+		Addr:    port,
 		Handler: proxy,
 	}
 

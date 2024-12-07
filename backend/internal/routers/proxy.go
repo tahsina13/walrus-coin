@@ -9,10 +9,10 @@ import (
 func NewProxyRouter(h *handlers.ProxyHandler) *mux.Router {
 	r := mux.NewRouter()
 
-	r.Handle("/startproxying", util.WithError(h.StartProxying)).Methods("POST")
-	r.Handle("/stopproxying", util.WithError(h.StopProxying)).Methods("POST")
-	r.Handle("/startproxyserver", util.WithError(h.StartProxyServer)).Methods("POST")
-	r.Handle("/stopproxyserver", util.WithError(h.StopProxyServer)).Methods("POST")
+	r.Handle("/connect", util.WithError(h.StartProxying)).Methods("POST")
+	r.Handle("/disconnect", util.WithError(h.StopProxying)).Methods("POST")
+	r.Handle("/start", util.WithError(h.StartProxyServer)).Methods("POST")
+	r.Handle("/stop", util.WithError(h.StopProxyServer)).Methods("POST")
 
 	return r
 }
