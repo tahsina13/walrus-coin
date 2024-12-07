@@ -12,6 +12,7 @@ import axios from 'axios';
 import Store from 'electron-store';
 import fs from 'fs';
 import kill from 'tree-kill';
+import os from 'os';
 // const kill = require('tree-kill');
 
 const store = new Store();
@@ -482,6 +483,7 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('create-wallet', (event, command, args, inputs) => {
+      const isWindows = os.platform() === "win32";
       const procPath = path.join(process.cwd(), command);
       const child = pty.spawn(procPath, ['--create'], {
         name: 'xterm-color',
@@ -494,19 +496,28 @@ app.whenReady().then(() => {
       child.onData((data) => {
         console.log(data);
         if (data.includes('Enter the private passphrase')) {
-          child.write(`${inputs[0]}\n`);
+          let input = `${inputs[0]}`;
+          if (isWindows) input = input += "\r";
+          child.write(`${input}\n`);
           // setTimeout(() => {console.log(`writing ${inputs[0]}`);child.write(`${inputs[0]}`);}, 1000);
         } else if (data.includes('Confirm passphrase:')) {
-          child.write(`${inputs[0]}\n`);
+          let input = `${inputs[0]}`;
+          if (isWindows) input = input += "\r";
+          child.write(`${input}\n`);
         } else if (data.includes('encryption for public data?')) {
-          child.write('n\n');
+          let input = `n`;
+          if (isWindows) input = input += "\r";
+          child.write(`${input}\n`);
         } else if (data.includes('existing wallet seed')) {
-          child.write('n\n');
+          let input = `n`;
+          if (isWindows) input = input += "\r";
+          child.write(`${input}\n`);
         } else if (data.includes('wallet generation seed')) {
-          child.write('OK\n');
+          let input = `OK`;
+          if (isWindows) input = input += "\r";
+          child.write(`${input}\n`);
         }
       });
-
 
       child.onExit((code) => {
         console.log(code);
