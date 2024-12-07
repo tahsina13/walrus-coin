@@ -2,7 +2,10 @@ package handlers
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -21,6 +24,23 @@ func NewProxyHandler() *ProxyHandler {
 	return &ProxyHandler{}
 }
 
+func orPanic(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+type countingReader struct {
+	reader     io.Reader
+	bytesCount int64
+}
+
+func (cr *countingReader) Read(p []byte) (int, error) {
+	n, err := cr.reader.Read(p)
+	cr.bytesCount += int64(n)
+	return n, err
+}
+
 func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) error {
 	h.StopProxy()
 	remoteProxyAddr := r.FormValue("remoteProxyAddr")
@@ -30,13 +50,14 @@ func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) err
 	}
 	secondHopProxyURL, err := url.Parse(remoteProxyAddr)
 	if err != nil {
-		log.Fatal(err)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("Could not parse URL: %v", err))) // Send the error message
+		return fmt.Errorf("could not parse URL: %v", err)
 	}
 	if port == "" {
 		port = ":8083"
 	}
 	
-
 	if secondHopProxyURL.Port() == "" {
 		secondHopProxyURL.Host = secondHopProxyURL.Hostname() + ":8084"
 	}
@@ -46,33 +67,38 @@ func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) err
 
     proxy.Tr = &http.Transport{
 		Proxy: http.ProxyURL(secondHopProxyURL),
-		ForceAttemptHTTP2: true, // Force HTTP/2 for better logging and proxy handling
+		ForceAttemptHTTP2: true, 
 	}
 	proxy.ConnectDial = proxy.NewConnectDialToProxy(secondHopProxyURL.String())
-
-	proxy.OnResponse().DoFunc(
-		func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
-			price := resp.Header.Get("price")
-			priceInt, err := strconv.Atoi(price)
-			if err != nil {
-				log.Printf("Unable to parse price to int: %v\n", err)
-			}
-			log.Print(priceInt)
-			//TODO: LOGIC FOR SENDING MONEY
-			return resp
-		})
 
 	h.localProxy = &http.Server{
 		Addr:    ":8083",
 		Handler: proxy,
 	}
 
-	// Run the server in a goroutine
+	errCh := make(chan error, 1)
 	go func() {
-		if err := h.localProxy.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Could not listen on :8083: %v\n", err)
+		// Attempt to start the proxy server
+		err := h.localProxy.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			errCh <- err
 		}
 	}()
+
+	// 1 second timeout for proxy server to start
+	select {
+	case err := <-errCh:
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError) // Set the response status code to 500 (Internal Server Error)
+			w.Write([]byte(fmt.Sprintf("Could not start local proxy server: %v", err))) // Send the error message
+			return fmt.Errorf("could not start local proxy server: %v", err)
+		}
+	case <-time.After(1 * time.Second):
+		log.Println("Local proxy server started successfully.")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Local proxy server started successfully."))
+	}
+
 	return nil
 }
 
@@ -93,15 +119,88 @@ func (h *ProxyHandler) StartProxyServer(w http.ResponseWriter, r *http.Request) 
 	proxy := goproxy.NewProxyHttpServer()
 	proxy.Verbose = false
     
-	proxy.OnResponse().DoFunc(
-		func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
-			if resp.ContentLength > 0{
-				resp.Header.Set("price", strconv.Itoa(priceInt*int(resp.ContentLength)))
-			} else {
-				resp.Header.Set("price", "0")
+	proxy.OnRequest().DoFunc(func(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
+		// Create counting readers and writers
+		countingReqBody := &countingReader{reader: req.Body}
+		req.Body = io.NopCloser(countingReqBody)
+
+		// Make the request to the remote server
+		resp, err := http.DefaultTransport.RoundTrip(req)
+		if err != nil {
+			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, http.StatusInternalServerError, "Internal Server Error")
+		}
+
+		countingRespBody := &countingReader{reader: resp.Body}
+		resp.Body = io.NopCloser(countingRespBody)
+
+		// Log the byte counts
+		go func() {
+			time.Sleep(1 * time.Second) // Wait for the response to be fully read
+			fmt.Printf("Bytes sent to remote: %d, Bytes received from remote: %d, Price per byte: %d\n", countingReqBody.bytesCount, countingRespBody.bytesCount, priceInt)
+		}()
+
+		return req, resp
+	})
+
+	// Hijack CONNECT requests
+	proxy.OnRequest().HijackConnect(func(req *http.Request, client net.Conn, ctx *goproxy.ProxyCtx) {
+		defer func() {
+			if e := recover(); e != nil {
+				ctx.Logf("error connecting to remote: %v", e)
+				client.Write([]byte("HTTP/1.1 500 Cannot reach destination\r\n\r\n"))
 			}
-			return resp
-		})
+			client.Close()
+		}()
+
+		// Connect to the remote server
+		remote, err := net.Dial("tcp", req.URL.Host)
+		orPanic(err)
+		defer remote.Close()
+
+		// Notify client that the connection is established
+		client.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+
+		// Create channels to monitor byte counts
+		clientToRemote := make(chan int64)
+		remoteToClient := make(chan int64)
+
+		// Copy data from client to remote and measure bytes
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("Recovered from panic: %v", r)
+				}
+			}()
+			bytes, err := io.Copy(remote, client)
+			if err != nil {
+				log.Printf("Error: %v", err)
+			}
+			clientToRemote <- bytes
+		}()
+		
+		// Copy data from remote to client and measure bytes
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("Recovered from panic: %v", r)
+				}
+			}()
+			bytes, err := io.Copy(client, remote)
+			if err != nil {
+				log.Printf("Error copying from remote to client: %v", err)
+			}
+			remoteToClient <- bytes
+		}()
+
+		// Wait for both directions to complete
+		totalClientToRemote := <-clientToRemote
+		totalRemoteToClient := <-remoteToClient
+
+		// Log the byte counts
+		fmt.Printf("Bytes sent to remote: %d, Bytes received from remote: %d, Price per byte: %d\n",
+			totalClientToRemote, totalRemoteToClient, priceInt)
+	})
+
 
 	h.remoteProxy = &http.Server{
 		Addr:    port,
@@ -109,11 +208,29 @@ func (h *ProxyHandler) StartProxyServer(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Run the server in a goroutine
+	errCh := make(chan error, 1)
 	go func() {
-		if err := h.remoteProxy.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("Could not listen on :8084: %v\n", err)
+		// Attempt to start the proxy server
+		err := h.remoteProxy.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			errCh <- err
 		}
 	}()
+
+	// 1 second timeout for proxy server to start
+	select {
+	case err := <-errCh:
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError) // Set the response status code to 500 (Internal Server Error)
+			w.Write([]byte(fmt.Sprintf("Could not start remote proxy server: %v", err))) // Send the error message
+			return fmt.Errorf("could not start remote proxy server: %v", err)
+		}
+	case <-time.After(1 * time.Second):
+		log.Println("Remote proxy server started successfully.")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Remote proxy server started successfully."))
+	}
+	
 	return nil
 }
 
