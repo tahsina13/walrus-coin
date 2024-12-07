@@ -24,6 +24,7 @@ func NewProxyHandler() *ProxyHandler {
 func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) error {
 	h.StopProxy()
 	remoteProxyAddr := r.FormValue("remoteProxyAddr")
+	port := r.FormValue("port")
 	if remoteProxyAddr == "" {
 		return util.BadRequestWithBody(bootstrapError{Message: "No remote proxy address provided"})
 	}
@@ -31,9 +32,13 @@ func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) err
 	if err != nil {
 		log.Fatal(err)
 	}
+	if port == "" {
+		port = ":8083"
+	}
+	
 
 	if secondHopProxyURL.Port() == "" {
-		secondHopProxyURL.Host = secondHopProxyURL.Hostname()
+		secondHopProxyURL.Host = secondHopProxyURL.Hostname() + ":8084"
 	}
 
 	proxy := goproxy.NewProxyHttpServer()
