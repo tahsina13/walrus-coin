@@ -1,5 +1,8 @@
 import axios from "axios";
 import { ChangeEvent, FormEvent, useState, useEffect } from "react";
+import { LoadingButton } from '@mui/lab';
+import ConfirmationDialog from "./ConfirmationDialog";
+
 
 const testProviders = ["QmHash1", "QmHash2", "QmHash3", "QmHash4", "QmHash5"]
 
@@ -14,7 +17,7 @@ function ExplorePage(): JSX.Element {
 function SearchBar(): JSX.Element {
   const [hash, setHash] = useState<string>('');
   const [providers, setProviders] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   // // Bootstrap
   // useEffect(() => {
@@ -36,7 +39,7 @@ function SearchBar(): JSX.Element {
   const handleSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     console.log("Search: " + hash);
-    setIsLoading(true);
+    setLoading(true);
 
     try {
       // 
@@ -53,7 +56,7 @@ function SearchBar(): JSX.Element {
       console.error("Error during API request:", error);
       setProviders([]);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }
   
@@ -89,7 +92,7 @@ function SearchBar(): JSX.Element {
           Search
         </button>
       </form>
-      {isLoading ? (
+      {loading ? (
         <div className="loading-indicator">
           <p>Loading...</p>
           {/* Circular Progress MUI? */}
@@ -116,14 +119,20 @@ function ProviderList( { providers, hash }: { providers: any[], hash: string }):
 }
 
 function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.Element {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
+
   const findCircuitAddr = (addresses: string[]): string | undefined => {
     return addresses.find(addr => addr.includes('tcp') && addr.includes('p2p-circuit'));
   }
 
   const downloadFile = async (providerId: string) => {
     console.log(`Downloading file ${hash} from ${providerId}`);
+    setDialogOpen(false);
+    setLoading(true);
 
     let filteredAddr = findCircuitAddr(provider.Addrs);
+    // If address doesn't have p2p-circuit address, tries all addresses
     if (!filteredAddr) {
       console.log("No p2p-circuit address found, trying other addresses...");
       for (let addr of provider.Addrs) {
@@ -131,23 +140,22 @@ function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.
           const peerArg = `${addr}/p2p/${providerId}`;
           try {
             console.log(`trying ${peerArg}`)
-            const response = await axios.post(`http://localhost:5001/api/v0/block/get?arg=${hash}&peer=${peerArg}`, {
+            const response = await axios.post(`http://localhost:5001/api/v0/block/get?arg=${hash}&peer=${peerArg}`, null, {
               responseType: 'blob',
             });
             console.log("Obtained File", response.data);
+            console.log(response.data instanceof Blob);
             downloadBlob(response.data, hash);
             break;
           } catch (error) {
             console.error(`Error during API request for address ${addr}:`, error);
-          }
+          } 
         }
       }
     } else {
       const peerArg = `${filteredAddr}/p2p/${providerId}`;
-
       try {
-        // 
-        const response = await axios.post(`http://localhost:5001/api/v0/block/get?arg=${hash}&peer=${peerArg}`, {
+        const response = await axios.post(`http://localhost:5001/api/v0/block/get?arg=${hash}&peer=${peerArg}`, null, {
           responseType: 'blob',
         });
         console.log("Obtained file", response.data);
@@ -157,7 +165,6 @@ function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.
         console.error("Error during API request:", error);
       }
     }
-
   }
 
   const downloadBlob = (blobData: Blob, fileName: string) => {
@@ -168,6 +175,15 @@ function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setLoading(false);
+  };
+
+  const handleDownload = () => {
+    setDialogOpen(true);
+  };
+
+  const handleDialogClose = () => {
+    setDialogOpen(false);
   };
 
   return (
@@ -181,14 +197,27 @@ function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.
             ))}
           </ul>
         </div> */}
+        <p> Price: 0 WACO</p>
         <div style={{ width: '100%', marginTop: '10px', textAlign: 'right'}}>
-            <button 
+            <LoadingButton
+              loading={loading}
+              variant="contained"
+              color="primary"
               className="border border-blue-500 bg-blue-500 text-white py-2 px-6 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onClick={() => downloadFile(provider.ID)}
+              onClick={handleDownload}
+              loadingPosition="end"
+              endIcon={null}
             > 
               Download 
-            </button>
+            </LoadingButton>
           </div>
+          <ConfirmationDialog
+            open={dialogOpen}
+            onClose={handleDialogClose}
+            onConfirm={() => downloadFile(provider.ID)}
+            title="Download?"
+            message={`Are you sure you want to download this file at a price of ...`}
+        />
       </div>
     ) : null
   );

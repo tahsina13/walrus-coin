@@ -1,4 +1,4 @@
-import React, { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom'
+import React, { HashRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom'
 import SignInLogIn from './components/SignInLogIn'
 import RegisterPage from './components/RegisterPage'
 import Sidebar from './components/Sidebar'

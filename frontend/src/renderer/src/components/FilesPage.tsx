@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import FilesIcon from '../assets/file-icon.png'
 import FilePreview from './FilePreview'
+import ConfirmationDialog from './ConfirmationDialog';
 
 function FilesPage(): JSX.Element {
   const [storage, set_storage] = useState('')
@@ -16,6 +17,12 @@ function FilesPage(): JSX.Element {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [updateDate, setUpdateDate] = useState(true)
   const defaultFileCost = localStorage.getItem('defaultFileCost') ? parseFloat(localStorage.getItem('defaultFileCost') as string) : 1
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<File | null>(null);
+
+  const handleCloseDialog = () => {
+      setDialogOpen(false);
+  };
 
   // File Preview
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -127,9 +134,17 @@ function FilesPage(): JSX.Element {
     setSearch(event.target.value)
   }
 
-  function deleteFile(delete_file) {
-    set_file_list(file_list.filter((file) => file.CID !== delete_file.CID))
+  function deleteFile() {
+    if (fileToDelete) {
+      setDialogOpen(false);
+      set_file_list(file_list.filter((file) => file.CID !== fileToDelete.CID))
+    }
   }
+
+  const handleDelete = (file: File) => {
+    setFileToDelete(file);  // Set the file to be deleted
+    setDialogOpen(true);  // Open the confirmation dialog
+  };
 
   //add a file to the list
   useEffect(() => {
@@ -248,7 +263,7 @@ function FilesPage(): JSX.Element {
                       className="w-10 h-10 ml-3"
                       onClick={(e) => {
                         e.stopPropagation()
-                        deleteFile(file)
+                        handleDelete(file)
                       }}
                     />
                   </div>
@@ -264,7 +279,13 @@ function FilesPage(): JSX.Element {
         file={popoverFile}
        >
        </FilePreview>
-       
+       <ConfirmationDialog
+          open={dialogOpen}
+          onClose={handleCloseDialog}
+          onConfirm={deleteFile}
+          title="Delete File?"
+          message={`Are you sure you want to delete the file "${fileToDelete?.name}"? It will be gone forever!`}
+        />
     </div>
   )
 }

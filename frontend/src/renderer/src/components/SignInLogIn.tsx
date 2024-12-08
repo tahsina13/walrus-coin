@@ -49,7 +49,9 @@ function SignInLogIn(): JSX.Element {
     try {
       const res = await window.versions.startWallet();
       localStorage.setItem("walletExists", "true");
+      setExistingLoading(false);
     } catch (error) {
+      setHasError(true);
       setExistingLoading(false);
       localStorage.setItem("walletExists", "false");
     }

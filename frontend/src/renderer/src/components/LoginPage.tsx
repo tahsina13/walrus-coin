@@ -52,7 +52,8 @@ function LoginPage(): JSX.Element {
           headers: {
             'Content-Type': 'text/plain;',
           },
-        });
+        } as any
+      );
         
         console.log(passres);
         // error check password
@@ -195,7 +196,11 @@ function LoginPage(): JSX.Element {
           </div>
           <div className='text-white'>{error_message}</div>
           <div className='flex space-x-1'>
-            <div>Not sure yet?</div><div onClick={()=>{navigate('/sign-in')}} className='cursor-pointer text-blue-800 underline'>Return to home</div>
+            <div>Not sure yet?</div>
+            <div className='cursor-pointer text-blue-800 underline'
+              onClick={()=>{!existingLoading && navigate('/sign-in')}}
+              >
+              Return to home</div>
           </div>
         </div>
     </div>

@@ -22,8 +22,18 @@ function RegisterPage(): JSX.Element {
   const handleCreateWallet = async () => {
     setLoading(true);
     try {
-      await window.versions.createWallet("../backend/btcwallet/btcwallet", ["--create"], [walletPassword, walletPassword, "n", "n", "OK"]);
-
+      console.log("create wallet start");
+      const os = (navigator.platform);
+      let procPath;
+      if (os == "Win32") {
+        console.log("win32 hehe");
+        procPath = "../backend/btcwallet/btcwallet.exe";
+      }
+      else {
+        procPath = "../backend/btcwallet/btcwallet";
+      }
+      await window.versions.createWallet(procPath, ["--create"], [walletPassword, walletPassword, "n", "n", "OK"]);
+      console.log("create-wallet did it reach?");
       await sleep(2000);
       await window.versions.startProcess("../backend/btcwallet/btcwallet", ['-C', '../backend/btcwallet.conf']);
       await sleep(500);
@@ -49,7 +59,7 @@ function RegisterPage(): JSX.Element {
     //   },
     // });
     // console.log(newaccres);
-    navigate('/sign-in');
+    navigate('/status');
     // returnHome();
 
     }catch (error) {

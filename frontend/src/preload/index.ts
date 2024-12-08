@@ -21,7 +21,10 @@ if (process.contextIsolated) {
           console.log("starting promise");
           ipcRenderer.once('wallet-started', () => {
             resolve(1);
-          })
+          });
+          ipcRenderer.once('wallet-error', (error) => {
+            reject(new Error(error));
+          });
           ipcRenderer.send('start-wallet');
         });
       },

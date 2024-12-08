@@ -6,6 +6,8 @@ import { ipcRenderer } from 'electron';
 import path from 'path';
 import axios from 'axios';
 import { LoadingButton } from '@mui/lab';
+import { PageHeader } from './Components';
+import ConfirmationDialog from './ConfirmationDialog';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -17,11 +19,10 @@ function SendPage(): JSX.Element {
   // const [inputValue2, setInputValue2] = useState('');
   const navigate = useNavigate();
   const [hasError, setHasError] = useState(false);
-  const [newLoading, setNewLoading] = useState(false);
-  const [existingLoading, setExistingLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState<number | undefined>(undefined);
-
   const [destAddress, setDestAddress] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
   // const [walletExists, setWalletExists] = useState(false);
   // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   //   setInputValue(e.target.value);
@@ -47,8 +48,16 @@ function SendPage(): JSX.Element {
   //   });
   // };
 
+  const handleOpenDialog = () => {
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+      setDialogOpen(false);
+  };
+
   const handleSend = async () => {
-    setExistingLoading(true);
+    setLoading(true);
     try {
       // const res = await window.versions.startWallet();
 
@@ -60,6 +69,7 @@ function SendPage(): JSX.Element {
       console.log("sending coin");
       console.log(destAddress);
       console.log(amount);
+      setDialogOpen(false); // Closes dialog after confirmation
       const sendres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "sendtoaddress", params: [destAddress, amount]}, {
         auth: {
           username: 'user',
@@ -68,7 +78,8 @@ function SendPage(): JSX.Element {
         headers: {
           'Content-Type': 'text/plain;',
         },
-      });
+      } as any
+    );
       console.log(sendres);
       const ret = await window.versions.killWallet();
       const ret2 = await window.versions.startWallet();
@@ -77,7 +88,7 @@ function SendPage(): JSX.Element {
     }
     catch (error) {
       setHasError(true);
-      setExistingLoading(false);
+      setLoading(false);
       console.log(error);
     }
   };
@@ -87,65 +98,76 @@ function SendPage(): JSX.Element {
   };
 
   return (
-      <div style={{ backgroundColor: '#997777' }} className="container flex justify-center items-center h-screen w-screen">
-          <div className="flex flex-col items-center">
-              <img src={WalrusCoinLogo} alt="WalrusCoin" className="w-80 h-80" />
-              <div className="flex justify-center p-4">
-                  <span className="text-white text-5xl">{"WalrusCoin"}</span>
-              </div>
-              <div className="header">
-              </div>
-              <div className="inputs mt-4">
-                <div className="submit-container flex h-12 space-x-10">
-                  <div className="submit-container flex">
-                    <div className="input mb-4">
+      <div className='coin-page-container h-full flex flex-col'>
+        <div className="ml-10" style={{ marginBottom: '30px', padding: '10px 20px',}}>
+          <PageHeader name={'Send Coin'} />
+        </div>
+          <div className="flex flex-col flex-grow justify-center">
+              <div className="submit-container flex flex-col ml-2 mr-2 mt-4 items-center justify-center">
+                  <div className="inputs-container flex flex-col w-1/3 items-center justify-center">
+                    <div className="amount-input mb-4 w-full flex justify-center">
                       <input 
                           type="number" 
                           placeholder='WACO Amount'
-                          className="border border-gray-300 p-2 rounded focus:outline-none"
+                          className="border border-gray-300 p-2 rounded focus:outline-none w-10/12"
                           value={amount || ''}
                           onChange={(event)=>{setAmount(event.target.value ? Number(event.target.value): undefined)}}
                         />
                     </div>
-                    <div className="input mb-4">
+                    <div className="address-input mb-4 w-full flex justify-center">
                       <input 
                           type="text" 
                           placeholder='Destination Address' 
-                          className="border border-gray-300 p-2 rounded focus:outline-none"
+                          className="border border-gray-300 p-2 rounded focus:outline-none w-10/12"
                           value={destAddress}
-                          onChange={(event)=>{setDestAddress(event.target.value)}}
+                          onChange={(event)=>{setDestAddress(event.target.value); setHasError(false);}}
                         />
                     </div>
                   </div>
-                  <div className="submit-container flex">
+                  <div className="submit-container">
                     <LoadingButton
-                      loading={existingLoading}
-                      onClick={handleSend}
+                      loading={loading}
+                      onClick={handleOpenDialog}
                       variant="contained"
-                      disabled={existingLoading}
+                      disabled={loading || !amount || !destAddress}
                       loadingPosition='end'
                       endIcon={null}
                       sx={{
                         textTransform: 'none', 
-                        backgroundColor: '#78350f',  // bg-yellow-900
-                        padding: '0px 40px'
+                        backgroundColor: '#78350f',
+                        padding: '5px 30px'
                       }}
-                      className="bg-yellow-900 text-white rounded over:bg-black disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                      className="bg-yellow-900 text-white rounded disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                     >
                       Send Coin
                     </LoadingButton>
                   </div>
-                </div>
               </div>
-              <div>
+              <div className='bottom-error'>
                 {hasError && (
                   <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-200 text-red-600 p-2 rounded flex items-start">
-                    <span>Oops! We couldn't find your wallet. Please create a new wallet.</span>
+                    <span>Unable to send coin to address: {destAddress}. Please make sure the address is correct.</span>
                     <button onClick={closeErrorMessage} className="ml-2 text-gray-500 font-bold">x</button>
                   </div>
                 )}
               </div>
           </div>
+          <div className="ml-4 mb-2">
+            <button 
+              className="text-white px-4 py-2 rounded" 
+              style={{ backgroundColor: '#997777' }}
+              onClick={() => navigate('/transactions')}
+            >
+              Back
+            </button>
+          </div>
+          <ConfirmationDialog
+              open={dialogOpen}
+              onClose={handleCloseDialog}
+              onConfirm={handleSend}
+              title="Send Coin"
+              message={`Are you sure you want to send ${amount} WACO to this address?`}
+            />
       </div>
   );
 }
