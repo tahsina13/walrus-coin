@@ -96,6 +96,10 @@ function LoginPage(): JSX.Element {
 
         const connect_network = await window.versions.connectNet();
 
+        const kill_wallet = await window.versions.killWallet();
+
+        const start_wallet = await window.versions.startWallet();
+
         setStartNet(true);
 
         const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [walletPassword, 99999999]}, {

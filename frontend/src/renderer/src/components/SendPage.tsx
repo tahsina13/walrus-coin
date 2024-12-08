@@ -70,6 +70,9 @@ function SendPage(): JSX.Element {
         },
       });
       console.log(sendres);
+      const ret = await window.versions.killWallet();
+      const ret2 = await window.versions.startWallet();
+      console.log("killed wallet"); 
       navigate('/transactions');
     }
     catch (error) {

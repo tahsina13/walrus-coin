@@ -75,6 +75,15 @@ if (process.contextIsolated) {
           ipcRenderer.send('connect-network')
         });
       },
+      killWallet: () => {
+        return new Promise((resolve, reject) => {
+          ipcRenderer.once('wallet-killed', () => {
+            console.log('killed wallet');
+            resolve(1);
+          });
+          ipcRenderer.send('kill-wallet');
+        });
+      },
     })
   } catch (error) {
     console.error(error)

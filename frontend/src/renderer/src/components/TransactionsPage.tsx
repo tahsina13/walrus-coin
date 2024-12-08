@@ -58,7 +58,7 @@ function TransactionsPage(): JSX.Element {
     //     console.log('finsihed transactinosl');
     // });
     // console.log("TRANSACTIONS: ");
-    console.log(transactions);
+    // console.log(transactions);
     let disptrans: Array<Transaction> = [];
     // console.log(trçansactions);
     for (let i=0; i<transactions.length; i++) {
@@ -83,7 +83,7 @@ function TransactionsPage(): JSX.Element {
         if (transaction.confirmations == 0) {
           transaction.category = "pending";
         }
-        console.log(transaction.date);
+        // console.log(transaction.date);
         disptrans.push(transaction);
       }
     }
@@ -128,28 +128,28 @@ function TransactionsPage(): JSX.Element {
     hiddenFileInput.current.click();
   };
   
-  const handleFileChange = event => {
-    setSelectedFile(event.target.files[0]);
-  };
+  // const handleFileChange = event => {
+  //   setSelectedFile(event.target.files[0]);
+  // };
 
   const handleRouteSend = event => {
     navigate('/send');
-    // setSelectedFile(event.target.files[0]);k
   };
 
   function searchFiles(event){
     setSearch(event.target.value)
   }
 
-  function deleteFile(delete_file){
-    set_transactions_list(transactions_list.filter(file => file.txid !== delete_file.txid))
-  }
+  // function deleteFile(delete_file){
+  //   set_transactions_list(transactions_list.filter(file => file.txid !== delete_file.txid))
+  // }
 
   useEffect(() => {
     console.log("trans use effect");
     const fetchTransactions = async () => {
       try {
         const transactions = await getTransactions();
+        console.log("LENGTH OF TRANSACTINOS: " + transactions.length);
         set_transactions_list(transactions);
 
       } catch (error) {
@@ -241,9 +241,12 @@ function TransactionsPage(): JSX.Element {
           <div className="size_col" onMouseDown={() => sort_by_time()}>Date:</div>
           {/* <div className="delete_col"></div> */}
         </div>
-        <ul className="files_list">
-          {transactions_list.filter(file => file.txid.toLowerCase().includes(search.toLowerCase()) || file.address.toLowerCase().includes(search.toLowerCase())).map((file, index) => (
-            <li key={index} className="menu-item">
+        {/* <ul className="files_list" style={{overflow: "auto"}}> */}
+        <ul>
+          {/* {transactions_list.filter(file => true || file.txid.toLowerCase().includes(search.toLowerCase()) || file.address.toLowerCase().includes(search.toLowerCase())).map((file) => ( */}
+          {transactions_list.map((file) => (
+            // console.log("rendering txid: " + file.txid)
+            <li key={file.txid} className="menu-item">
               <div className="file_row">
                 <div className="icon_col">
                   {file.category}
@@ -256,6 +259,7 @@ function TransactionsPage(): JSX.Element {
                 </div>
                 {/* <div style={{color: 'black', fontSize: '16px'}} className="last_modified_col">{time_convert(file.time)}</div> */}
                 <div className="last_modified_col">{((file.value))} WACO</div>
+                {/* <div>{console.log(file.txid)}</div> */}
                 <div style={{color: 'black', fontSize: '16px'}} className="size_col">{time_convert(file.time)}</div>
                 {/* <div className="delete_col"> */}
                   {/* <img src={"/src/assets/trash.png"} alt="delete" className="w-10 h-10 ml-3" onClick={(e) => {e.stopPropagation();deleteFile(file)}}/> */}

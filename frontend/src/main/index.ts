@@ -16,10 +16,49 @@ import kill from 'tree-kill';
 
 const store = new Store();
 
+let btcwalletproc = 0;
+let btcwalletpid = 0;
+
 function getWalletAddress() {
   const procPath = path.join(process.cwd(), '../backend/btcd/btcd');
   const confPath = path.join(process.cwd(), '../backend/btcwallet.conf');
   const btcwallet = spawn(procPath, ['-C', confPath]);
+}
+
+function startWallet() {
+  const procPath = path.join(process.cwd(), "../backend/btcwallet/btcwallet");
+    const confPath = path.join(process.cwd(), '../backend/btcwallet.conf');
+    const child = spawn(procPath, ['-C', confPath], {shell: true});
+    btcwalletpid = child.pid;
+    btcwalletproc = child;
+    child.stdout.on('data', async (data) => {
+      console.log("stdout event: " + data);
+      // if (data.includes('Opened wallet')) {
+        // const resrpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getaccountaddress", params: ["default"]}, {
+        //   auth: {
+        //     username: 'user',
+        //     password: 'password'
+        //   },
+        //   headers: {
+        //     'Content-Type': 'text/plain;',
+        //   },
+        // });
+        // console.log(resrpc);
+        // address = resrpc.data.result;
+        // store.set("walletaddr", resrpc.data.result);
+        // console.log("ADDRESS? : " + address);
+        // event.sender.send("address-rec", resrpc.data.result);
+        // child.kill();
+        // event.sender.send("wallet-started");
+      // }
+      // resolve(data);
+      });
+      
+      child.stderr.on('data', (data) => {
+        data = data.toString();
+        console.error(`Error event: ${data}`);
+        // reject(data);
+      });
 }
 
 function startBtcd() {
@@ -180,6 +219,23 @@ app.whenReady().then(() => {
     return store.get(key);
   });
 
+
+  ipcMain.on('kill-wallet', (event) => {
+    let child = btcwalletproc;
+    kill(child.pid, 'SIGTERM', (err) => {
+      if (err) {
+        console.error("ERROR TREE-KILL: ", err);
+      } else {
+        console.log("terminated via TREE-KILL");
+      }
+    });
+
+    child.on('exit', (code) => {
+      event.sender.send("wallet-killed");
+    });
+
+  });
+
   ipcMain.on('start-wallet', (event) => {
     // return new Promise((resolve, reject) => {  
       // const procPath = path.join(process.cwd(), command); 
@@ -188,6 +244,8 @@ app.whenReady().then(() => {
       const procPath = path.join(process.cwd(), "../backend/btcwallet/btcwallet");
       const confPath = path.join(process.cwd(), '../backend/btcwallet.conf');
       const child = spawn(procPath, ['-C', confPath], {shell: true});
+      btcwalletpid = child.pid;
+      btcwalletproc = child;
       child.stdout.on('data', async (data) => {
         console.log("stdout event: " + data);
         if (data.includes('Opened wallet')) {
@@ -251,12 +309,29 @@ app.whenReady().then(() => {
       const procPath = path.join(process.cwd(), '../backend/btcd/btcd'); 
       const confPath = path.join(process.cwd(), '../backend/btcd.conf');
       // console.log(procPath, [args, inputs]);
-      const child = spawn(procPath, ['-C', confPath, '--notls', '--txindex', '--miningaddr='+walletaddr], {shell: true});
+      const child = spawn(procPath, ['-C', confPath, '--notls', '--txindex', '--addrindex', '--miningaddr='+walletaddr], {shell: true});
       child.stdout.on('data', async (data) => {
         console.log("stdout event: " + data);
-        if (data.includes('RPC server listening on 127.0.0.1:8334')) {
+        // if (data.includes('RPC server listening on 127.0.0.1:8334')) {
+        if (data.includes('Finished rescan')) {
           console.log("here in index");
           event.sender.send("btcd-started");
+        }
+        if (data.includes('Block submitted via CPU miner accepted')) {
+          console.log("got block rec");
+          kill(btcwalletproc.pid, 'SIGTERM', (err) => {
+            if (err) {
+              console.error("ERROR TREE-KILL: ", err);
+            } else {
+              console.log("terminated via TREE-KILL");
+            }
+          });
+
+          btcwalletproc.on('exit', (code) => {
+            // event.sender.send("wallet-killed");
+            startWallet();
+          });
+
         }
       });
       
