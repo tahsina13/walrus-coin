@@ -1,5 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import path, { join } from 'path'
+import path, { join, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png'
 import { create } from 'ipfs';
@@ -77,35 +77,49 @@ function startBtcd() {
 }
 
 async function startServer() {
-  const serverPath = path.join(process.cwd(), '../backend/cmd/server/server');
-  const server = spawn(serverPath); 
+  return new Promise((resolve, reject) => {
+    const serverPath = path.join(process.cwd(), '../backend');
+    const bootstrapAddr = '/ip4/130.245.173.221/tcp/6001/p2p/12D3KooWE1xpVccUXZJWZLVWPxXzUJQ7kMqN8UQ2WLn9uQVytmdA'
+    // const bootstrapAddr = '/ip4/130.245.173.222/tcp/61020/p2p/12D3KooWM8uovScE5NPihSCKhXe8sbgdJAi88i2aXT2MmwjGWoSX'
 
-  server.stdout.on('data', (data) => {
-    console.log(`server stdout: ${data}`);
-  });
 
-  // Create the host
-  await axios.post('http://localhost:8080/rpc', {
-    jsonrpc: '2.0',
-    method: 'NodeService.CreateHost',
-    params: {
-      nodeId: '123456789',
-      ipAddr: '0.0.0.0',
-      port: 0,
-      relayAddr: '/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN',
-      bootstrapAddr: [
-        '/ip4/130.245.173.222/tcp/61000/p2p/12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE'
-      ]
-    },
-    id: 1
-  }); 
-  
-  // Init dht
-  await axios.post('http://localhost:8080/rpc', {
-    jsonrpc: '2.0',
-    method: 'DhtService.InitDht',
-    id: 2
-  }); 
+    const server = spawn('go', ['run', './cmd/server'], {
+      cwd: serverPath,
+      shell: true,
+    });
+
+    const connectBootstrap = async() => {
+      try {
+        const response = await axios.post(`http://localhost:5001/api/v0/bootstrap/add?arg=${bootstrapAddr}`)
+        console.log('Bootstrap response: ', response.data);
+      } catch (error){
+        console.error('Bootstrap error: ', error);
+      }
+    }
+
+    server.stderr.on('data', (data) => {
+      const output = data.toString();
+      console.log(`server stderr: ${output}`);
+
+      if (output.includes("Server listening on port")) {
+        console.log("Server is ready!");
+        connectBootstrap(); // Connect to bootstrap when server ready
+        resolve(data);
+      }
+    });
+
+    server.on('exit', (code, signal) => {
+      if (code !== 0) {
+        console.error(`Server exited with code ${code}, signal: ${signal}`);
+        reject(new Error('Server failed to start.'));
+      } else {
+        console.log("Server exited successfully.");
+      }
+    });
+
+    
+
+  })
 }
 
 // function startBtcwallet() {
@@ -154,13 +168,13 @@ function createWindow(): void {
   // start btcd
   // startBtcd();
   // startBtcwallet();
-  startServer(); 
+  // startServer(); 
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
@@ -173,6 +187,16 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.handle('ping', () => console.log('pong'))
+
+  try {
+    console.log("Starting server...");
+    await startServer();
+    console.log("Server is running. Starting Electron app...");
+    createWindow();
+  } catch (err) {
+    console.error("Error starting the server:", err);
+    app.quit();
+  }
 
   ipcMain.handle('start-process', (event, command, args, inputs) => {
     return new Promise((resolve, reject) => {  
@@ -676,8 +700,8 @@ app.whenReady().then(() => {
   //   });
   // });
   
-
-  createWindow()
+  // startServer(); 
+  // createWindow();
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
