@@ -123,7 +123,12 @@ function LoginPage(): JSX.Element {
           return;
         }
 
+        console.log(" we out");
         navigate('/status');
+        sessionStorage.setItem("buttonState", "disabled");
+        const add_bootstrap = await window.versions.addBootstrap();
+        sessionStorage.setItem("buttonState", "enabled");
+        console.log("YOOOOOO we in");
     } else {
       setExistingLoading(false);
       set_error_message("The password cannot be blank.");
