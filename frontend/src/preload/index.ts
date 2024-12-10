@@ -88,6 +88,15 @@ if (process.contextIsolated) {
           ipcRenderer.send('kill-wallet');
         });
       },
+      btcctlcmd: (args) => {
+        return new Promise((resolve, reject) => {
+          ipcRenderer.once('btcctl', () => {
+            console.log("ran cmd");
+            resolve(1);
+          });
+          ipcRenderer.send('btcctlcmd', args);
+        });
+      },
     })
   } catch (error) {
     console.error(error)

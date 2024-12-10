@@ -566,6 +566,61 @@ app.whenReady().then(() => {
         // console.log("EXITINGGGG");
       });
   });
+
+  ipcMain.on('btcctlcmd', (event, args) => {
+    // return new Promise((resolve, reject) => {  
+      // const procPath = path.join(process.cwd(), command); 
+      // console.log(procPath, [args]);
+      // { shell: true }?
+      console.log(args);
+      for (let i=0; i<args.length; i++) {
+        console.log("arg " + i + ": " + args[i]);
+      }
+      console.log(['--wallet', '--rpcuser=user', '--rpcpass=password', '--notls'] + args);
+      const btcctlPath = path.join(process.cwd(), '../backend/btcd/cmd/btcctl/btcctl');
+      // const confPath = path.join(process.cwd(), '../backend/btcctl.conf');
+      const btcctlargs = [...['--wallet', '--rpcuser=user', '--rpcpass=password', '--notls'], ...args];
+      console.log(btcctlargs);
+      const child = spawn(btcctlPath, btcctlargs, { shell: true });
+
+      // const transPath = path.join(process.cwd(), '../backend/transactions.json');
+      // const outputFileStream = fs.createWriteStream(transPath);
+
+      // child.stdout.pipe(outputFileStream); 
+      
+      // child.stderr.on('data', (data) => {
+      //   data = data.toString();
+      //   console.error(`Error event: ${data}`);
+      //   reject(data);
+      // });
+      child.stderr.on('data', (err) => {
+        if (!err.includes("config file")) {
+          console.log("transactions error: " + err);
+        }
+      });
+  
+      child.on('close', (code) => {
+        // outputFileStream.end(() => {
+          if (code == 0) {
+            event.sender.send('btcctl');
+          } else {
+            console.log("exiting with code: " + code);
+            event.sender.send('btcctl');
+          }
+        // });
+        // if (code == 0) {
+        //   resolve(output); 
+        // } else {
+        //   reject(new Error(`Process exited with code: ${code}`));  
+        // }
+      });
+  
+      // child.on('error', (err) => {
+      //   reject(new Error(`Failed to start process: ${err.message}`));  
+      // });
+
+    // });
+  });
     
 
   ipcMain.on('get-transactions', (event) => {

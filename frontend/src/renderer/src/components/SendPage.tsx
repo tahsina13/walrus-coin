@@ -70,19 +70,31 @@ function SendPage(): JSX.Element {
       console.log(destAddress);
       console.log(amount);
       setDialogOpen(false); // Closes dialog after confirmation
-      const sendres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "sendtoaddress", params: [destAddress, amount]}, {
-        auth: {
-          username: 'user',
-          password: 'password'
-        },
-        headers: {
-          'Content-Type': 'text/plain;',
-        },
-      } as any
-    );
-      console.log(sendres);
+    //   const sendres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "sendtoaddress", params: [destAddress, amount]}, {
+    //     auth: {
+    //       username: 'user',
+    //       password: 'password'
+    //     },
+    //     headers: {
+    //       'Content-Type': 'text/plain;',
+    //     },
+    //   } as any
+    // );
+      const cmdres = await window.versions.btcctlcmd(['sendtoaddress', '"' + destAddress + '"', amount]);
+      console.log(cmdres);
       const ret = await window.versions.killWallet();
       const ret2 = await window.versions.startWallet();
+      // relog in
+      const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [localStorage.getItem("walletpassword"), 99999999]}, {
+          auth: {
+            username: 'user',
+            password: 'password'
+          },
+          headers: {
+            'Content-Type': 'text/plain;',
+          },
+        });
+      console.log(passres);
       console.log("killed wallet"); 
       navigate('/transactions');
     }
