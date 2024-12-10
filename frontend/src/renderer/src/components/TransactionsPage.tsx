@@ -80,9 +80,9 @@ function TransactionsPage(): JSX.Element {
         } else if (transaction.category == "send") {
           transaction.fromaddress = localStorage.getItem("walletaddr");
         }
-        if (transaction.confirmations == 0) {
-          transaction.category = "pending";
-        }
+        // if (transaction.confirmations == 0) {
+        //   transaction.category = "pending";
+        // }
         console.log(transaction.date);
         disptrans.push(transaction);
       }
@@ -232,20 +232,28 @@ function TransactionsPage(): JSX.Element {
           <div className="size_col" onMouseDown={() => sort_by_time()}>Date:</div>
         </div>
         {/* <ul className="files_list" style={{overflow: "auto"}}> */}
-        <ul>
+        <ul style={{overflow: "auto"}}>
           {/* {transactions_list.filter(file => true || file.txid.toLowerCase().includes(search.toLowerCase()) || file.address.toLowerCase().includes(search.toLowerCase())).map((file) => ( */}
           {transactions_list.map((file) => (
             // console.log("rendering txid: " + file.txid)
             <li key={file.txid} className="menu-item">
               <div className="file_row">
                 <div className="icon_col">
+                  {/* { file.confirmations == 0
+                  ? file.category + " (pending)"
+                  : file.category} */}
                   {file.category}
                   {/* <img src={FilesIcon} alt={file.} className="w-10 h-10 ml-3" /> */}
                 </div>
                 <div className="hash_col">
                   <div style={{color: 'black', fontSize: '14px'}}>{file.txid}</div>
-                  <div style={{color: 'gray', fontSize: '15px'}}>From: {file.fromaddress}</div>
-                  <div style={{color: 'gray', fontSize: '15px'}}>To: {file.toaddress}</div>
+                  { file.category == 'send'
+                    ? <div style={{color: 'gray', fontSize: '15px'}}>To: {file.toaddress}</div>
+                    : <div style={{color: 'gray', fontSize: '15px'}}>From: {file.fromaddress}</div>
+                  }
+                  { <div style={{color: 'gray', fontSize: '15px'}}>confirmations: {file.confirmations}</div>}
+                  {/* <div style={{color: 'gray', fontSize: '15px'}}>From: {file.fromaddress}</div>
+                  <div style={{color: 'gray', fontSize: '15px'}}>To: {file.toaddress}</div> */}
                 </div>
                 {/* <div style={{color: 'black', fontSize: '16px'}} className="last_modified_col">{time_convert(file.time)}</div> */}
                 <div className="last_modified_col">{((file.value))} WACO</div>
