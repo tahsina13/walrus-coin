@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import Pickaxe from '../assets/pickaxe.png'
 import { PageHeader } from './Components'
 import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
 
 function MiningPage(): JSX.Element {
+  const navigate = useNavigate();
   const [isMining, setIsMining] = useState<boolean>(() => {
     const savedMiningState = sessionStorage.getItem('isMining')
     return savedMiningState === 'true'
@@ -294,11 +296,12 @@ function MiningPage(): JSX.Element {
           </button>
         </div>
         <div className="mt-5"> Current Session Length: {timeFormat(currentSessionDuration)}</div>
-        <div className="stats-container grid grid-cols-2 gap-10 p-10">
+        <div className="stats-container grid grid-cols-3 gap-3 mt-10 mb-5">
           <div className="border p-3"> {blocksMined} Blocks Mined </div>
-          <div className="border p-3"> Balance: {balance} WACO</div>
           <div className="border p-3"> Hashes Per Second: {hashRate}</div>
+          <div className="border p-3"> Balance: {balance} WACO</div>
         </div>
+        <div> Latest blocks </div>
         <ul style={{ height: '40%', overflowY: 'auto' }}>
           {minedBlocks.map((item) => (
             <li key={item.hash}>
@@ -306,6 +309,12 @@ function MiningPage(): JSX.Element {
             </li>
           ))}
         </ul>
+        <button 
+          onClick={() => navigate("/mining-history")}
+          className='border m-2 p-1'
+        > 
+          Show all blocks 
+        </button>
       </div>
     </div>
   )

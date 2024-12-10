@@ -108,12 +108,15 @@ function StatusPage(): JSX.Element {
   };
 
   return (
-    <div className="container flex flex-col h-screen pl-10">
+    <div className="container flex flex-col h-screen pl-10 relative">
+      <div className="absolute top-5 right-10 text-xl">
+        <strong>Wallet Address:</strong> {localStorage.getItem("walletaddr")}
+      </div>
+
       <PageHeader name={'Status'} />
+      
       <div className="info-container flex flex-col justify-center items-center h-screen">
-        <div className="temp w-3/4">
-          <BandwidthChart data={sampleData} />
-        </div>
+        <div className="temp w-3/4"> <BandwidthChart data={sampleData} /></div>
 
         {/* <img src={MiningIcon} alt="WalrusCoin" className="h-3/4 object-cover rounded w-1/2" /> */}
         <div className="container flex flex-row justify-center items-center bg-yellow-200 w-1/2 rounded-xl">
