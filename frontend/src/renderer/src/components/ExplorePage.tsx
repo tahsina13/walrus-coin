@@ -18,6 +18,33 @@ function SearchBar(): JSX.Element {
   const [hash, setHash] = useState<string>('');
   const [providers, setProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [isButtonDisabled, setIsButtonDisabled] = useState(false);
+
+  // Disable search until bootstrap peer is added
+  useEffect(() => {
+    const buttonState = sessionStorage.getItem("buttonState");
+    if (buttonState === "disabled") {
+      setIsButtonDisabled(true);
+    } else {
+      setIsButtonDisabled(false);
+    }
+  }, []);
+
+  // Checks if bootstrap is added and dynamically refresh, clears when finished
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const buttonState = sessionStorage.getItem("buttonState");
+
+      if (buttonState === "disabled") {
+        setIsButtonDisabled(true);
+      } else {
+        setIsButtonDisabled(false);
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // // Bootstrap
   // useEffect(() => {
@@ -88,6 +115,9 @@ function SearchBar(): JSX.Element {
             color: 'white',
             cursor: 'pointer'
           }}
+          disabled={isButtonDisabled}
+          className={`ml-2 px-4 py-2 text-lg rounded-md border-none 
+            ${isButtonDisabled ? 'bg-gray-400 text-gray-600 cursor-not-allowed opacity-50' : 'bg-blue-500 text-white cursor-pointer'}`}
         >
           Search
         </button>

@@ -2,10 +2,6 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import path, { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png'
-import { create } from 'ipfs';
-const { generateKeyPairSync } = require('crypto');
-import { randomBytes } from 'crypto';
-import { createSign, createVerify } from 'crypto';
 import { spawn } from 'child_process';
 import pty from 'node-pty';
 import axios from 'axios';
@@ -13,12 +9,22 @@ import Store from 'electron-store';
 import fs from 'fs';
 import kill from 'tree-kill';
 import os from 'os';
-// const kill = require('tree-kill');
 
 const store = new Store();
 
 let btcwalletproc = 0;
 let btcwalletpid = 0;
+const relayAddr = '/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN'
+const bootstrapAddr1 = '/ip4/130.245.173.221/tcp/6001/p2p/12D3KooWE1xpVccUXZJWZLVWPxXzUJQ7kMqN8UQ2WLn9uQVytmdA'
+const bootstrapAddr2 = '/ip4/130.245.173.222/tcp/61020/p2p/12D3KooWM8uovScE5NPihSCKhXe8sbgdJAi88i2aXT2MmwjGWoSX'
+const bootstrapAddr3 = '/ip4/104.236.198.140/tcp/61000/p2p/12D3KooWFHfjDXXaYMXUigPCe14cwGaZCzodCWrQGKXUjYraoX3t' // Kevin
+const bootstrapAddresses = [
+  `${bootstrapAddr1}`,
+  `${bootstrapAddr2}`,
+  `${bootstrapAddr3}`
+];
+
+// const pids: number[] = [];  
 
 function getWalletAddress() {
   const procPath = path.join(process.cwd(), '../backend/btcd/btcd');
@@ -32,6 +38,7 @@ function startWallet() {
     const child = spawn(procPath, ['-C', confPath], {shell: true});
     btcwalletpid = child.pid;
     btcwalletproc = child;
+    console.log("wallet pid:",btcwalletpid);
     child.stdout.on('data', async (data) => {
       console.log("stdout event: " + data);
       // if (data.includes('Opened wallet')) {
@@ -77,35 +84,75 @@ function startBtcd() {
 }
 
 async function startServer() {
-  const serverPath = path.join(process.cwd(), '../backend/cmd/server/server');
-  const server = spawn(serverPath); 
+  return new Promise((resolve, reject) => {
+    const serverPath = path.join(process.cwd(), '../backend');
+    const configPath = path.join(serverPath, 'config.yml');
 
-  server.stdout.on('data', (data) => {
-    console.log(`server stdout: ${data}`);
-  });
+    const configContent = `
+      p2pport: 4001
+      rpcport: 5001
+      seed: "123456789"
+      dbpath: "/path/to/leveldb"
+      debug: true
+      relayaddr: 
+        - "${relayAddr}"
+      bootstrapaddr:
+        - "${bootstrapAddr1}"
+        - "${bootstrapAddr2}"
+        - "${bootstrapAddr3}"
+    `;
 
-  // Create the host
-  await axios.post('http://localhost:8080/rpc', {
-    jsonrpc: '2.0',
-    method: 'NodeService.CreateHost',
-    params: {
-      nodeId: '123456789',
-      ipAddr: '0.0.0.0',
-      port: 0,
-      relayAddr: '/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN',
-      bootstrapAddr: [
-        '/ip4/130.245.173.222/tcp/61000/p2p/12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE'
-      ]
-    },
-    id: 1
-  }); 
-  
-  // Init dht
-  await axios.post('http://localhost:8080/rpc', {
-    jsonrpc: '2.0',
-    method: 'DhtService.InitDht',
-    id: 2
-  }); 
+    if (!fs.existsSync(configPath)) {
+      // Write the content to the config file
+      fs.writeFileSync(configPath, configContent);
+      console.log('Config file created:', configPath);
+    } else {
+      console.log('Config file already exists:', configPath);
+    }
+
+    const server = spawn('go', [
+      'run', 
+      './cmd/server',
+      '--config-file', configPath,
+    ], {
+      cwd: serverPath,
+      shell: true,
+    });
+    // pids.push(server.pid); // Array of child processes
+    // console.log("server pid: ", server.pid);
+
+    const connectBootstrap = async() => {
+      try {
+        const response = await axios.post(`http://localhost:5001/api/v0/bootstrap/add?arg=${bootstrapAddr}`)
+        console.log('Bootstrap response: ', response.data);
+      } catch (error){
+        console.error('Bootstrap error: ', error);
+      }
+    }
+
+    server.stderr.on('data', (data) => {
+      const output = data.toString();
+      console.log(`server stderr: ${output}`);
+
+      if (output.includes("Server listening on port")) {
+        console.log("Server is ready!");
+        // connectBootstrap(); // Connect to bootstrap when server ready
+        resolve(data);
+      }
+    });
+
+    server.on('exit', (code, signal) => {
+      if (code !== 0) {
+        console.error(`Server exited with code ${code}, signal: ${signal}`);
+        reject(new Error('Server failed to start.'));
+      } else {
+        console.log("Server exited successfully.");
+      }
+    });
+
+    
+
+  })
 }
 
 // function startBtcwallet() {
@@ -174,11 +221,22 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.handle('ping', () => console.log('pong'))
 
+  try {
+    console.log("Starting server...");
+    await startServer();
+    console.log("Server is running. Starting Electron app...");
+    createWindow();
+  } catch (err) {
+    console.error("Error starting the server:", err);
+    app.quit();
+  }
+
   ipcMain.handle('start-process', (event, command, args, inputs) => {
     return new Promise((resolve, reject) => {  
       const procPath = path.join(process.cwd(), command); 
       console.log(procPath, [args, inputs]);
       const child = spawn(procPath, args);
+      // pids.push(child.pid);
       let output = '';
 
       console.log("STARTING SOMETHING AGAIN");
@@ -315,7 +373,8 @@ app.whenReady().then(() => {
       child.stdout.on('data', async (data) => {
         console.log("stdout event: " + data);
         // if (data.includes('RPC server listening on 127.0.0.1:8334')) {
-        if (data.includes('Finished rescan')) {
+        // if (data.includes('Finished rescan')) {
+        if (data.includes("Syncing to block height")) {
           console.log("here in index");
           event.sender.send("btcd-started");
         }
@@ -461,6 +520,7 @@ app.whenReady().then(() => {
       const child = spawn(btcctlPath, ['--configfile='+confPath, '--rpcuser=user', '--rpcpass=password', '--notls', 'addnode', '"130.245.173.221:8333"', "add"], { shell: true });
       // console.log(procPath, [args, inputs]);
       // const child = spawn(procPath, ['-C', confPath, '--notls'], {shell: true});
+      console.log("btcnetwork pid ", child.pid);
       let address = '';
       child.stdout.on('data', async (data) => {
         console.log("stdout event: " + data);
@@ -567,6 +627,8 @@ app.whenReady().then(() => {
         cwd: process.env.HOME,
         env: process.env,
       });
+      // pids.push(child.pid);
+      console.log("walletpid: ",child.pid);
 
       child.onData((data) => {
         console.log(data);
@@ -694,6 +756,26 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
+
+// app.on('before-quit', () => {
+//   pids.forEach(pid => {
+//     try {
+//       process.kill(pid, 0);
+//       console.log(`Attempting to kill ${pid}`)
+
+//       kill(pid, 'SIGTERM', (err) => {
+//         if (err) {
+//           console.error("error killing processes")
+//         }
+//         else{
+//           console.log("Processes terminated successfully")
+//         }
+//       })
+//     } catch(error) {
+//       console.error(`No process with pid ${pid} found, it might already be terminated, error`);
+//     }
+//   });
+// })
 
 // In this file you can include the rest of your app"s specific main process
 // code. You can also put them in separate files and require them here.

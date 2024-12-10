@@ -15,6 +15,7 @@ if (process.contextIsolated) {
       ping: () => ipcRenderer.invoke('ping'),
       startProcess: (command, args, inputs) => ipcRenderer.invoke('start-process', command, args, inputs),
       createWallet: (command, args, inputs) => ipcRenderer.invoke('create-wallet', command, args, inputs),
+      addBootstrap: () => ipcRenderer.invoke('add-bootstrap'),
       // getAddress: (command, args, inputs) => ipcRenderer.invoke('get-address', command, args, inputs),
       startWallet: () => {
         return new Promise((resolve, reject) => {
