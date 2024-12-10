@@ -112,6 +112,8 @@ function LoginPage(): JSX.Element {
             'Content-Type': 'text/plain;',
           },
         });
+
+        localStorage.setItem("walletpassword", walletPassword);
         
         console.log(passres);
         // error check password
