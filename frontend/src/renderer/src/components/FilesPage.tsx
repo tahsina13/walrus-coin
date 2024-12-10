@@ -1,8 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import FilesIcon from '../assets/file-icon.png'
+import DeleteIcon from '../assets/trash.png'
 import FilePreview from './FilePreview'
 import ConfirmationDialog from './ConfirmationDialog';
+import axios from "axios";
+import FormData from "form-data";
+import { LoadingButton } from '@mui/lab';
 
 function FilesPage(): JSX.Element {
   const [storage, set_storage] = useState('')
@@ -18,7 +22,9 @@ function FilesPage(): JSX.Element {
   const [updateDate, setUpdateDate] = useState(true)
   const defaultFileCost = localStorage.getItem('defaultFileCost') ? parseFloat(localStorage.getItem('defaultFileCost') as string) : 1
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [fileToDelete, setFileToDelete] = useState<File | null>(null);
+  const [fileToDelete, setFileToDelete] = useState<ProvidedFile | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  //const [fileHash, setFileHash] = useState<string>('');
 
   const handleCloseDialog = () => {
       setDialogOpen(false);
@@ -26,11 +32,12 @@ function FilesPage(): JSX.Element {
 
   // File Preview
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [popoverFile, setPopoverFile] = useState<File | null>(null);
+  const [popoverFile, setPopoverFile] = useState<ProvidedFile | null>(null);
 
-  const handleShowPreview = (event: React.MouseEvent<HTMLDivElement>, file: File) => {
-    setAnchorEl(event.currentTarget);
-    setPopoverFile(file);
+  const handleShowPreview = (event: React.MouseEvent<HTMLDivElement>, file: ProvidedFile) => {
+    // *** currently disabled for better testing experience ***
+    //setAnchorEl(event.currentTarget);
+    //setPopoverFile(file);
     console.log("hi");
   };
 
@@ -41,54 +48,77 @@ function FilesPage(): JSX.Element {
   const previewOpen = Boolean(anchorEl);
 
 
-  type File = {
+  type ProvidedFile = {
     type: string
     name: string
     size: number
-    path: string
     upload_date: Date
+    path: string
     CID: string
     price: number
+    fileObject: File
+    status: string
   }
 
-  const files: File[] = [
+  const files: ProvidedFile[] = [
     // for testing
+    
     {
       type: 'txt',
-      name: 'XNew Text Document.txt',
+      name: 'A: First click UPLOAD to upload files in the waiting list',
       size: 101233,
-      path: 'ANew-Text-Document',
       upload_date: new Date(20010101),
+      path: "xxxpath1",
       CID: 'gmx286mbXoaWmaszRzTG4R8yvptfGCZPLdY3KoRTauSX3C',
       price: .0002,
+      fileObject: new File(["0"], "1"), // dummy file object
+      status: "provided"
     },
     {
       type: 'txt',
-      name: 'BNew Text Document2.txt',
+      name: 'B: Files in the waiting list doesn\'t have a hash',
       size: 100224423,
-      path: 'BNew-Text-Document2',
       upload_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      path: "xxxpath2",
       CID: 'zdN4U62G1FMyWVhUXSrdKSGxHDeyCDmCCCZyVgpdc58SiM',
       price: .4,
+      fileObject: new File(["0"], "1"),
+      status: "provided"
     },
     {
       type: 'txt',
-      name: 'CNew Text Document2.txt',
+      name: 'C: You can then actually "upload" thoes files in the waiting list by hitting "SUBMIT"',
       size: 103230,
-      path: 'BNew-Text-Document2',
       upload_date: new Date(Date.now() - 30 * 60 * 1000),
+      path: "xxxpath3",
       CID: 'mL6VNFF1wHFhfeXbio8iGRmSc7Z9wyX5Ng1gNXacuC5Ro8',
       price: 2,
+      fileObject: new File(["0"], "1"),
+      status: "provided"
+    },
+    {
+      type: 'pdf',
+      name: 'D: And the hash will show up, you can check the provider in explore section',
+      size: 44214,
+      upload_date: new Date(Date.now() - 20 * 60 * 60 * 1000),
+      path: "xxxpath4",
+      CID: 'fwzPoUwFVJF8RwNiBEM9VH1rQ6EkhEJPyjfH25EKSG5FVd',
+      price: .42,
+      fileObject: new File(["0"], "1"),
+      status: "provided"
     },
     {
       type: 'txt',
-      name: 'ASNew Text Document2.txt',
-      size: 44214,
-      path: 'BNew-Text-Document2',
-      upload_date: new Date(Date.now() - 20 * 60 * 60 * 1000),
-      CID: 'fwzPoUwFVJF8RwNiBEM9VH1rQ6EkhEJPyjfH25EKSG5FVd',
-      price: .42,
+      name: 'X: sort by name to see instruction',
+      size: 103230,
+      upload_date: new Date(Date.now()),
+      path: "xxxpath3",
+      CID: 'mL6VNFF1wHFhfeXbio8iGRmSc7Z9wyX5Ng1gNXacuC5Ro8',
+      price: 2,
+      fileObject: new File(["0"], "1"),
+      status: "provided"
     },
+    
   ]
   const [file_list, set_file_list] = useState(files)
 
@@ -141,10 +171,40 @@ function FilesPage(): JSX.Element {
     }
   }
 
-  const handleDelete = (file: File) => {
+  const handleDelete = (file: ProvidedFile) => {
     setFileToDelete(file);  // Set the file to be deleted
     setDialogOpen(true);  // Open the confirmation dialog
   };
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    for(let file of file_list.filter((file) => file.status !== "provided")) {
+      try {
+        let data = new FormData();
+        //const blob = new Blob([file.fileObject], { type: file.fileObject.type });
+         //console.log("blob::");
+         //console.log(blob);
+        data.append("data", file.fileObject);
+        const response_put = await axios.post("http://localhost:5001/api/v0/block/put", data, {
+          headers: {
+            'Content-Type': 'multipart/form-data', // Automatically set by FormData, but added for clarity
+          },
+        });
+        file.CID = response_put.data.Key;
+         console.log("file provided:");
+         console.log(file);
+        const response_provide = await axios.post(`http://localhost:5001/api/v0/routing/provide?arg=${file.CID}`);
+        file.status = "provided";
+      } catch (error) {
+        console.error("Error during API request:", error);
+        setLoading(false);
+        return;
+      } finally {
+        files.splice(files.indexOf(file), 1);
+      }
+    }
+    setLoading(false);
+  }
 
   //add a file to the list
   useEffect(() => {
@@ -152,16 +212,20 @@ function FilesPage(): JSX.Element {
       if (file_list.filter((file) => file.path === selectedFile.path).length > 0) {
         return
       }
-      let temp: File = {
+      let temp: ProvidedFile = {
         type: selectedFile.type,
         name: selectedFile.name,
         size: selectedFile.size,
-        path: selectedFile.path,
         upload_date: new Date(),
-        CID: generateRandomCID(),
+        path: selectedFile.path,
+        CID: "",
         price: defaultFileCost,
+        fileObject: selectedFile,
+        status: "readyToProvide"
       }
       set_file_list((prevFileList) => [temp, ...prevFileList])
+       console.log("File uploaded:");
+       console.log(temp);
       setSelectedFile(null)
     }
   }, [selectedFile, updateDate])
@@ -189,8 +253,18 @@ function FilesPage(): JSX.Element {
         <div className="file_storage">Total File Size: {storage}</div>
         <input type="file" onChange={handleFileChange} ref={hiddenFileInput} style={{ display: 'none' }} />
         <button className="import_file" onClick={handleClick}>
-          Upload
+          UPLOAD
         </button>
+        <LoadingButton 
+          loading={loading}
+          variant="contained"
+          color="primary"
+          className="import_file"
+          onClick={handleSubmit}
+          loadingPosition="end"
+          endIcon={null}>
+          SUBMIT
+        </LoadingButton>
       </div>
 
       <div
@@ -209,16 +283,16 @@ function FilesPage(): JSX.Element {
         <div className="files_header">
           <div className="icon_col"></div>
           <div className="name_col" onMouseDown={() => sort_by_name()}>
-            Name:
+            Name
           </div>
           <div className="price_col" onMouseDown={() => sort_by_price()}>
-            Price (WACO):
+            Price (WACO)
           </div>
           <div className="last_modified_col" onMouseDown={() => sort_by_time()}>
-            Upload Date:
+            Upload Date
           </div>
           <div className="size_col" onMouseDown={() => sort_by_size()}>
-            Size:
+            Size
           </div>
           <div className="delete_col"></div>
         </div>
@@ -233,7 +307,7 @@ function FilesPage(): JSX.Element {
                   </div>
                   <div className="name_col">
                     <div>{file.name}</div>
-                    <div style={{ color: 'gray', fontSize: '15px', }}>{file.CID}</div>
+                    <div style={{ color: 'gray', fontSize: '15px', }}>{file.CID !== "" ? file.CID : "Ready to provide"}</div>
                   </div>
                   <div className="price_col">
                     <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -247,7 +321,8 @@ function FilesPage(): JSX.Element {
                         value={file.price}
                         onChange={(e) => {
                           // prettier-ignore
-                          set_file_list(file_list.map(f => f.CID === file.CID ? { ...f, price: Math.min(9999, Math.max(0, isNaN(parseFloat(e.target.value)) ? 0 : parseFloat(e.target.value))) } : f));
+                          if(file.status !== "provided")
+                            set_file_list(file_list.map(f => f.CID === file.CID ? { ...f, price: Math.min(9999, Math.max(0, isNaN(parseFloat(e.target.value)) ? 0 : parseFloat(e.target.value))) } : f));
                         }}
                         onClick={(e) => e.stopPropagation()}
                       />
@@ -257,15 +332,15 @@ function FilesPage(): JSX.Element {
                   <div className="last_modified_col">{time_convert(file.upload_date)}</div>
                   <div className="size_col">{formatFileSize(file.size)}</div>
                   <div className="delete_col">
-                    <img
-                      src={'/src/assets/trash.png'}
+                    {file.status === "readyToProvide"&&<img
+                      src={DeleteIcon}
                       alt="delete"
                       className="w-10 h-10 ml-3"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleDelete(file)
                       }}
-                    />
+                    />}
                   </div>
                 </div>
               </li>
