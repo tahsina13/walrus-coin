@@ -72,7 +72,7 @@ func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) err
 	proxy.ConnectDial = proxy.NewConnectDialToProxy(secondHopProxyURL.String())
 
 	h.localProxy = &http.Server{
-		Addr:    ":8083",
+		Addr:    port,
 		Handler: proxy,
 	}
 
