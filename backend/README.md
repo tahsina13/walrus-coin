@@ -234,3 +234,53 @@ Argument `data` is of file type and is sent via multipart-form data.
   "Size": "<int>"
 }
 ```
+
+### Proxy
+
+The bootstrap module is used to handle HTTP Proxying.
+
+#### /api/v0/proxy/start
+Starts remote proxy
+##### Arguments
+
+* `port` [int]: Port to start the remote proxy server on. (Default 8084)
+* `price` [int]: Price per byte. **Required**.
+
+##### Response
+
+```json
+{
+  "Error": "<string>"
+}
+```
+
+#### /api/v0/proxy/stop
+Stops remote proxy
+##### Arguments
+
+
+##### Response
+
+```json
+```
+
+#### /api/v0/proxy/connect
+Connect to a remote proxy
+##### Arguments
+* `remoteProxyAddr` [string]: Address of remote proxy. **Required**.
+* `port` [int]: Port to start the local proxy on. (Default 8083)
+
+
+##### Response
+
+```json
+```
+
+#### /api/v0/proxy/disconnect
+Disconnect from a remote proxy
+##### Arguments
+
+##### Response
+
+```json
+```

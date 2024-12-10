@@ -142,7 +142,6 @@ func (h *ProxyHandler) StartProxyServer(w http.ResponseWriter, r *http.Request) 
 		return req, resp
 	})
 
-	// Hijack CONNECT requests
 	proxy.OnRequest().HijackConnect(func(req *http.Request, client net.Conn, ctx *goproxy.ProxyCtx) {
 		defer func() {
 			if e := recover(); e != nil {
