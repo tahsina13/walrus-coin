@@ -315,7 +315,8 @@ app.whenReady().then(() => {
       child.stdout.on('data', async (data) => {
         console.log("stdout event: " + data);
         // if (data.includes('RPC server listening on 127.0.0.1:8334')) {
-        if (data.includes('Finished rescan')) {
+        // if (data.includes('Finished rescan')) {
+        if (data.includes("Syncing to block height")) {
           console.log("here in index");
           event.sender.send("btcd-started");
         }
