@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, ChangeEvent, FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import FilesIcon from '../assets/file-icon.png'
 import DeleteIcon from '../assets/trash.png'
@@ -24,6 +24,8 @@ function FilesPage(): JSX.Element {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<ProvidedFile | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [deleteHash, setDeleteHash] = useState<string>('');
+
   //const [fileHash, setFileHash] = useState<string>('');
 
   const handleCloseDialog = () => {
@@ -184,12 +186,10 @@ function FilesPage(): JSX.Element {
         data.append("data", file.fileObject);
         const response_put = await axios.post(`http://localhost:5001/api/v0/block/put?price=${defaultFileCost}&wallet=${localStorage.getItem("walletaddr")}`, data, {
           headers: {
-            'Content-Type': 'multipart/form-data', // Automatically set by FormData, but added for clarity
+            'Content-Type': 'multipart/form-data',
           },
         });
         file.CID = response_put.data.Responses[0].Key;
-        //  console.log("file provided:");
-        //  console.log(file);
         const response_provide = await axios.post(`http://localhost:5001/api/v0/routing/provide?arg=${file.CID}`);
         file.status = "provided";
       } catch (error) {
@@ -202,6 +202,23 @@ function FilesPage(): JSX.Element {
     }
     setLoading(false);
   }
+
+  const handleDeleteFile = async (e: FormEvent): Promise<void> => {
+    e.preventDefault()
+    console.log("Search for delete: " + deleteHash);
+    try {
+      const response = await axios.post(`http://localhost:5001/api/v0/block/rm?arg=${deleteHash}`);
+      console.log(response.data);
+    } catch (error) {
+      console.error("Error during API request:", error);
+    } finally {
+    }
+  }
+
+  const handleDeleteHash = (e: ChangeEvent<HTMLInputElement>): void => {
+    setDeleteHash(e.target.value)
+  }
+  
 
   //add a file to the list
   useEffect(() => {
@@ -223,7 +240,7 @@ function FilesPage(): JSX.Element {
       set_file_list((prevFileList) => [temp, ...prevFileList])
        console.log("File uploaded:");
        console.log(temp);
-      setSelectedFile(null)
+      setSelectedFile(null);
     }
   }, [selectedFile, updateDate])
 
@@ -344,6 +361,38 @@ function FilesPage(): JSX.Element {
             ))}
         </ul>
       </div>
+      <form onSubmit={handleDeleteFile}>
+        <input
+          type="text"
+          placeholder="QmHash/bafyHash"
+          value={deleteHash}
+          onChange={handleDeleteHash}
+          style={{
+            padding: '8px',
+            fontSize: '16px',
+            width: '800px',
+            borderRadius: '4px',
+            border: '1px solid #ccc',
+            margin: '4px 0px'
+          }}
+        />
+        <button
+          type="submit"
+          style={{
+            marginLeft: '10px',
+            padding: '8px 16px',
+            fontSize: '16px',
+            borderRadius: '4px',
+            border: 'none',
+            backgroundColor: '#007bff',
+            color: 'white',
+            cursor: 'pointer'
+          }}
+          className={`ml-2 px-4 py-2 text-lg rounded-md border-none bg-blue-500 text-white cursor-pointer`}
+        >
+          Delete
+        </button>
+      </form>
       <FilePreview
         open={Boolean(anchorEl)} 
         anchorEl={anchorEl}
@@ -361,6 +410,9 @@ function FilesPage(): JSX.Element {
     </div>
   )
 }
+/*
+
+*/
 
 const time_convert = (date: Date) => {
   // current time
