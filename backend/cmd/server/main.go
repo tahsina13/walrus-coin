@@ -15,7 +15,6 @@ import (
 	config "github.com/ThomasObenaus/go-conf"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
-	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-datastore"
 	leveldb "github.com/ipfs/go-ds-leveldb"
 	"github.com/libp2p/go-libp2p"
@@ -118,11 +117,8 @@ func main() {
 	defer dht.Close()
 	logrus.Info("Created DHT client")
 
-	// Create blockstore
-	bstore := blockstore.NewBlockstore(dstore)
-
 	// Create API router
-	apiRouter, err := routers.NewAPIRouter(node, dht, bstore)
+	apiRouter, err := routers.NewAPIRouter(node, dht, dstore)
 	if err != nil {
 		logrus.Fatal(err)
 	}
