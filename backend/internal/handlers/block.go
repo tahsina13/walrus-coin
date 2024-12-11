@@ -14,6 +14,7 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
+	dsq "github.com/ipfs/go-datastore/query"
 	leveldb "github.com/ipfs/go-ds-leveldb"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -22,6 +23,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/tahsina13/walrus-coin/backend/internal/util"
 )
+
+const metadataPrefix = "/metadata"
 
 const (
 	getBlockProtocolID  = "/orcanet/block/get"
@@ -41,14 +44,15 @@ type blockRequest struct {
 }
 
 type blockMetadata struct {
-	Name  string  `json:"Name"`
-	Price float64 `json:"Price"`
+	Key    string  `json:"Key"`
+	Name   string  `json:"Name"`
+	Size   int     `json:"Size"`
+	Price  float64 `json:"Price"`
+	Wallet string  `json:"Wallet,omitempty"`
 }
 
 type blockResponse struct {
-	Key  string `json:"Key"`
-	Size int    `json:"Size,omitempty"`
-	blockMetadata
+	Responses []blockMetadata `json:"Responses"`
 }
 
 type blockError struct {
@@ -100,6 +104,15 @@ func (h *BlockHandler) handleGet(s network.Stream) {
 		}
 	}
 
+	metadata, err := h.dstore.Get(context.Background(), ds.NewKey(fmt.Sprintf("%s/%s", metadataPrefix, key.String())))
+	if err != nil {
+		response := blockError{Message: fmt.Sprintf("failed to get block metadata: %s", err)}
+		if err := json.NewEncoder(s).Encode(response); err != nil {
+			logrus.Errorf("failed to write error response: %s", err)
+			return
+		}
+	}
+
 	blk, err := h.bstore.Get(context.Background(), key)
 	if err != nil {
 		response := blockError{Message: fmt.Sprintf("failed to get block: %s", err)}
@@ -109,9 +122,7 @@ func (h *BlockHandler) handleGet(s network.Stream) {
 		}
 	}
 
-	response := blockResponse{Key: key.String()}
-	bytes, _ := json.Marshal(response)
-	bytes = append(bytes, '\n')
+	bytes := append(metadata, '\n')
 	bytes = append(bytes, blk.RawData()...)
 
 	for len(bytes) > 0 {
@@ -122,24 +133,6 @@ func (h *BlockHandler) handleGet(s network.Stream) {
 		}
 		bytes = bytes[n:]
 	}
-}
-
-func (h *BlockHandler) getBlockResponse(key cid.Cid) (*blockResponse, error) {
-	var metadata blockMetadata
-	jsonData, err := h.dstore.Get(context.Background(), ds.NewKey(key.String()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get block metadata: %w", err)
-	}
-	if err := json.Unmarshal(jsonData, &metadata); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal block metadata: %w", err)
-	}
-
-	size, err := h.bstore.GetSize(context.Background(), key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get block size: %w", err)
-	}
-
-	return &blockResponse{Key: key.String(), Size: size, blockMetadata: metadata}, nil
 }
 
 func (h *BlockHandler) handleStat(s network.Stream) {
@@ -173,7 +166,7 @@ func (h *BlockHandler) handleStat(s network.Stream) {
 		}
 	}
 
-	response, err := h.getBlockResponse(key)
+	metadata, err := h.dstore.Get(context.Background(), ds.NewKey(fmt.Sprintf("%s/%s", metadataPrefix, key.String())))
 	if err != nil {
 		responseErr := blockError{Message: err.Error()}
 		if err := json.NewEncoder(s).Encode(responseErr); err != nil {
@@ -181,7 +174,7 @@ func (h *BlockHandler) handleStat(s network.Stream) {
 			return
 		}
 	}
-	if err := json.NewEncoder(s).Encode(response); err != nil {
+	if err := json.NewEncoder(s).Encode(metadata); err != nil {
 		logrus.Errorf("failed to write response: %s", err)
 		return
 	}
@@ -203,7 +196,7 @@ func (h *BlockHandler) Get(w http.ResponseWriter, r *http.Request) error {
 
 	peerAddr, ok := query["peer"]
 	if !ok {
-		// Query local blockstore if peer not specified
+		// Query self
 		blk, err := h.bstore.Get(r.Context(), key)
 		if err != nil {
 			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to get block: %v", err)})
@@ -252,8 +245,8 @@ func (h *BlockHandler) Get(w http.ResponseWriter, r *http.Request) error {
 		return util.BadRequestWithBody(blockError{Message: mesg.(string)})
 	}
 
-	var response blockResponse
-	if err := json.Unmarshal(jsonData, &response); err != nil {
+	var metadata blockMetadata
+	if err := json.Unmarshal(jsonData, &metadata); err != nil {
 		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to unmarshal response: %v", err)})
 	}
 
@@ -275,15 +268,61 @@ func (h *BlockHandler) Get(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+func (h *BlockHandler) List(w http.ResponseWriter, r *http.Request) error {
+	query := r.URL.Query()
+
+	dbquery := dsq.Query{
+		Prefix: metadataPrefix,
+	}
+
+	if arg, ok := query["limit"]; ok {
+		limit, err := strconv.Atoi(arg[0])
+		if err != nil {
+			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("invalid limit: %v", err)})
+		}
+		dbquery.Limit = limit
+	}
+
+	if arg, ok := query["offset"]; ok {
+		offset, err := strconv.Atoi(arg[0])
+		if err != nil {
+			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("invalid offset: %v", err)})
+		}
+		dbquery.Offset = offset
+	}
+
+	results, _ := h.dstore.Query(r.Context(), dbquery)
+
+	var metadata []blockMetadata
+	for result := range results.Next() {
+		var m blockMetadata
+		if err := json.Unmarshal(result.Value, &m); err != nil {
+			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to unmarshal block metadata: %v", err)})
+		}
+		metadata = append(metadata, m)
+	}
+
+	response := blockResponse{Responses: metadata}
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		return util.BadRequest(err)
+	}
+	return nil
+}
+
 func (h *BlockHandler) Put(w http.ResponseWriter, r *http.Request) error {
 	query := r.URL.Query()
+
+	var wallet string
+	if arg, ok := query["wallet"]; ok {
+		wallet = arg[0]
+	}
 
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to parse multipart form: %v", err)})
 	}
 
-	files := r.MultipartForm.File["data"]
-	for i, fileHeader := range files {
+	var metadata []blockMetadata
+	for i, fileHeader := range r.MultipartForm.File["data"] {
 		file, err := fileHeader.Open()
 		if err != nil {
 			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to open file: %v", err)})
@@ -307,22 +346,24 @@ func (h *BlockHandler) Put(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		blk := blocks.NewBlock(data)
-		metadata := blockMetadata{Name: fileHeader.Filename, Price: price}
+		m := blockMetadata{Key: blk.Cid().String(), Name: fileHeader.Filename, Size: len(data), Price: price, Wallet: wallet}
 
-		cidKey := ds.NewKey(blk.Cid().String())
-		jsonData, _ := json.Marshal(metadata)
+		metadataKey := ds.NewKey(fmt.Sprintf("%s/%s", metadataPrefix, blk.Cid().String()))
+		jsonMetadata, _ := json.Marshal(m)
 
-		if err := h.dstore.Put(r.Context(), cidKey, jsonData); err != nil {
+		if err := h.dstore.Put(r.Context(), metadataKey, jsonMetadata); err != nil {
 			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to put block metadata: %v", err)})
 		}
 		if err := h.bstore.Put(r.Context(), blk); err != nil {
 			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to put block: %v", err)})
 		}
 
-		response := blockResponse{Key: blk.Cid().String(), Size: len(data), blockMetadata: metadata}
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			return util.BadRequest(err)
-		}
+		metadata = append(metadata, m)
+	}
+
+	response := blockResponse{Responses: metadata}
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		return util.BadRequest(err)
 	}
 	return nil
 }
@@ -444,25 +485,36 @@ func (h *BlockHandler) GetProxy(w http.ResponseWriter, r *http.Request) error {
 func (h *BlockHandler) Remove(w http.ResponseWriter, r *http.Request) error {
 	query := r.URL.Query()
 
-	var key cid.Cid
+	var metadata []blockMetadata
 	if arg, ok := query["arg"]; ok {
-		c, err := cid.Decode(arg[0])
-		if err != nil {
-			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("invalid cid: %v", err)})
+		for _, c := range arg {
+			key, err := cid.Decode(c)
+			if err != nil {
+				return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("invalid cid: %v", err)})
+			}
+
+			var m blockMetadata
+			jsonMetadata, err := h.dstore.Get(r.Context(), ds.NewKey(fmt.Sprintf("%s/%s", metadataPrefix, key.String())))
+			if err != nil {
+				return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to get block metadata: %v", err)})
+			}
+			if err := json.Unmarshal(jsonMetadata, &m); err != nil {
+				return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to unmarshal block metadata: %v", err)})
+			}
+			metadata = append(metadata, m)
+
+			if err := h.dstore.Delete(r.Context(), ds.NewKey(key.String())); err != nil {
+				return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to delete block metadata: %v", err)})
+			}
+			if err := h.bstore.DeleteBlock(r.Context(), key); err != nil {
+				return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to delete block: %v", err)})
+			}
 		}
-		key = c
 	} else {
 		return util.BadRequestWithBody(blockError{Message: "argument 'key' is required"})
 	}
 
-	if err := h.dstore.Delete(r.Context(), ds.NewKey(key.String())); err != nil {
-		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to delete block metadata: %v", err)})
-	}
-	if err := h.bstore.DeleteBlock(r.Context(), key); err != nil {
-		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to delete block: %v", err)})
-	}
-
-	response := blockResponse{Key: key.String()}
+	response := blockResponse{Responses: metadata}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		return util.BadRequest(err)
 	}
@@ -472,73 +524,81 @@ func (h *BlockHandler) Remove(w http.ResponseWriter, r *http.Request) error {
 func (h *BlockHandler) Stat(w http.ResponseWriter, r *http.Request) error {
 	query := r.URL.Query()
 
-	var key cid.Cid
-	if arg, ok := query["arg"]; ok {
-		c, err := cid.Decode(arg[0])
+	var peerInfo *peer.AddrInfo
+	if peerAddr, ok := query["peer"]; ok {
+		var err error
+		peerInfo, err = peer.AddrInfoFromString(peerAddr[0])
 		if err != nil {
-			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("invalid cid: %v", err)})
+			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to parse peer address: %v", err)})
 		}
-		key = c
+	}
+
+	var metadata []blockMetadata
+	if arg, ok := query["arg"]; ok {
+		for _, c := range arg {
+			key, err := cid.Decode(c)
+			if err != nil {
+				return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("invalid cid: %v", err)})
+			}
+
+			if peerInfo == nil {
+				// Query self
+				var m blockMetadata
+				jsonData, err := h.dstore.Get(r.Context(), ds.NewKey(fmt.Sprintf("%s/%s", metadataPrefix, key.String())))
+				if err != nil {
+					return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to get block metadata: %v", err)})
+				}
+				if err := json.Unmarshal(jsonData, &m); err != nil {
+					return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to unmarshal block metadata: %v", err)})
+				}
+				metadata = append(metadata, m)
+				continue
+			}
+
+			ctx := network.WithAllowLimitedConn(r.Context(), statBlockProtocolID)
+			stream, err := h.node.NewStream(ctx, peerInfo.ID, statBlockProtocolID)
+			if err != nil {
+				return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to open stream: %v", err)})
+			}
+			defer stream.Close()
+
+			request := blockRequest{Key: key.String()}
+			jsonData, err := json.Marshal(request)
+			if err != nil {
+				return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to marshal block request: %v", err)})
+			}
+			_, err = stream.Write(append(jsonData, '\n'))
+			logrus.Debugf("Sent block stat request: %s", string(jsonData))
+			if err != nil {
+				return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to write block request: %v", err)})
+			}
+
+			reader := bufio.NewReader(stream)
+			jsonData, err = reader.ReadBytes('\n')
+			if err != nil {
+				return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to read response: %v", err)})
+			}
+
+			var data map[string]interface{}
+			if err := json.Unmarshal(jsonData, &data); err != nil {
+				return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to unmarshal response: %v", err)})
+			}
+
+			if mesg, ok := data["Message"]; ok {
+				return util.BadRequestWithBody(blockError{Message: mesg.(string)})
+			}
+
+			var m blockMetadata
+			if err := json.Unmarshal(jsonData, &m); err != nil {
+				return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to unmarshal response: %v", err)})
+			}
+			metadata = append(metadata, m)
+		}
 	} else {
 		return util.BadRequestWithBody(blockError{Message: "argument 'key' is required"})
 	}
 
-	peerAddr, ok := query["peer"]
-	if !ok {
-		// Query local blockstore if peer not specified
-		response, err := h.getBlockResponse(key)
-		if err != nil {
-			return util.BadRequestWithBody(blockError{Message: err.Error()})
-		}
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			return util.BadRequest(err)
-		}
-		return nil
-	}
-
-	peerInfo, err := peer.AddrInfoFromString(peerAddr[0])
-	if err != nil {
-		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to parse peer address: %v", err)})
-	}
-
-	ctx := network.WithAllowLimitedConn(r.Context(), statBlockProtocolID)
-	stream, err := h.node.NewStream(ctx, peerInfo.ID, statBlockProtocolID)
-	if err != nil {
-		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to open stream: %v", err)})
-	}
-	defer stream.Close()
-
-	request := blockRequest{Key: key.String()}
-	jsonData, err := json.Marshal(request)
-	if err != nil {
-		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to marshal block request: %v", err)})
-	}
-	_, err = stream.Write(append(jsonData, '\n'))
-	logrus.Debugf("Sent block stat request: %s", string(jsonData))
-	if err != nil {
-		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to write block request: %v", err)})
-	}
-
-	reader := bufio.NewReader(stream)
-	jsonData, err = reader.ReadBytes('\n')
-	if err != nil {
-		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to read response: %v", err)})
-	}
-
-	var data map[string]interface{}
-	if err := json.Unmarshal(jsonData, &data); err != nil {
-		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to unmarshal response: %v", err)})
-	}
-
-	if mesg, ok := data["Message"]; ok {
-		return util.BadRequestWithBody(blockError{Message: mesg.(string)})
-	}
-
-	var response blockResponse
-	if err := json.Unmarshal(jsonData, &response); err != nil {
-		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to unmarshal response: %v", err)})
-	}
-
+	response := blockResponse{Responses: metadata}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		return util.BadRequest(err)
 	}
