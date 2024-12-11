@@ -370,7 +370,7 @@ func (h *ProxyHandler) FindProxies(w http.ResponseWriter, r *http.Request) error
 		fmt.Print("Found peer: ", p.ID, "\n")
 
 		// Establish a stream to the peer
-		stream, err := h.node.NewStream(r.Context(), p.ID, "/orcanet/metadata")
+		stream, err := h.node.NewStream(r.Context(), p.ID, proxyMetadata)
 		if err != nil {
 			log.Printf("Error creating stream to peer %s: %v", p.ID, err)
 			continue
