@@ -4,13 +4,13 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/ipfs/boxo/blockstore"
+	leveldb "github.com/ipfs/go-ds-leveldb"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/tahsina13/walrus-coin/backend/internal/handlers"
 )
 
-func NewAPIRouter(node host.Host, dht *dht.IpfsDHT, bstore blockstore.Blockstore) (*mux.Router, error) {
+func NewAPIRouter(node host.Host, dht *dht.IpfsDHT, dstore *leveldb.Datastore) (*mux.Router, error) {
 	bootstrapHandler, err := handlers.NewBootstrapHandler(node)
 	if err != nil {
 		return nil, err
@@ -21,7 +21,7 @@ func NewAPIRouter(node host.Host, dht *dht.IpfsDHT, bstore blockstore.Blockstore
 		return nil, err
 	}
 
-	blockHandler, err := handlers.NewBlockHandler(node, bstore)
+	blockHandler, err := handlers.NewBlockHandler(node, dstore)
 	if err != nil {
 		return nil, err
 	}

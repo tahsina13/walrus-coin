@@ -8,10 +8,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/ipfs/boxo/blockstore"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
+	ds "github.com/ipfs/go-datastore"
+	leveldb "github.com/ipfs/go-ds-leveldb"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -26,6 +29,7 @@ const (
 
 type BlockHandler struct {
 	node   host.Host
+	dstore *leveldb.Datastore
 	bstore blockstore.Blockstore
 }
 
@@ -33,23 +37,30 @@ type blockRequest struct {
 	Key string `json:"Key"`
 }
 
+type blockMetadata struct {
+	Name  string  `json:"Name"`
+	Price float64 `json:"Price"`
+}
+
 type blockResponse struct {
 	Key  string `json:"Key"`
 	Size int    `json:"Size,omitempty"`
+	blockMetadata
 }
 
 type blockError struct {
 	Message string `json:"Message"`
 }
 
-func NewBlockHandler(node host.Host, bstore blockstore.Blockstore) (*BlockHandler, error) {
+func NewBlockHandler(node host.Host, dstore *leveldb.Datastore) (*BlockHandler, error) {
 	if node == nil {
 		return nil, errors.New("node is nil")
 	}
-	if bstore == nil {
-		return nil, errors.New("blockstore is nil")
+	if dstore == nil {
+		return nil, errors.New("datastore is nil")
 	}
-	handler := &BlockHandler{node: node, bstore: bstore}
+	bstore := blockstore.NewBlockstore(dstore)
+	handler := &BlockHandler{node: node, dstore: dstore, bstore: bstore}
 	node.SetStreamHandler(getBlockProtocolID, handler.handleGet)
 	node.SetStreamHandler(statBlockProtocolID, handler.handleStat)
 	return handler, nil
@@ -110,6 +121,24 @@ func (h *BlockHandler) handleGet(s network.Stream) {
 	}
 }
 
+func (h *BlockHandler) getBlockResponse(key cid.Cid) (*blockResponse, error) {
+	var metadata blockMetadata
+	jsonData, err := h.dstore.Get(context.Background(), ds.NewKey(key.String()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block metadata: %w", err)
+	}
+	if err := json.Unmarshal(jsonData, &metadata); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal block metadata: %w", err)
+	}
+
+	size, err := h.bstore.GetSize(context.Background(), key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block size: %w", err)
+	}
+
+	return &blockResponse{Key: key.String(), Size: size, blockMetadata: metadata}, nil
+}
+
 func (h *BlockHandler) handleStat(s network.Stream) {
 	defer s.Close()
 
@@ -141,18 +170,17 @@ func (h *BlockHandler) handleStat(s network.Stream) {
 		}
 	}
 
-	size, err := h.bstore.GetSize(context.Background(), key)
+	response, err := h.getBlockResponse(key)
 	if err != nil {
-		response := blockError{Message: fmt.Sprintf("failed to get block size: %s", err)}
-		if err := json.NewEncoder(s).Encode(response); err != nil {
+		responseErr := blockError{Message: err.Error()}
+		if err := json.NewEncoder(s).Encode(responseErr); err != nil {
 			logrus.Errorf("failed to write error response: %s", err)
 			return
 		}
 	}
-
-	response := blockResponse{Key: key.String(), Size: size}
-	if json.NewEncoder(s).Encode(response); err != nil {
+	if err := json.NewEncoder(s).Encode(response); err != nil {
 		logrus.Errorf("failed to write response: %s", err)
+		return
 	}
 }
 
@@ -245,17 +273,30 @@ func (h *BlockHandler) Get(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *BlockHandler) Put(w http.ResponseWriter, r *http.Request) error {
+	query := r.URL.Query()
+
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to parse multipart form: %v", err)})
 	}
 
 	files := r.MultipartForm.File["data"]
-	for _, fileHeader := range files {
+	for i, fileHeader := range files {
 		file, err := fileHeader.Open()
 		if err != nil {
 			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to open file: %v", err)})
 		}
 		defer file.Close()
+
+		var price float64
+		if arg, ok := query["price"]; ok && i < len(arg) {
+			val, err := strconv.ParseFloat(arg[i], 64)
+			if err != nil {
+				return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("invalid price: %v", err)})
+			}
+			price = val
+		} else {
+			price = 0
+		}
 
 		data, err := io.ReadAll(file)
 		if err != nil {
@@ -263,11 +304,19 @@ func (h *BlockHandler) Put(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		blk := blocks.NewBlock(data)
+		metadata := blockMetadata{Name: fileHeader.Filename, Price: price}
+
+		cidKey := ds.NewKey(blk.Cid().String())
+		jsonData, _ := json.Marshal(metadata)
+
+		if err := h.dstore.Put(r.Context(), cidKey, jsonData); err != nil {
+			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to put block metadata: %v", err)})
+		}
 		if err := h.bstore.Put(r.Context(), blk); err != nil {
 			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to put block: %v", err)})
 		}
 
-		response := blockResponse{Key: blk.Cid().String(), Size: len(data)}
+		response := blockResponse{Key: blk.Cid().String(), Size: len(data), blockMetadata: metadata}
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			return util.BadRequest(err)
 		}
@@ -289,6 +338,9 @@ func (h *BlockHandler) Remove(w http.ResponseWriter, r *http.Request) error {
 		return util.BadRequestWithBody(blockError{Message: "argument 'key' is required"})
 	}
 
+	if err := h.dstore.Delete(r.Context(), ds.NewKey(key.String())); err != nil {
+		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to delete block metadata: %v", err)})
+	}
 	if err := h.bstore.DeleteBlock(r.Context(), key); err != nil {
 		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to delete block: %v", err)})
 	}
@@ -317,13 +369,12 @@ func (h *BlockHandler) Stat(w http.ResponseWriter, r *http.Request) error {
 	peerAddr, ok := query["peer"]
 	if !ok {
 		// Query local blockstore if peer not specified
-		size, err := h.bstore.GetSize(r.Context(), key)
+		response, err := h.getBlockResponse(key)
 		if err != nil {
-			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to get block size: %v", err)})
+			return util.BadRequestWithBody(blockError{Message: err.Error()})
 		}
-		response := blockResponse{Key: key.String(), Size: size}
 		if err := json.NewEncoder(w).Encode(response); err != nil {
-			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to encode response: %v", err)})
+			return util.BadRequest(err)
 		}
 		return nil
 	}
