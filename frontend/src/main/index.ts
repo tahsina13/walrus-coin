@@ -17,7 +17,7 @@ let btcwalletpid = 0;
 const relayAddr = '/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN'
 const bootstrapAddr1 = '/ip4/130.245.173.221/tcp/6001/p2p/12D3KooWE1xpVccUXZJWZLVWPxXzUJQ7kMqN8UQ2WLn9uQVytmdA'
 const bootstrapAddr2 = '/ip4/130.245.173.222/tcp/61020/p2p/12D3KooWM8uovScE5NPihSCKhXe8sbgdJAi88i2aXT2MmwjGWoSX'
-const bootstrapAddr3 = '/ip4/104.236.198.140/tcp/61000/p2p/12D3KooWFHfjDXXaYMXUigPCe14cwGaZCzodCWrQGKXUjYraoX3t' // Kevin
+const bootstrapAddr3 = '/ip4/104.236.198.140/tcp/61000/p2p/12D3KooWFHfjDXXaYMXUigPCe14cwGaZCzodCWrQGKXUjYraoX3t' // Team Bootstrap
 const bootstrapAddresses = [
   `${bootstrapAddr1}`,
   `${bootstrapAddr2}`,
@@ -87,19 +87,19 @@ async function startServer() {
   return new Promise((resolve, reject) => {
     const serverPath = path.join(process.cwd(), '../backend');
     const configPath = path.join(serverPath, 'config.yml');
+    const randomSeed = Math.floor(Math.random() * 900000000) + 100000000;
 
     const configContent = `
-      p2pport: 4001
-      rpcport: 5001
-      seed: "123456789"
-      dbpath: "/path/to/leveldb"
-      debug: true
-      relayaddr: 
-        - "${relayAddr}"
-      bootstrapaddr:
-        - "${bootstrapAddr1}"
-        - "${bootstrapAddr2}"
-        - "${bootstrapAddr3}"
+p2pport: 4001
+rpcport: 5001
+seed: "${randomSeed}"
+debug: true
+relayaddr: 
+  - "${relayAddr}"
+bootstrapaddr:
+  - "${bootstrapAddr1}"
+  - "${bootstrapAddr2}"
+  - "${bootstrapAddr3}"
     `;
 
     if (!fs.existsSync(configPath)) {

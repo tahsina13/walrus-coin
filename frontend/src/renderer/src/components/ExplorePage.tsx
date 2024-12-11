@@ -70,7 +70,7 @@ function SearchBar(): JSX.Element {
     } catch (error) {
       console.error("Error during API request:", error);
       setProviders([]);
-      setLoading(true);
+      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -140,6 +140,7 @@ function ProviderList( { providers, hash }: { providers: any[], hash: string }):
 function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.Element {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const findCircuitAddr = (addresses: string[]): string | undefined => {
     return addresses.find(addr => addr.includes('tcp') && addr.includes('p2p-circuit'));
@@ -149,6 +150,7 @@ function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.
     console.log(`Downloading file ${hash} from ${providerId}`);
     setDialogOpen(false);
     setLoading(true);
+    setErrorMessage('');
 
     let filteredAddr = findCircuitAddr(provider.Addrs);
     // If address doesn't have p2p-circuit address, tries all addresses
@@ -168,6 +170,8 @@ function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.
             break;
           } catch (error) {
             console.error(`Error during API request for address ${addr}:`, error);
+            setLoading(false);
+            setErrorMessage(`Failed to download file. This could be due to the file not being found, or the provider may not have a persistent copy.`);
           } 
         }
       }
@@ -182,6 +186,8 @@ function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.
 
       } catch (error){
         console.error("Error during API request:", error);
+        setLoading(false);
+        setErrorMessage(`Failed to download file. This could be due to the file not being found, or the provider may not have a persistent copy.`);
       }
     }
   }
@@ -207,7 +213,7 @@ function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.
 
   return (
     provider.Addrs && provider.Addrs.length > 0 ? (
-      <div style={{ position: 'relative', margin: '10px', padding: '10px', border: '1px solid #ccc', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start'}}>
+      <div style={{ position: 'relative', margin: '10px', padding: '10px', border: '1px solid #ccc', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width:'600px'}}>
         <p style={{width: '100%', marginBottom: '10px'}}>Provider ID: {provider.ID}</p>
         {/* <div>
           <ul>
@@ -218,25 +224,26 @@ function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.
         </div> */}
         <p> Price: 0 WACO</p>
         <div style={{ width: '100%', marginTop: '10px', textAlign: 'right'}}>
-            <LoadingButton
-              loading={loading}
-              variant="contained"
-              color="primary"
-              className="border border-blue-500 bg-blue-500 text-white py-2 px-6 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onClick={handleDownload}
-              loadingPosition="end"
-              endIcon={null}
-            > 
-              Download 
-            </LoadingButton>
-          </div>
+          <LoadingButton
+            loading={loading}
+            variant="contained"
+            color="primary"
+            className="border border-blue-500 bg-blue-500 text-white py-2 px-6 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onClick={handleDownload}
+            loadingPosition="end"
+            endIcon={null}
+          > 
+            Download 
+          </LoadingButton>
+        </div>
+        {errorMessage && <div className="error-message" style={{ color: 'red', marginTop: '10px'}}>{errorMessage}</div>}
           <ConfirmationDialog
             open={dialogOpen}
             onClose={handleDialogClose}
             onConfirm={() => downloadFile(provider.ID)}
             title="Download?"
             message={`Are you sure you want to download this file at a price of ...`}
-        />
+          />
       </div>
     ) : null
   );
