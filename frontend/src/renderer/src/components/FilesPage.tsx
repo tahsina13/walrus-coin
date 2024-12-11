@@ -182,14 +182,14 @@ function FilesPage(): JSX.Element {
       try {
         let data = new FormData();
         data.append("data", file.fileObject);
-        const response_put = await axios.post(`http://localhost:5001/api/v0/block/put?price=${defaultFileCost}`, data, {
+        const response_put = await axios.post(`http://localhost:5001/api/v0/block/put?price=${defaultFileCost}&wallet=${localStorage.getItem("walletaddr")}`, data, {
           headers: {
             'Content-Type': 'multipart/form-data', // Automatically set by FormData, but added for clarity
           },
         });
-        file.CID = response_put.data.Key;
-         console.log("file provided:");
-         console.log(file);
+        file.CID = response_put.data.Responses[0].Key;
+        //  console.log("file provided:");
+        //  console.log(file);
         const response_provide = await axios.post(`http://localhost:5001/api/v0/routing/provide?arg=${file.CID}`);
         file.status = "provided";
       } catch (error) {

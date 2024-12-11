@@ -206,9 +206,7 @@ function LoginPage(): JSX.Element {
         //   return;
         // }
         set_error_message('Adding Bootstrap...');
-        sessionStorage.setItem("buttonState", "disabled");
         const add_bootstrap = await window.versions.addBootstrap();
-        sessionStorage.setItem("buttonState", "enabled");
         navigate('/status');
     } else {
       setExistingLoading(false);

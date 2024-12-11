@@ -15,34 +15,7 @@ function SearchBar(): JSX.Element {
   const [hash, setHash] = useState<string>('');
   const [providers, setProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [isButtonDisabled, setIsButtonDisabled] = useState(false);
   const [stats, setStats] = useState<any>(null);
-
-  // Disable search until bootstrap peer is added
-  useEffect(() => {
-    const buttonState = sessionStorage.getItem("buttonState");
-    if (buttonState === "disabled") {
-      setIsButtonDisabled(true);
-    } else {
-      setIsButtonDisabled(false);
-    }
-  }, []);
-
-  // Checks if bootstrap is added and dynamically refresh, clears when finished
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const buttonState = sessionStorage.getItem("buttonState");
-
-      if (buttonState === "disabled") {
-        setIsButtonDisabled(true);
-      } else {
-        setIsButtonDisabled(false);
-        clearInterval(interval);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   const handleSearch = (e: ChangeEvent<HTMLInputElement>): void => {
     setHash(e.target.value);
@@ -106,9 +79,7 @@ function SearchBar(): JSX.Element {
             color: 'white',
             cursor: 'pointer'
           }}
-          disabled={isButtonDisabled}
-          className={`ml-2 px-4 py-2 text-lg rounded-md border-none 
-            ${isButtonDisabled ? 'bg-gray-400 text-gray-600 cursor-not-allowed opacity-50' : 'bg-blue-500 text-white cursor-pointer'}`}
+          className={`ml-2 px-4 py-2 text-lg rounded-md border-none`}
         >
           Search
         </button>
@@ -199,9 +170,9 @@ function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, 
   const payForFile = async () => {
     const name = stats.Name;
     const price = stats.Price;
-    const destAddress = "1FmKD3porqFbHCcUUSFWETNLd3v56sQY7L" //change this to metadata wallet
+    const destAddress = stats.Wallet
     try {
-      console.log(`Paying ${price} WACO for ${name}`)
+      console.log(`Paying ${price} WACO for ${name} to ${destAddress}`)
       const cmdres = await window.versions.btcctlcmd(['sendtoaddress', '"' + destAddress + '"', price]);
       console.log(cmdres);
       const ret = await window.versions.killWallet();
@@ -262,7 +233,7 @@ function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, 
           onClose={handleDialogClose}
           onConfirm={() => downloadFile(provider.ID)}
           title="Download?"
-          message={`Are you sure you want to download this file at a price of ${stats.Price}`}
+          message={`Are you sure you want to download this file at a price of ${stats.Price} WACO`}
         />
       </div>
     ) : null
