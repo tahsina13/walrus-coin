@@ -181,11 +181,8 @@ function FilesPage(): JSX.Element {
     for(let file of file_list.filter((file) => file.status !== "provided")) {
       try {
         let data = new FormData();
-        //const blob = new Blob([file.fileObject], { type: file.fileObject.type });
-         //console.log("blob::");
-         //console.log(blob);
         data.append("data", file.fileObject);
-        const response_put = await axios.post("http://localhost:5001/api/v0/block/put", data, {
+        const response_put = await axios.post(`http://localhost:5001/api/v0/block/put?price=${defaultFileCost}`, data, {
           headers: {
             'Content-Type': 'multipart/form-data', // Automatically set by FormData, but added for clarity
           },
@@ -305,7 +302,7 @@ function FilesPage(): JSX.Element {
                   <div className="icon_col">
                     <img src={FilesIcon} alt={file.type} className="w-10 h-10 ml-3" />
                   </div>
-                  <div className="name_col">
+                  <div className="name_col w-1/4 break-words whitespace-normal">
                     <div>{file.name}</div>
                     <div style={{ color: 'gray', fontSize: '15px', }}>{file.CID !== "" ? file.CID : "Ready to provide"}</div>
                   </div>
