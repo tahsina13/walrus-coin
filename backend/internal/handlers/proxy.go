@@ -363,13 +363,18 @@ func (h *ProxyHandler) FindProxies(w http.ResponseWriter, r *http.Request) error
 			break
 		}
 
+		if p.ID == h.node.ID() {
+			continue  // Skip this peer and move to the next iteration
+		}
+
+		fmt.Print("Found peer: ", p.ID, "\n")
+
 		// Establish a stream to the peer
 		stream, err := h.node.NewStream(r.Context(), p.ID, "/orcanet/metadata")
 		if err != nil {
 			log.Printf("Error creating stream to peer %s: %v", p.ID, err)
 			continue
 		}
-		defer stream.Close()
 
 		// Retrieve metadata from the peer
 		var metadata Metadata
