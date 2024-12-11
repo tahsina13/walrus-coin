@@ -26,6 +26,7 @@ function MiningPage(): JSX.Element {
   // const hashRate:string = '0';
 
   const [hashRate, setHashRate] = useState<string>('0');
+  const [blockHeight, setBlockHeight] = useState<string>('0');
 
   type MinedBlock = {
     hash: string
@@ -63,6 +64,8 @@ function MiningPage(): JSX.Element {
         // const response = await fetch('https://api.example.com/data');
         const balance = await getWalletBalance();
         setBalance(balance);
+        const stats = await getMiningInfo();
+        setBlockHeight(stats.blocks);
         // const result = await response.json();
         // setData(result);
       } catch (error) {
@@ -140,6 +143,8 @@ function MiningPage(): JSX.Element {
         setBalance(balance);
         const transactions = await getTransactions();
         setMinedBlocks(transactions);
+        const height = await getMiningInfo();
+        setBlockHeight(height.blocks);
       } else {
         console.log("off");
         setHashRate('0');
@@ -233,7 +238,7 @@ function MiningPage(): JSX.Element {
     return balancerpc.data.result;
   }
 
-  async function getMiningInfo(): Promise<string> {
+  async function getMiningInfo(): Promise<Record<string, any>> {
     const minerpc = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "getmininginfo", params: []}, {
       auth: {
         username: 'user',
@@ -297,9 +302,9 @@ function MiningPage(): JSX.Element {
         </div>
         <div className="mt-5"> Current Session Length: {timeFormat(currentSessionDuration)}</div>
         <div className="stats-container grid grid-cols-3 gap-3 mt-10 mb-5">
-          <div className="border p-3"> {blocksMined} Blocks Mined </div>
-          <div className="border p-3"> Hashes Per Second: {hashRate}</div>
-          <div className="border p-3"> Balance: {balance} WACO</div>
+          <div className="border p-3 flex justify-center items-center">Block Height: {blockHeight}</div>
+          <div className="border p-3 flex justify-center items-center"> Hashes Per Second: {hashRate}</div>
+          <div className="border p-3 flex justify-center items-center"> Balance: {balance} WACO</div>
         </div>
         <div> Latest blocks </div>
         <ul style={{ height: '40%', overflowY: 'auto' }}>
