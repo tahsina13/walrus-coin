@@ -32,7 +32,7 @@ function SearchBar(): JSX.Element {
   }
 
   return (
-    <div style={{ margin: '20px' }}>
+    <div className="flex items-center justify-center m-5">
       <form onSubmit={handleSubmit}>
         <input
           type="text"
