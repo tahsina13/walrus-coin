@@ -1,5 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import path, { join } from 'path'
+import path, { join, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png'
 import { spawn } from 'child_process';
@@ -201,13 +201,13 @@ function createWindow(): void {
   // start btcd
   // startBtcd();
   // startBtcwallet();
-  startServer(); 
+  // startServer(); 
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
@@ -230,6 +230,24 @@ app.whenReady().then(() => {
     console.error("Error starting the server:", err);
     app.quit();
   }
+
+  ipcMain.handle('add-bootstrap', async () => {
+    for (let i = 0; i < bootstrapAddresses.length; i++) {
+      const bootstrapAddr = bootstrapAddresses[i];
+      console.log(`Trying bootstrap address: ${bootstrapAddr}`);
+      
+      try {
+        const response = await axios.post(`http://localhost:5001/api/v0/bootstrap/add?arg=${bootstrapAddr}`);
+        console.log('Bootstrap response: ', response.data);
+        return response.data;  // Stop if successful
+      } catch (error) {
+        console.error(`Bootstrap error (failed at ${bootstrapAddr}):`, error.message);
+      }
+    }
+  
+    console.error('All bootstrap attempts failed.');
+    return { error: 'All bootstrap attempts failed.' };  // Return a failure response
+  });
 
   ipcMain.handle('start-process', (event, command, args, inputs) => {
     return new Promise((resolve, reject) => {  
@@ -273,6 +291,7 @@ app.whenReady().then(() => {
       };
     });
   });
+  
 
   ipcMain.handle('get-store', (event, key) => {
     return store.get(key);
@@ -794,7 +813,7 @@ app.whenReady().then(() => {
   // });
   
 
-  createWindow()
+  // createWindow()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
