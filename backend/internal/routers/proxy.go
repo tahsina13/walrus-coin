@@ -13,6 +13,7 @@ func NewProxyRouter(h *handlers.ProxyHandler) *mux.Router {
 	r.Handle("/disconnect", util.WithError(h.StopProxying)).Methods("POST")
 	r.Handle("/start", util.WithError(h.StartProxyServer)).Methods("POST")
 	r.Handle("/stop", util.WithError(h.StopProxyServer)).Methods("POST")
+	r.Handle("/bytes", util.WithError(h.GetNumBytes)).Methods("POST")
 
 	return r
 }

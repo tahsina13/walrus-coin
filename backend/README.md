@@ -284,3 +284,15 @@ Disconnect from a remote proxy
 
 ```json
 ```
+
+#### /api/v0/proxy/bytes
+Returns the amount of bytes that has been sent
+##### Arguments
+
+##### Response
+
+```json
+{
+  "bytes": "<int>"
+}
+```

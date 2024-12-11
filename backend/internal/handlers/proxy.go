@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/elazarl/goproxy"
@@ -18,6 +18,7 @@ import (
 type ProxyHandler struct {
 	localProxy  *http.Server
 	remoteProxy *http.Server
+	numBytes	uint64
 }
 
 func NewProxyHandler() *ProxyHandler {
@@ -39,6 +40,22 @@ func (cr *countingReader) Read(p []byte) (int, error) {
 	n, err := cr.reader.Read(p)
 	cr.bytesCount += int64(n)
 	return n, err
+}
+
+type BytesResponse struct {
+    Bytes uint64 `json:"bytes"`
+}
+
+func (h *ProxyHandler) GetNumBytes(w http.ResponseWriter, r *http.Request) error {
+	response := BytesResponse{
+		Bytes: h.numBytes,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return err
+    }
+	return nil
 }
 
 func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) error {
@@ -70,6 +87,108 @@ func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) err
 		ForceAttemptHTTP2: true, 
 	}
 	proxy.ConnectDial = proxy.NewConnectDialToProxy(secondHopProxyURL.String())
+
+	proxy.OnRequest().DoFunc(func(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
+		// Wrap the request body to count bytes read
+		countingReqBody := &countingReader{reader: req.Body}
+		req.Body = io.NopCloser(countingReqBody)
+	
+		// Forward the request to the second hop
+		resp, err := proxy.Tr.RoundTrip(req)
+		if err != nil {
+			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, http.StatusInternalServerError, "Internal Server Error")
+		}
+	
+		// Wrap the response body to count bytes written
+		countingRespBody := &countingReader{reader: resp.Body}
+		resp.Body = io.NopCloser(countingRespBody)
+	
+		// Log the byte counts
+		go func() {
+			time.Sleep(1 * time.Second) // Wait for the response to be fully read
+			fmt.Printf("Bytes sent to remote: %d, Bytes received from remote: %d\n", countingReqBody.bytesCount, countingRespBody.bytesCount)
+			h.numBytes += uint64(countingReqBody.bytesCount + countingRespBody.bytesCount)
+		}()
+	
+		return req, resp
+	})
+	
+	proxy.OnRequest().HijackConnect(func(req *http.Request, client net.Conn, ctx *goproxy.ProxyCtx) {
+		defer func() {
+			if e := recover(); e != nil {
+				ctx.Logf("error connecting to remote: %v", e)
+				client.Write([]byte("HTTP/1.1 500 Cannot reach destination\r\n\r\n"))
+			}
+			client.Close()
+		}()
+
+		// Connect to the remote server
+		remoteProxyConn, err := net.Dial("tcp", secondHopProxyURL.Host)
+		orPanic(err)
+		defer remoteProxyConn.Close()
+
+		connectRequest := fmt.Sprintf("CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n", req.Host, req.Host)
+		_, err = remoteProxyConn.Write([]byte(connectRequest))
+		if err != nil {
+			ctx.Logf("Error sending CONNECT request to remote proxy: %v", err)
+			client.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+			return
+		}
+
+		// Step 3: Read the response from the remote proxy to confirm the tunnel is established
+		buf := make([]byte, 1024)
+		_, err = remoteProxyConn.Read(buf)
+		if err != nil {
+			ctx.Logf("Error reading response from remote proxy: %v", err)
+			client.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+			return
+		}
+
+		// Notify client that the connection is established
+		client.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+
+		// Create channels to monitor byte counts
+		clientToRemote := make(chan int64)
+		remoteToClient := make(chan int64)
+
+		// Copy data from client to remote and measure bytes
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("Recovered from panic: %v", r)
+				}
+			}()
+			bytes, err := io.Copy(remoteProxyConn, client)
+			if err != nil {
+				log.Printf("Error: %v", err)
+			}
+			clientToRemote <- bytes
+		}()
+		
+		// Copy data from remote to client and measure bytes
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("Recovered from panic: %v", r)
+				}
+			}()
+			bytes, err := io.Copy(client, remoteProxyConn)
+			if err != nil {
+				log.Printf("Error copying from remote to client: %v", err)
+			}
+			remoteToClient <- bytes
+		}()
+
+		// Wait for both directions to complete
+		totalClientToRemote := <-clientToRemote
+		totalRemoteToClient := <-remoteToClient
+
+		// Log the byte counts
+		fmt.Printf("Bytes sent to remote: %d, Bytes received from remote: %d\n",
+			totalClientToRemote, totalRemoteToClient)
+		h.numBytes += uint64(totalClientToRemote + totalRemoteToClient)
+	})
+
 
 	h.localProxy = &http.Server{
 		Addr:    port,
@@ -103,103 +222,13 @@ func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) err
 }
 
 func (h *ProxyHandler) StartProxyServer(w http.ResponseWriter, r *http.Request) error {
-	price := r.FormValue("price")
 	port := r.FormValue("port")
-	if price == "" {
-		return util.BadRequestWithBody(bootstrapError{Message: "No price included"})
-	}
-	priceInt, err := strconv.Atoi(price)
-	if err != nil {
-		return util.BadRequestWithBody(bootstrapError{Message: "Unable to parse price to int"})
-	}
 	if port == "" {
 		port = ":8084"
 	}
 
 	proxy := goproxy.NewProxyHttpServer()
 	proxy.Verbose = false
-    
-	proxy.OnRequest().DoFunc(func(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
-		// Create counting readers and writers
-		countingReqBody := &countingReader{reader: req.Body}
-		req.Body = io.NopCloser(countingReqBody)
-
-		// Make the request to the remote server
-		resp, err := http.DefaultTransport.RoundTrip(req)
-		if err != nil {
-			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, http.StatusInternalServerError, "Internal Server Error")
-		}
-
-		countingRespBody := &countingReader{reader: resp.Body}
-		resp.Body = io.NopCloser(countingRespBody)
-
-		// Log the byte counts
-		go func() {
-			time.Sleep(1 * time.Second) // Wait for the response to be fully read
-			fmt.Printf("Bytes sent to remote: %d, Bytes received from remote: %d, Price per byte: %d\n", countingReqBody.bytesCount, countingRespBody.bytesCount, priceInt)
-		}()
-
-		return req, resp
-	})
-
-	proxy.OnRequest().HijackConnect(func(req *http.Request, client net.Conn, ctx *goproxy.ProxyCtx) {
-		defer func() {
-			if e := recover(); e != nil {
-				ctx.Logf("error connecting to remote: %v", e)
-				client.Write([]byte("HTTP/1.1 500 Cannot reach destination\r\n\r\n"))
-			}
-			client.Close()
-		}()
-
-		// Connect to the remote server
-		remote, err := net.Dial("tcp", req.URL.Host)
-		orPanic(err)
-		defer remote.Close()
-
-		// Notify client that the connection is established
-		client.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
-
-		// Create channels to monitor byte counts
-		clientToRemote := make(chan int64)
-		remoteToClient := make(chan int64)
-
-		// Copy data from client to remote and measure bytes
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("Recovered from panic: %v", r)
-				}
-			}()
-			bytes, err := io.Copy(remote, client)
-			if err != nil {
-				log.Printf("Error: %v", err)
-			}
-			clientToRemote <- bytes
-		}()
-		
-		// Copy data from remote to client and measure bytes
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("Recovered from panic: %v", r)
-				}
-			}()
-			bytes, err := io.Copy(client, remote)
-			if err != nil {
-				log.Printf("Error copying from remote to client: %v", err)
-			}
-			remoteToClient <- bytes
-		}()
-
-		// Wait for both directions to complete
-		totalClientToRemote := <-clientToRemote
-		totalRemoteToClient := <-remoteToClient
-
-		// Log the byte counts
-		fmt.Printf("Bytes sent to remote: %d, Bytes received from remote: %d, Price per byte: %d\n",
-			totalClientToRemote, totalRemoteToClient, priceInt)
-	})
-
 
 	h.remoteProxy = &http.Server{
 		Addr:    port,
