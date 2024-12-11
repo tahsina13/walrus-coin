@@ -244,7 +244,6 @@ Starts remote proxy
 ##### Arguments
 
 * `port` [int]: Port to start the remote proxy server on. (Default 8084)
-* `price` [int]: Price per byte. **Required**.
 
 ##### Response
 
