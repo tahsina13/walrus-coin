@@ -26,6 +26,7 @@ function MiningPage(): JSX.Element {
   // const hashRate:string = '0';
 
   const [hashRate, setHashRate] = useState<string>('0');
+  const [netHashrate, setNetHashrate] = useState<string>('0');
   const [blockHeight, setBlockHeight] = useState<string>('0');
 
   type MinedBlock = {
@@ -66,6 +67,7 @@ function MiningPage(): JSX.Element {
         setBalance(balance);
         const stats = await getMiningInfo();
         setBlockHeight(stats.blocks);
+        setNetHashrate(stats.networkhashps);
         // const result = await response.json();
         // setData(result);
       } catch (error) {
@@ -145,6 +147,7 @@ function MiningPage(): JSX.Element {
         setMinedBlocks(transactions);
         const height = await getMiningInfo();
         setBlockHeight(height.blocks);
+        setNetHashrate(height.networkhashps);
       } else {
         console.log("off");
         setHashRate('0');
@@ -303,7 +306,8 @@ function MiningPage(): JSX.Element {
         <div className="mt-5"> Current Session Length: {timeFormat(currentSessionDuration)}</div>
         <div className="stats-container grid grid-cols-3 gap-3 mt-10 mb-5">
           <div className="border p-3 flex justify-center items-center">Block Height: {blockHeight}</div>
-          <div className="border p-3 flex justify-center items-center"> Hashes Per Second: {hashRate}</div>
+          {/* <div className="border p-3 flex justify-center items-center">Network Hash Rate: {parseInt(netHashrate)}</div> */}
+          <div className="border p-3 flex justify-center items-center">Hashes Per Second: {hashRate}</div>
           <div className="border p-3 flex justify-center items-center"> Balance: {balance} WACO</div>
         </div>
         <div> Latest blocks </div>
