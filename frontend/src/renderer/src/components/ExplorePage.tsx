@@ -63,9 +63,7 @@ function SearchBar(): JSX.Element {
         
         // Fetch stats
         const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}`);
-        setStats(statsResponse.data);
-        console.log('stats:', statsResponse.data);
-
+        setStats(statsResponse.data.Responses[0]);
       } else {
         setProviders([]);
         console.log("No providers found or invalid response format.");
@@ -238,6 +236,7 @@ function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, 
     provider.Addrs && provider.Addrs.length > 0 ? (
       <div style={{ position: 'relative', margin: '10px', padding: '10px', border: '1px solid #ccc', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width:'600px'}}>
         <p className="mb-2"> {stats.Name}</p>
+        
         <p style={{ width: '100%' }}>Provider ID: {provider.ID}</p>
          {/* <div>
           <ul>
