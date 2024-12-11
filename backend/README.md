@@ -157,6 +157,27 @@ The routing module handles DHT lookups and requests.
 }
 ```
 
+#### /api/v0/routing/findproxyprovos
+
+##### Arguments
+
+* `num-providers` [int]: The number of providers to find. Default: 20. 
+
+##### Response
+
+```json
+{
+  "Responses": [
+    {
+      "Addrs": [
+        "<multiaddr-string>"
+      ],
+      "ID": "peer-id"
+    }
+  ]
+}
+```
+
 #### /api/v0/routing/provide
 
 ##### Arguments
@@ -170,6 +191,17 @@ The routing module handles DHT lookups and requests.
   "Responses": null
 }
 ```
+
+#### /api/v0/routing/provideproxy
+
+##### Arguments
+
+##### Response
+
+```json
+{
+  "Responses": null
+}
 
 ### Block
 
@@ -234,6 +266,36 @@ Argument `data` is of file type and is sent via multipart-form data.
   "Size": "<int>"
 }
 ```
+
+#### /api/v0/block/putproxy
+
+Store your proxy's public IP and price per byte
+
+##### Arguments
+
+* `price` [string]: Price per byte of proxing **Required**.
+* `ip` [string]: Public IP Address of proxy **Required**.
+
+##### Response
+
+```json
+{
+  "Key": "<string>",
+  "Size": "<int>"
+}
+```
+
+#### /api/v0/block/getproxy
+
+Get the proxy public IP and price per byte of a peer
+
+##### Arguments
+
+* `peer` [string]: The remote peer. Query self if no peer. *Optional*.
+
+##### Response
+
+Json i think
 
 ### Proxy
 
