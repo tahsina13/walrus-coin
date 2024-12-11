@@ -3,15 +3,12 @@ import { ChangeEvent, FormEvent, useState, useEffect } from "react";
 import { LoadingButton } from '@mui/lab';
 import ConfirmationDialog from "./ConfirmationDialog";
 
-
-const testProviders = ["QmHash1", "QmHash2", "QmHash3", "QmHash4", "QmHash5"]
-
 function ExplorePage(): JSX.Element {
   return (
     <div>
       <SearchBar />
     </div>
-  )
+  );
 }
 
 function SearchBar(): JSX.Element {
@@ -19,6 +16,7 @@ function SearchBar(): JSX.Element {
   const [providers, setProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [isButtonDisabled, setIsButtonDisabled] = useState(false);
+  const [stats, setStats] = useState<any>(null);
 
   // Disable search until bootstrap peer is added
   useEffect(() => {
@@ -47,35 +45,41 @@ function SearchBar(): JSX.Element {
   }, []);
 
   const handleSearch = (e: ChangeEvent<HTMLInputElement>): void => {
-    setHash(e.target.value)
-  }
+    setHash(e.target.value);
+  };
 
   const handleSubmit = async (e: FormEvent): Promise<void> => {
-    e.preventDefault()
+    e.preventDefault();
     console.log("Search: " + hash);
     setLoading(true);
+    setProviders([]);
+    setStats(null);
 
     try {
-      // 
-      const response = await axios.post(`http://localhost:5001/api/v0/routing/findprovos?arg=${hash}`);
-      console.log(response.data);
-      if (response.data && Array.isArray(response.data.Responses)) {
-        setProviders(response.data.Responses);
+      const providerResponse = await axios.post(`http://localhost:5001/api/v0/routing/findprovos?arg=${hash}`);
+      console.log(providerResponse.data)
+      if (providerResponse.data && Array.isArray(providerResponse.data.Responses)) {
+        setProviders(providerResponse.data.Responses);
+        
+        // Fetch stats
+        const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}`);
+        setStats(statsResponse.data);
+        console.log('stats:', statsResponse.data);
+
       } else {
-        console.log("No providers found or invalid response format.");
         setProviders([]);
-        setLoading(false);
+        console.log("No providers found or invalid response format.");
       }
 
     } catch (error) {
       console.error("Error during API request:", error);
       setProviders([]);
-      setLoading(true);
+      setStats(null);
     } finally {
       setLoading(false);
     }
-  }
-  
+  };
+
   return (
     <div className="flex flex-col items-center justify-center m-5">
       <form onSubmit={handleSubmit}>
@@ -111,64 +115,61 @@ function SearchBar(): JSX.Element {
           Search
         </button>
       </form>
-      {loading ? (
+      {loading && !stats ? (
         <div className="loading-indicator">
           <p>Loading...</p>
-          {/* Circular Progress MUI? */}
         </div>
       ) : (
-        <ProviderList providers={providers} hash={hash} />
+        <ProviderList providers={providers} hash={hash} stats={stats} />
       )}
     </div>
   );
-};
+}
 
-function ProviderList( { providers, hash }: { providers: any[], hash: string }): JSX.Element {
+function ProviderList({ providers, hash, stats }: { providers: any[], hash: string, stats: any }): JSX.Element {
   return (
     <div>
       {providers.length > 0 ? (
         providers.map((provider) => (
-          <ProviderCard key={provider} provider={provider} hash={hash} />
+          <ProviderCard key={provider.ID} provider={provider} hash={hash} stats={stats} />
         ))
       ) : (
-        <div> No providers found. </div>
+        <div>No providers found.</div>
       )}
     </div>
-  )
+  );
 }
 
-function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.Element {
+function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, stats: any }): JSX.Element {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const findCircuitAddr = (addresses: string[]): string | undefined => {
     return addresses.find(addr => addr.includes('tcp') && addr.includes('p2p-circuit'));
-  }
+  };
 
   const downloadFile = async (providerId: string) => {
     console.log(`Downloading file ${hash} from ${providerId}`);
     setDialogOpen(false);
     setLoading(true);
+    setErrorMessage('');
 
     let filteredAddr = findCircuitAddr(provider.Addrs);
-    // If address doesn't have p2p-circuit address, tries all addresses
     if (!filteredAddr) {
-      console.log("No p2p-circuit address found, trying other addresses...");
       for (let addr of provider.Addrs) {
         if (addr.includes('tcp')) {
           const peerArg = `${addr}/p2p/${providerId}`;
           try {
-            console.log(`trying ${peerArg}`)
             const response = await axios.post(`http://localhost:5001/api/v0/block/get?arg=${hash}&peer=${peerArg}`, null, {
               responseType: 'blob',
             });
-            console.log("Obtained File", response.data);
-            console.log(response.data instanceof Blob);
             downloadBlob(response.data, hash);
             break;
           } catch (error) {
-            console.error(`Error during API request for address ${addr}:`, error);
-          } 
+            setLoading(false);
+            setErrorMessage('Failed to download file.');
+          }
         }
       }
     } else {
@@ -177,16 +178,16 @@ function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.
         const response = await axios.post(`http://localhost:5001/api/v0/block/get?arg=${hash}&peer=${peerArg}`, null, {
           responseType: 'blob',
         });
-        console.log("Obtained file", response.data);
         downloadBlob(response.data, hash);
-
-      } catch (error){
-        console.error("Error during API request:", error);
+      } catch (error) {
+        setLoading(false);
+        setErrorMessage('Failed to download file.');
       }
     }
-  }
+  };
 
   const downloadBlob = (blobData: Blob, fileName: string) => {
+    payForFile(); // pay for file then initiate download
     const url = window.URL.createObjectURL(blobData);
     const link = document.createElement('a');
     link.href = url;
@@ -196,6 +197,34 @@ function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.
     document.body.removeChild(link);
     setLoading(false);
   };
+
+  const payForFile = async () => {
+    const name = stats.Name;
+    const price = stats.Price;
+    const destAddress = "1FmKD3porqFbHCcUUSFWETNLd3v56sQY7L" //change this to metadata wallet
+    try {
+      console.log(`Paying ${price} WACO for ${name}`)
+      const cmdres = await window.versions.btcctlcmd(['sendtoaddress', '"' + destAddress + '"', price]);
+      console.log(cmdres);
+      const ret = await window.versions.killWallet();
+      const ret2 = await window.versions.startWallet();
+      // relog in
+      const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [localStorage.getItem("walletpassword"), 99999999]}, {
+          auth: {
+            username: 'user',
+            password: 'password'
+          },
+          headers: {
+            'Content-Type': 'text/plain;',
+          },
+        });
+      console.log(passres);
+      console.log("killed wallet after transaction");
+    } catch (error) {
+      console.error('Payment failed', error);
+      setErrorMessage('Payment failed');
+    }
+  }
 
   const handleDownload = () => {
     setDialogOpen(true);
@@ -207,39 +236,38 @@ function ProviderCard({ provider, hash }: { provider: any, hash: string }): JSX.
 
   return (
     provider.Addrs && provider.Addrs.length > 0 ? (
-      <div style={{ position: 'relative', margin: '10px', padding: '10px', border: '1px solid #ccc', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start'}}>
-        <p style={{width: '100%', marginBottom: '10px'}}>Provider ID: {provider.ID}</p>
-        {/* <div>
+      <div style={{ position: 'relative', margin: '10px', padding: '10px', border: '1px solid #ccc', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width:'600px'}}>
+        <p className="mb-2"> {stats.Name}</p>
+        <p style={{ width: '100%' }}>Provider ID: {provider.ID}</p>
+         {/* <div>
           <ul>
             {provider.Addrs.map((addr: string, idx: number) => (
               <li key={idx}>{addr}</li>
             ))}
           </ul>
         </div> */}
-        <p> Price: 0 WACO</p>
-        <div style={{ width: '100%', marginTop: '10px', textAlign: 'right'}}>
-            <LoadingButton
-              loading={loading}
-              variant="contained"
-              color="primary"
-              className="border border-blue-500 bg-blue-500 text-white py-2 px-6 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onClick={handleDownload}
-              loadingPosition="end"
-              endIcon={null}
-            > 
-              Download 
-            </LoadingButton>
-          </div>
-          <ConfirmationDialog
-            open={dialogOpen}
-            onClose={handleDialogClose}
-            onConfirm={() => downloadFile(provider.ID)}
-            title="Download?"
-            message={`Are you sure you want to download this file at a price of ...`}
+        <p> Price: {stats.Price} WACO</p>
+        <div style={{ width: '100%', marginTop: '10px', textAlign: 'right' }}>
+          <LoadingButton
+            loading={loading}
+            variant="contained"
+            color="primary"
+            onClick={handleDownload}
+          >
+            Download
+          </LoadingButton>
+        </div>
+        {errorMessage && <div style={{ color: 'red', marginTop: '10px' }}>{errorMessage}</div>}
+        <ConfirmationDialog
+          open={dialogOpen}
+          onClose={handleDialogClose}
+          onConfirm={() => downloadFile(provider.ID)}
+          title="Download?"
+          message={`Are you sure you want to download this file at a price of ${stats.Price}`}
         />
       </div>
     ) : null
   );
 }
 
-export default ExplorePage
+export default ExplorePage;
