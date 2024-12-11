@@ -368,41 +368,41 @@ func (h *BlockHandler) Put(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *BlockHandler) PutProxy(w http.ResponseWriter, r *http.Request) error {
-	query := r.URL.Query()
+// func (h *BlockHandler) PutProxy(w http.ResponseWriter, r *http.Request) error {
+// 	query := r.URL.Query()
 
-	price := query["price"]
-	ip := query["ip"]
-	if len(price) == 0 || len(ip) == 0 {
-		return util.BadRequestWithBody(blockError{Message: "both 'price' and 'ip' are required"})
-	}
+// 	price := query["price"]
+// 	ip := query["ip"]
+// 	if len(price) == 0 || len(ip) == 0 {
+// 		return util.BadRequestWithBody(blockError{Message: "both 'price' and 'ip' are required"})
+// 	}
 
-	data := map[string]string{
-		"price": price[0],
-		"ip":    ip[0],
-	}
+// 	data := map[string]string{
+// 		"price": price[0],
+// 		"ip":    ip[0],
+// 	}
 
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to marshal data: %v", err)})
-	}
+// 	jsonData, err := json.Marshal(data)
+// 	if err != nil {
+// 		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to marshal data: %v", err)})
+// 	}
 
-	blk, err := blocks.NewBlockWithCid(jsonData, proxyCID)
-	if err != nil {
-		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to create block: %v", err)})
-	}
+// 	blk, err := blocks.NewBlockWithCid(jsonData, proxyCID)
+// 	if err != nil {
+// 		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to create block: %v", err)})
+// 	}
 
-	if err := h.bstore.Put(r.Context(), blk); err != nil {
-		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to put block: %v", err)})
-	}
+// 	if err := h.bstore.Put(r.Context(), blk); err != nil {
+// 		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to put block: %v", err)})
+// 	}
 
-	response := blockResponse{Key: blk.Cid().String(), Size: len(data)}
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		return util.BadRequest(err)
-	}
+// 	response := blockResponse{Key: blk.Cid().String(), Size: len(data)}
+// 	if err := json.NewEncoder(w).Encode(response); err != nil {
+// 		return util.BadRequest(err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func (h *BlockHandler) GetProxy(w http.ResponseWriter, r *http.Request) error {
 	query := r.URL.Query()
