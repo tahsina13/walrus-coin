@@ -65,15 +65,13 @@ func (h *RoutingHandler) FindProvos(w http.ResponseWriter, r *http.Request) erro
 		return util.BadRequestWithBody(routingError{Message: "argument \"key\" is required"})
 	}
 
-	var numProviders int
+	numProviders := 20
 	if numProvidersStr, ok := query["num-providers"]; ok {
 		val, err := strconv.Atoi(numProvidersStr[0])
 		if err != nil {
 			return util.BadRequestWithBody(routingError{Message: fmt.Sprintf("invalid num-providers: %v", err)})
 		}
 		numProviders = val
-	} else {
-		numProviders = 20
 	}
 
 	var addrs []peer.AddrInfo
