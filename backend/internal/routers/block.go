@@ -11,6 +11,7 @@ func NewBlockRouter(h *handlers.BlockHandler) *mux.Router {
 
 	r.HandleFunc("/get", util.WithError(h.Get)).Methods("POST")
 	r.HandleFunc("/put", util.WithError(h.Put)).Methods("POST")
+	r.HandleFunc("/list", util.WithError(h.List)).Methods("POST")
 	r.HandleFunc("/rm", util.WithError(h.Remove)).Methods("POST")
 	r.HandleFunc("/stat", util.WithError(h.Stat)).Methods("POST")
 
