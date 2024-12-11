@@ -216,11 +216,12 @@ The block module handles uploading of files.
 
 ##### Response
 
-On success the contents of the file will be returned as a \`text/plain\`.
+On success the contents of the file will be returned as a \`multipart/form-data\` in the `data` field.
 
 #### /api/v0/block/put
 
-None. 
+* `price` [double]: The price of the field, by default 0, aka free. *Optional*.
+* `wallet` [string]: The wallet address of the provider. *Optional*.
 
 ##### Arguments
 
@@ -232,8 +233,15 @@ Argument `data` is of file type and is sent via multipart-form data.
 
 ```json
 {
-  "Key": "<string>",
-  "Size": "<int>"
+  "Responses": [
+    {
+      "Key": "<string>",
+      "Name": "<string>",
+      "Size": "<int>",
+      "Price": "<double>",
+      "Wallet": "<string>"
+    }
+  ]
 }
 ```
 
@@ -247,7 +255,15 @@ Argument `data` is of file type and is sent via multipart-form data.
 
 ```json
 {
-  "Key": "<string>"
+  "Responses": [
+    {
+      "Key": "<string>",
+      "Name": "<string>",
+      "Size": "<int>",
+      "Price": "<double>",
+      "Wallet": "<string>"
+    }
+  ]
 }
 ```
 
@@ -262,8 +278,15 @@ Argument `data` is of file type and is sent via multipart-form data.
 
 ```json
 {
-  "Key": "<string>",
-  "Size": "<int>"
+  "Responses": [
+    {
+      "Key": "<string>",
+      "Name": "<string>",
+      "Size": "<int>",
+      "Price": "<double>",
+      "Wallet": "<string>"
+    }
+  ]
 }
 ```
 
