@@ -62,9 +62,9 @@ function MiningHistory(): JSX.Element {
                 <div className="amount_col" style={{ flex: 1 }}>Amount</div>
                 <div className="date_col" style={{ flex: 1 }}>Date</div>
             </div>
-            <ul style={{ height: '90%', overflowY: 'auto' }}>
+            <ul style={{ overflow: 'auto' }}>
                 {minedBlocks.map((item) => (
-                <li key={item.hash} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <li key={item.hash} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px'}}>
                     <div style={{ flex: 1 }}> 
                         Block {item.hash.substring(0, 5) + '-' + item.hash.substring(item.hash.length-5, item.hash.length)}
                     </div>

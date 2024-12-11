@@ -24,7 +24,7 @@ const bootstrapAddresses = [
   `${bootstrapAddr3}`
 ];
 
-// const pids: number[] = [];  
+const pids: number[] = [];  
 
 function getWalletAddress() {
   const procPath = path.join(process.cwd(), '../backend/btcd/btcd');
@@ -118,8 +118,8 @@ async function startServer() {
       cwd: serverPath,
       shell: true,
     });
-    // pids.push(server.pid); // Array of child processes
-    // console.log("server pid: ", server.pid);
+    pids.push(server.pid); // Array of child processes
+    console.log("server is running with pid ", server.pid);
 
     const connectBootstrap = async() => {
       try {
@@ -324,6 +324,7 @@ app.whenReady().then(async() => {
       const child = spawn(procPath, ['-C', confPath], {shell: true});
       btcwalletpid = child.pid;
       btcwalletproc = child;
+      pids.push(btcwalletpid);
       child.stdout.on('data', async (data) => {
         console.log("stdout event: " + data);
         if (data.includes('Opened wallet')) {
@@ -389,6 +390,7 @@ app.whenReady().then(async() => {
       const confPath = path.join(process.cwd(), '../backend/btcd.conf');
       // console.log(procPath, [args, inputs]);
       const child = spawn(procPath, ['-C', confPath, '--notls', '--txindex', '--addrindex', '--miningaddr='+walletaddr], {shell: true});
+      pids.push(child.pid);
       child.stdout.on('data', async (data) => {
         console.log("stdout event: " + data);
         // if (data.includes('RPC server listening on 127.0.0.1:8334')) {
@@ -831,25 +833,25 @@ app.on('window-all-closed', () => {
   }
 })
 
-// app.on('before-quit', () => {
-//   pids.forEach(pid => {
-//     try {
-//       process.kill(pid, 0);
-//       console.log(`Attempting to kill ${pid}`)
+app.on('before-quit', () => {
+  pids.forEach(pid => {
+    try {
+      process.kill(pid, 0);
+      console.log(`Attempting to kill ${pid}`)
 
-//       kill(pid, 'SIGTERM', (err) => {
-//         if (err) {
-//           console.error("error killing processes")
-//         }
-//         else{
-//           console.log("Processes terminated successfully")
-//         }
-//       })
-//     } catch(error) {
-//       console.error(`No process with pid ${pid} found, it might already be terminated, error`);
-//     }
-//   });
-// })
+      kill(pid, 'SIGTERM', (err) => {
+        if (err) {
+          console.error("error killing processes")
+        }
+        else{
+          console.log("Processes terminated successfully")
+        }
+      })
+    } catch(error) {
+      console.error(`No process with pid ${pid} found, it might already be terminated, error`);
+    }
+  });
+})
 
 // In this file you can include the rest of your app"s specific main process
 // code. You can also put them in separate files and require them here.

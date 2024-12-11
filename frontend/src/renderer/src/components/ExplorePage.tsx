@@ -46,19 +46,6 @@ function SearchBar(): JSX.Element {
     return () => clearInterval(interval);
   }, []);
 
-  // // Bootstrap
-  // useEffect(() => {
-  //   const addBootstrap = async () => {
-  //     try {
-  //       const response = await axios.post("http://localhost:5001/api/v0/bootstrap/add?arg=/ip4/130.245.173.222/tcp/61000/p2p/12D3KooWQd1K1k8XA9xVEzSAu7HUCodC7LJB6uW5Kw4VwkRdstPE");
-  //       console.log("Bootstrap peer added:", response.data);
-  //     } catch (error) {
-  //       console.error("Error adding bootstrap:", error);
-  //     }
-  //   };
-  //   addBootstrap();
-  // }, []);
-
   const handleSearch = (e: ChangeEvent<HTMLInputElement>): void => {
     setHash(e.target.value)
   }
@@ -77,11 +64,13 @@ function SearchBar(): JSX.Element {
       } else {
         console.log("No providers found or invalid response format.");
         setProviders([]);
+        setLoading(false);
       }
 
     } catch (error) {
       console.error("Error during API request:", error);
       setProviders([]);
+      setLoading(true);
     } finally {
       setLoading(false);
     }
