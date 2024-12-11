@@ -19,6 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/multiformats/go-multihash"
 	"github.com/sirupsen/logrus"
 	"github.com/tahsina13/walrus-coin/backend/internal/util"
 )
@@ -29,6 +30,8 @@ const (
 	getBlockProtocolID  = "/orcanet/block/get"
 	statBlockProtocolID = "/orcanet/block/stat"
 )
+
+var proxyCID = cid.NewCidV1(multihash.SHA2_256, []byte("proxy"))
 
 type BlockHandler struct {
 	node   host.Host
@@ -362,6 +365,120 @@ func (h *BlockHandler) Put(w http.ResponseWriter, r *http.Request) error {
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		return util.BadRequest(err)
 	}
+	return nil
+}
+
+// func (h *BlockHandler) PutProxy(w http.ResponseWriter, r *http.Request) error {
+// 	query := r.URL.Query()
+
+// 	price := query["price"]
+// 	ip := query["ip"]
+// 	if len(price) == 0 || len(ip) == 0 {
+// 		return util.BadRequestWithBody(blockError{Message: "both 'price' and 'ip' are required"})
+// 	}
+
+// 	data := map[string]string{
+// 		"price": price[0],
+// 		"ip":    ip[0],
+// 	}
+
+// 	jsonData, err := json.Marshal(data)
+// 	if err != nil {
+// 		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to marshal data: %v", err)})
+// 	}
+
+// 	blk, err := blocks.NewBlockWithCid(jsonData, proxyCID)
+// 	if err != nil {
+// 		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to create block: %v", err)})
+// 	}
+
+// 	if err := h.bstore.Put(r.Context(), blk); err != nil {
+// 		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to put block: %v", err)})
+// 	}
+
+// 	response := blockResponse{Key: blk.Cid().String(), Size: len(data)}
+// 	if err := json.NewEncoder(w).Encode(response); err != nil {
+// 		return util.BadRequest(err)
+// 	}
+
+// 	return nil
+// }
+
+func (h *BlockHandler) GetProxy(w http.ResponseWriter, r *http.Request) error {
+	query := r.URL.Query()
+
+	var key = proxyCID
+	peerAddr, ok := query["peer"]
+	if !ok {
+		// Query local blockstore if peer not specified
+		blk, err := h.bstore.Get(r.Context(), key)
+		if err != nil {
+			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to get block: %v", err)})
+		}
+		if _, err := w.Write(blk.RawData()); err != nil {
+			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to write block: %v", err)})
+		}
+		return nil
+	}
+
+	peerInfo, err := peer.AddrInfoFromString(peerAddr[0])
+	if err != nil {
+		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to parse peer address: %v", err)})
+	}
+
+	ctx := network.WithAllowLimitedConn(r.Context(), getBlockProtocolID)
+	stream, err := h.node.NewStream(ctx, peerInfo.ID, getBlockProtocolID)
+	if err != nil {
+		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to open stream: %v", err)})
+	}
+	defer stream.Close()
+
+	request := blockRequest{Key: key.String()}
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to marshal block request: %v", err)})
+	}
+	_, err = stream.Write(append(jsonData, '\n'))
+	logrus.Debugf("Sent block get request: %s", string(jsonData))
+	if err != nil {
+		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to write block request: %v", err)})
+	}
+
+	reader := bufio.NewReader(stream)
+	jsonData, err = reader.ReadBytes('\n')
+	if err != nil {
+		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to read response: %v", err)})
+	}
+
+	var data map[string]interface{}
+	if err := json.Unmarshal(jsonData, &data); err != nil {
+		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to unmarshal response: %v", err)})
+	}
+
+	if mesg, ok := data["Message"]; ok {
+		return util.BadRequestWithBody(blockError{Message: mesg.(string)})
+	}
+
+	var response blockResponse
+	if err := json.Unmarshal(jsonData, &response); err != nil {
+		return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to unmarshal response: %v", err)})
+	}
+
+	var buf [1024]byte
+	for {
+		n, err := reader.Read(buf[:])
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to read block: %v", err)})
+		}
+		if _, err := w.Write(buf[:n]); err != nil {
+			return util.BadRequestWithBody(blockError{Message: fmt.Sprintf("failed to write block: %v", err)})
+		}
+	}
+	logrus.Debugf("Received block: %s", key)
+
 	return nil
 }
 

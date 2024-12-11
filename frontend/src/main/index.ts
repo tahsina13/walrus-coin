@@ -9,6 +9,7 @@ import Store from 'electron-store';
 import fs from 'fs';
 import kill from 'tree-kill';
 import os from 'os';
+import * as yaml from 'js-yaml';
 
 const store = new Store();
 
@@ -18,11 +19,12 @@ const relayAddr = '/ip4/130.245.173.221/tcp/4001/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2
 const bootstrapAddr1 = '/ip4/130.245.173.221/tcp/6001/p2p/12D3KooWE1xpVccUXZJWZLVWPxXzUJQ7kMqN8UQ2WLn9uQVytmdA'
 const bootstrapAddr2 = '/ip4/130.245.173.222/tcp/61020/p2p/12D3KooWM8uovScE5NPihSCKhXe8sbgdJAi88i2aXT2MmwjGWoSX'
 const bootstrapAddr3 = '/ip4/104.236.198.140/tcp/61000/p2p/12D3KooWFHfjDXXaYMXUigPCe14cwGaZCzodCWrQGKXUjYraoX3t' // Team Bootstrap
-const bootstrapAddresses = [
-  `${bootstrapAddr1}`,
-  `${bootstrapAddr2}`,
-  `${bootstrapAddr3}`
-];
+// const bootstrapAddresses = [
+//   `${bootstrapAddr1}`,
+//   `${bootstrapAddr2}`,
+//   `${bootstrapAddr3}`
+// ];
+let bootstrapAddresses;
 
 const pids: number[] = [];  
 
@@ -128,6 +130,19 @@ bootstrapaddr:
       console.log('Config file already exists:', configPath);
     }
 
+    // Read and parse the YAML config file to get the bootstrap addresses
+    bootstrapAddresses = [];
+    try {
+      const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
+      bootstrapAddresses = config.bootstrapaddr || [];
+      console.log("done")
+      console.log(bootstrapAddresses)
+    } catch (error) {
+      console.error("Error reading or parsing config.yml:", error);
+      reject(new Error("Config file parsing failed."));
+      return;
+    }
+
     const server = spawn('go', [
       'run', 
       './cmd/server',
@@ -139,22 +154,12 @@ bootstrapaddr:
     pids.push(server.pid); // Array of child processes
     console.log("server is running with pid ", server.pid);
 
-    const connectBootstrap = async() => {
-      try {
-        const response = await axios.post(`http://localhost:5001/api/v0/bootstrap/add?arg=${bootstrapAddr}`)
-        console.log('Bootstrap response: ', response.data);
-      } catch (error){
-        console.error('Bootstrap error: ', error);
-      }
-    }
-
     server.stderr.on('data', (data) => {
       const output = data.toString();
       console.log(`server stderr: ${output}`);
 
       if (output.includes("Server listening on port")) {
         console.log("Server is ready!");
-        // connectBootstrap(); // Connect to bootstrap when server ready
         resolve(data);
       }
     });
@@ -167,9 +172,6 @@ bootstrapaddr:
         console.log("Server exited successfully.");
       }
     });
-
-    
-
   })
 }
 
