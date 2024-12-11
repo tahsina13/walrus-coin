@@ -37,9 +37,8 @@ function LoginPage(): JSX.Element {
   const [walletPassword, setWalletPassword] = useState('');
   const [walletExists, setWalletExists] = useState(()=> localStorage.getItem("walletExists") == "true");
   const [startNet, setStartNet] = useState(false);
-  const [newLoading, setNewLoading] = useState(false);
-  const [existingLoading, setExistingLoading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [existingLoading, setExistingLoading] = useState(false);;
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   // const [inputValue, setInputValue] = useState('');
   // const [inputValue2, setInputValue2] = useState('');
   const navigate = useNavigate();
@@ -148,7 +147,7 @@ function LoginPage(): JSX.Element {
         //     'Content-Type': 'text/plain;',
         //   },
         // });
-
+        set_error_message('Verifying Password...');
         const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [walletPassword, 99999999]}, {
           auth: {
             username: 'user',
@@ -166,18 +165,19 @@ function LoginPage(): JSX.Element {
           const kill_wallet = await window.versions.killWallet();
           return;
         }
-
+        set_error_message('Getting Address...');
         const address_res = await window.versions.getAddress();
 
         localStorage.setItem("walletaddr", address_res);
         
         // const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', '--txindex', '--addrindex', '--miningaddr', address_res]);
+        set_error_message('Starting BTCD...');
         const btcdres = await window.versions.startBtcd(address_res);
-
+        set_error_message('Connecting to Network...');
         const connect_network = await window.versions.connectNet();
 
         const kill_wallet = await window.versions.killWallet();
-
+        set_error_message('Starting Wallet...');
         const start_wallet = await window.versions.startWallet();
 
 
@@ -205,13 +205,11 @@ function LoginPage(): JSX.Element {
         //   setWalletPassword('');
         //   return;
         // }
-
-        console.log(" we out");
-        navigate('/status');
+        set_error_message('Adding Bootstrap...');
         sessionStorage.setItem("buttonState", "disabled");
         const add_bootstrap = await window.versions.addBootstrap();
         sessionStorage.setItem("buttonState", "enabled");
-        console.log("YOOOOOO we in");
+        navigate('/status');
     } else {
       setExistingLoading(false);
       set_error_message("The password cannot be blank.");
