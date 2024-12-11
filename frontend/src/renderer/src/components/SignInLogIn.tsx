@@ -1,4 +1,4 @@
-import React, { useState }from 'react';
+import React, { useState, useRef }from 'react';
 import { useNavigate } from 'react-router-dom';
 import WalrusCoinLogo from '../assets/walrus-coin-icon.png';
 import { electronAPI } from '@electron-toolkit/preload';
@@ -19,6 +19,26 @@ function SignInLogIn(): JSX.Element {
   const [hasError, setHasError] = useState(false);
   const [newLoading, setNewLoading] = useState(false);
   const [existingLoading, setExistingLoading] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+
+  const handleShowAlert = () => {
+    setShowAlert(true);
+  };
+
+  const handleCloseAlert = () => {
+    setShowAlert(false);
+  };
+
+  const handleFileChange = (event) => {
+    setSelectedFile(event.target.files[0])
+  }
+
+  const hiddenFileInput = useRef(null)
+
+  const handleClick = () => {
+    if (hiddenFileInput.current) (hiddenFileInput.current as HTMLInputElement).click()
+  }
 
   // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   //   setInputValue(e.target.value);
@@ -144,10 +164,20 @@ function SignInLogIn(): JSX.Element {
                 </div>
               </div>
               <div>
-                {hasError && (
+                {/* {hasError && (
                   <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-200 text-red-600 p-2 rounded flex items-start">
                     <span>Oops! We couldn't find your wallet. Please create a new wallet.</span>
                     <button onClick={closeErrorMessage} className="ml-2 text-gray-500 font-bold">x</button>
+                  </div>
+                )} */}
+                {hasError && (
+                  <div className="alert-overlay">
+                    <input type="file" onChange={handleFileChange} ref={hiddenFileInput} style={{ display: 'none' }} />
+                    <div className="alert-box">
+                      <p>We couldn't find your wallet. Please create a new wallet, or upload an existing one.</p>
+                      <button onClick={closeErrorMessage}>Return to Login</button>
+                      <button onClick={handleClick}>Upload Existing Wallet File</button>
+                    </div>
                   </div>
                 )}
               </div>

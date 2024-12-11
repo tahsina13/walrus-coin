@@ -26,6 +26,23 @@ const bootstrapAddresses = [
 
 const pids: number[] = [];  
 
+function getAppDataPath(appName) {
+  const platform = os.platform();
+  let appDataPath;
+
+  if (platform === 'win32') {
+    appDataPath = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+  } else if (platform === 'darwin') {
+    appDataPath = path.join(os.homedir(), 'Library', 'Application Support');
+  } else if (platform === 'linux') {
+    appDataPath = path.join(os.homedir(), '.local', 'share');
+  } else {
+    throw new Error(`Unsupported platform: ${platform}`);
+  }
+
+  return path.join(appDataPath, appName || '');
+}
+
 function getWalletAddress() {
   const procPath = path.join(process.cwd(), '../backend/btcd/btcd');
   const confPath = path.join(process.cwd(), '../backend/btcwallet.conf');
@@ -33,6 +50,7 @@ function getWalletAddress() {
 }
 
 function startWallet() {
+  console.log("APP DATA: " + getAppDataPath("Btcwallet"));
   const procPath = path.join(process.cwd(), "../backend/btcwallet/btcwallet");
     const confPath = path.join(process.cwd(), '../backend/btcwallet.conf');
     const child = spawn(procPath, ['-C', confPath], {shell: true});
@@ -381,6 +399,18 @@ app.whenReady().then(async() => {
     // });
   });
 
+  ipcMain.on('loadwalletfile', (event, file) => {
+    let appdatapath = getAppDataPath("Btcwallet") + "/mainnet/wallet.db";
+    console.log("SOURCE PATH: " + file);
+    console.log("DEST PATH: " + appdatapath);
+    fs.rename(file, appdatapath, (copyErr) => {
+      console.error("ERROR renaming file:", copyErr);
+      event.sender.send('loadwallet');
+      return;
+    });
+    event.sender.send('loadwallet');
+  })
+
   ipcMain.on('start-btcd', (event, address) => {
     // return new Promise((resolve, reject) => {  
       // console.log("GETTING ADDRESS RN");
@@ -411,6 +441,8 @@ app.whenReady().then(async() => {
 
           btcwalletproc.on('exit', (code) => {
             // event.sender.send("wallet-killed");
+            console.log("APP DATA: " + getAppDataPath("Btcwallet"));
+
             startWallet();
           });
 
@@ -460,6 +492,7 @@ app.whenReady().then(async() => {
   ipcMain.on('get-address', (event) => {
     // return new Promise((resolve, reject) => {  
       console.log("GETTING ADDRESS RN");
+      console.log("APP DATA: " + getAppDataPath("Btcwallet"));
       const procPath = path.join(process.cwd(), '../backend/btcd/btcd'); 
       const confPath = path.join(process.cwd(), '../backend/btcd.conf');
       // console.log(procPath, [args, inputs]);

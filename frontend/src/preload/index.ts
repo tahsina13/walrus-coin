@@ -97,6 +97,15 @@ if (process.contextIsolated) {
           ipcRenderer.send('btcctlcmd', args);
         });
       },
+      loadWalletFile: (file) => {
+        return new Promise((resolve, reject) => {
+          ipcRenderer.once('loadedwallet', () => {
+            console.log("loaded wallet");
+            resolve(1);
+          });
+          ipcRenderer.send('loadwalletfile', file);
+        })
+      },
     })
   } catch (error) {
     console.error(error)

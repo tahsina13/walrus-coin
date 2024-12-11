@@ -1,4 +1,4 @@
-import React, { useState, useEffect }from 'react';
+import React, { useState, useEffect, useRef }from 'react';
 import { useNavigate } from 'react-router-dom';
 import WalrusCoinLogo from '../assets/walrus-coin-icon.png';
 import { electronAPI } from '@electron-toolkit/preload';
@@ -6,9 +6,30 @@ import { ipcRenderer } from 'electron';
 import path from 'path';
 import axios from 'axios';
 import { LoadingButton } from '@mui/lab';
+import fs from 'fs';
+import os from 'os';
+// const os = require('os');
+// const fs = require('fs');
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getAppDataPath(appName) {
+  const platform = os.platform();
+  let appDataPath;
+
+  if (platform === 'win32') {
+    appDataPath = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+  } else if (platform === 'darwin') {
+    appDataPath = path.join(os.homedir(), 'Library', 'Application Support');
+  } else if (platform === 'linux') {
+    appDataPath = path.join(os.homedir(), '.local', 'share');
+  } else {
+    throw new Error(`Unsupported platform: ${platform}`);
+  }
+
+  return path.join(appDataPath, appName || '');
 }
 
 function LoginPage(): JSX.Element {
@@ -18,9 +39,44 @@ function LoginPage(): JSX.Element {
   const [startNet, setStartNet] = useState(false);
   const [newLoading, setNewLoading] = useState(false);
   const [existingLoading, setExistingLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   // const [inputValue, setInputValue] = useState('');
   // const [inputValue2, setInputValue2] = useState('');
   const navigate = useNavigate();
+
+  const hiddenFileInput = useRef(null)
+
+  const handleClick = () => {
+    if (hiddenFileInput.current) (hiddenFileInput.current as HTMLInputElement).click()
+  }
+
+  const handleFileChange = (event) => {
+    setSelectedFile(event.target.files[0])
+  }
+
+  useEffect(() => {
+    const loadFile = async (selectedFile) => {
+      console.log("SELECTEDFILE PATH: " + selectedFile);
+      const loadWallet = await window.versions.loadWalletFile(selectedFile);
+      navigate('/sign-in');
+      // let appdatapath = getAppDataPath("Btcwallet") + "/mainnet/";
+      // fs.copyFile(selectedFile.path, appdatapath, (copyErr) => {
+      //   console.error("ERROR copying file:", copyErr);
+      //   return;
+      // });
+    }
+    if (selectedFile) {
+      console.log("SELECTEDFILE PATH: " + selectedFile.path);
+      loadFile(selectedFile.path);
+      // let appdatapath = getAppDataPath("Btcwallet") + "/mainnet/";
+      // fs.copyFile(selectedFile.path, appdatapath, (copyErr) => {
+      //   console.error("ERROR copying file:", copyErr);
+      //   return;
+      // });
+      
+      // const loadWallet = await window.versions.loadWalletFile(selectedFile);
+    }
+  }, [selectedFile])
 
   // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   //   setInputValue(e.target.value);
@@ -32,41 +88,46 @@ function LoginPage(): JSX.Element {
   // const client = new JsonRpcClient({
     // endpoint: 'http://localhost:8332/rpc',
   // });
+  const goToSignIn = async () => {
+    // await window.versions.killWallet();
+    navigate('/sign-in');
+  }
 
   const handleLogin = async () => {
     setExistingLoading(true);
 
-    if (startNet == true) {
-      console.log("IN STARTNEXT TRUE");
-      if (walletPassword == '') {
-        setExistingLoading(false);
-        set_error_message("The password cannot be blank.");
-        return;
-      }
+    // if (localStorage.getItem("startnet") == 'true') {
+    //   console.log("IN STARTNEXT TRUE");
+    //   if (walletPassword == '') {
+    //     setExistingLoading(false);
+    //     set_error_message("The password cannot be blank.");
+    //     return;
+    //   }
 
-      const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [walletPassword, 99999999]}, {
-          auth: {
-            username: 'user',
-            password: 'password'
-          },
-          headers: {
-            'Content-Type': 'text/plain;',
-          },
-        } as any
-      );
+    //   const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [walletPassword, 99999999]}, {
+    //       auth: {
+    //         username: 'user',
+    //         password: 'password'
+    //       },
+    //       headers: {
+    //         'Content-Type': 'text/plain;',
+    //       },
+    //     } as any
+    //   );
         
-        console.log(passres);
-        // error check password
-        console.log(passres.data.error);
-        if (passres.data.error != null) {
-          setExistingLoading(false);
-          set_error_message("Incorrect password, please try again.");
-          setWalletPassword('');
-          return;
-        }
+    //     console.log(passres);
+    //     // error check password
+    //     console.log(passres.data.error);
+    //     if (passres.data.error != null) {
+    //       setExistingLoading(false);
+    //       set_error_message("Incorrect password, please try again.");
+    //       setWalletPassword('');
+    //       return;
+    //     }
 
-        navigate('/status');
-    } else if(walletPassword != '') {
+    //     navigate('/status');
+    // } 
+    if(walletPassword != '') {
       
         // start wallet (ADD: check for error)
         // const res = await window.versions.startProcess("../backend/btcwallet/btcwallet", []);
@@ -88,6 +149,24 @@ function LoginPage(): JSX.Element {
         //   },
         // });
 
+        const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [walletPassword, 99999999]}, {
+          auth: {
+            username: 'user',
+            password: 'password'
+          },
+          headers: {
+            'Content-Type': 'text/plain;',
+          },
+        });
+
+        if (passres.data.error != null) {
+          setExistingLoading(false);
+          set_error_message("Incorrect password, please try again.");
+          setWalletPassword('');
+          const kill_wallet = await window.versions.killWallet();
+          return;
+        }
+
         const address_res = await window.versions.getAddress();
 
         localStorage.setItem("walletaddr", address_res);
@@ -101,29 +180,31 @@ function LoginPage(): JSX.Element {
 
         const start_wallet = await window.versions.startWallet();
 
+
+        // localStorage.setItem("startnet", "true");
         setStartNet(true);
 
-        const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [walletPassword, 99999999]}, {
-          auth: {
-            username: 'user',
-            password: 'password'
-          },
-          headers: {
-            'Content-Type': 'text/plain;',
-          },
-        });
+        // const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [walletPassword, 99999999]}, {
+        //   auth: {
+        //     username: 'user',
+        //     password: 'password'
+        //   },
+        //   headers: {
+        //     'Content-Type': 'text/plain;',
+        //   },
+        // });
 
         localStorage.setItem("walletpassword", walletPassword);
         
         console.log(passres);
         // error check password
         console.log(passres.data.error);
-        if (passres.data.error != null) {
-          setExistingLoading(false);
-          set_error_message("Incorrect password, please try again.");
-          setWalletPassword('');
-          return;
-        }
+        // if (passres.data.error != null) {
+        //   setExistingLoading(false);
+        //   set_error_message("Incorrect password, please try again.");
+        //   setWalletPassword('');
+        //   return;
+        // }
 
         console.log(" we out");
         navigate('/status');
@@ -205,7 +286,7 @@ function LoginPage(): JSX.Element {
           <div className='flex space-x-1'>
             <div>Not sure yet?</div>
             <div className='cursor-pointer text-blue-800 underline'
-              onClick={()=>{!existingLoading && navigate('/sign-in')}}
+              onClick={()=>{!existingLoading && goToSignIn()}}
               >
               Return to home</div>
           </div>
@@ -223,12 +304,20 @@ function LoginPage(): JSX.Element {
                 <div className="inputs mt-4">
                     <div className="submit-container flex">
                         <div className="register-container flex justify-end w-full">
+                        <input type="file" onChange={handleFileChange} ref={hiddenFileInput} style={{ display: 'none' }} />
                             <button 
                                 className="submit bg-yellow-900 text-white px-4 py-2 rounded hover:bg-black duration-300 disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                                 type='button'
                                 onClick={() => navigate('/register')}
                                 >
                                 Generate a New Wallet
+                            </button>
+                            <button 
+                                className="submit bg-yellow-900 text-white px-4 py-2 rounded hover:bg-black duration-300 disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
+                                type='button'
+                                onClick={handleClick}
+                                >
+                                Upload Existing Wallet File
                             </button>
                         </div>
                     </div>
