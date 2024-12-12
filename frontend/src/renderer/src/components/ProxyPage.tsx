@@ -126,7 +126,7 @@ function ProxyHeader(): JSX.Element {
         </div>
         <div className="box flex flex-row justify-left w-1/3">
           <HorizontalSpace2 />
-          <BigText name="Use as Proxy: "/>
+          <BigText name="Use as Proxy (Set computer proxy settings to point to localhost:8083): "/>
         </div>
       </div>
     </div>
