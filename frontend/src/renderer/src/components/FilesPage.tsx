@@ -122,7 +122,25 @@ function FilesPage(): JSX.Element {
     },
     
   ]
-  const [file_list, set_file_list] = useState(files)
+  const [file_list, set_file_list] = useState(() => {
+    const savedFiles = localStorage.getItem('fileList');
+    if (savedFiles) {
+      const parsedFiles = JSON.parse(savedFiles);
+      // Reconstruct Date objects
+      return parsedFiles.map(file => ({
+        ...file,
+        upload_date: new Date(file.upload_date),
+        CID: file.CID || "",
+        status: file.status || "readyToProvide"
+      }));
+    }
+    return files;
+  });
+
+  // Existing effect to save to localStorage
+  useEffect(() => {
+    localStorage.setItem('fileList', JSON.stringify(file_list));
+  }, [file_list]);
 
   const sort_by_time = () => {
     if (sorting_order === 'time') set_inverse({ time: !inverse.time, name: inverse.name, size: inverse.size, price: inverse.price })
