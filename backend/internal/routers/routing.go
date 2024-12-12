@@ -12,8 +12,6 @@ func NewRoutingRouter(h *handlers.RoutingHandler) *mux.Router {
 	r.Handle("/findpeer", util.WithError(h.FindPeer)).Methods("POST")
 	r.Handle("/findprovos", util.WithError(h.FindProvos)).Methods("POST")
 	r.Handle("/provide", util.WithError(h.Provide)).Methods("POST")
-	r.Handle("/provideproxy", util.WithError(h.ProvideProxy)).Methods("POST")
-	r.Handle("/findproxyprovos", util.WithError(h.FindProxyProvos)).Methods("POST")
 
 	return r
 }

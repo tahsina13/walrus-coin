@@ -518,9 +518,9 @@ app.whenReady().then(async() => {
           console.log("ADDRESS? : " + address);
           // connect network
           const btcctlPath = path.join(process.cwd(), '../backend/btcd/cmd/btcctl/btcctl');
-      const confPath = path.join(process.cwd(), '../backend/btcctl.conf');
+      const confPath2 = path.join(process.cwd(), '../backend/btcctl.conf');
       // addnode "130.245.173.221:8333" add | cat
-          const btcctlchild = spawn(btcctlPath, ['--configfile='+confPath, '--rpcuser=user', '--rpcpass=password', '--notls', 'addnode', '"130.245.173.221:8333"', "add"], { shell: true });
+          const btcctlchild = spawn(btcctlPath, ['--configfile='+confPath2, '--rpcuser=user', '--rpcpass=password', '--notls', 'addnode', '"130.245.173.221:8333"', "add"], { shell: true });
           // child.kill();
           kill(child.pid, 'SIGTERM', (err) => {
             if (err) {
