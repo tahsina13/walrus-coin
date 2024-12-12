@@ -70,7 +70,7 @@ function SendPage(): JSX.Element {
       console.log(destAddress);
       console.log(amount);
       setDialogOpen(false); // Closes dialog after confirmation
-    //   const sendres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "sendtoaddress", params: [destAddress, amount]}, {
+   //   const sendres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "sendtoaddress", params: [destAddress, amount]}, {
     //     auth: {
     //       username: 'user',
     //       password: 'password'
