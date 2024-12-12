@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/ipfs/boxo/blockstore"
 	blocks "github.com/ipfs/go-block-format"
@@ -41,11 +42,12 @@ type blockRequest struct {
 }
 
 type blockMetadata struct {
-	Key    string  `json:"Key"`
-	Name   string  `json:"Name"`
-	Size   int     `json:"Size"`
-	Price  float64 `json:"Price"`
-	Wallet string  `json:"Wallet,omitempty"`
+	Key        string    `json:"Key"`
+	Name       string    `json:"Name"`
+	Size       int       `json:"Size"`
+	UploadTime time.Time `json:"UploadTime"`
+	Price      float64   `json:"Price"`
+	Wallet     string    `json:"Wallet,omitempty"`
 }
 
 type blockResponse struct {
@@ -85,8 +87,8 @@ func (h *BlockHandler) handleGet(s network.Stream) {
 
 	var request blockRequest
 	if err := json.Unmarshal(jsonData, &request); err != nil {
-		response := blockError{Message: fmt.Sprintf("failed to unmarshal block request: %s", err)}
-		if err := json.NewEncoder(s).Encode(response); err != nil {
+		responseErr := blockError{Message: fmt.Sprintf("failed to unmarshal block request: %s", err)}
+		if err := json.NewEncoder(s).Encode(responseErr); err != nil {
 			logrus.Errorf("failed to write error response: %s", err)
 			return
 		}
@@ -121,14 +123,8 @@ func (h *BlockHandler) handleGet(s network.Stream) {
 
 	bytes := append(metadata, '\n')
 	bytes = append(bytes, blk.RawData()...)
-
-	for len(bytes) > 0 {
-		n, err := s.Write(bytes)
-		if err != nil {
-			logrus.Errorf("failed to write block: %s", err)
-			return
-		}
-		bytes = bytes[n:]
+	if _, err := s.Write(bytes); err != nil {
+		logrus.Errorf("failed to write block: %s", err)
 	}
 }
 
@@ -147,8 +143,8 @@ func (h *BlockHandler) handleStat(s network.Stream) {
 
 	var request blockRequest
 	if err := json.Unmarshal(jsonData, &request); err != nil {
-		response := blockError{Message: fmt.Sprintf("failed to unmarshal block request: %s", err)}
-		if err := json.NewEncoder(s).Encode(response); err != nil {
+		responseErr := blockError{Message: fmt.Sprintf("failed to unmarshal block request: %s", err)}
+		if err := json.NewEncoder(s).Encode(responseErr); err != nil {
 			logrus.Errorf("failed to write error response: %s", err)
 			return
 		}
@@ -165,15 +161,16 @@ func (h *BlockHandler) handleStat(s network.Stream) {
 
 	metadata, err := h.dstore.Get(context.Background(), ds.NewKey(fmt.Sprintf("%s/%s", metadataPrefix, key.String())))
 	if err != nil {
-		responseErr := blockError{Message: err.Error()}
-		if err := json.NewEncoder(s).Encode(responseErr); err != nil {
+		response := blockError{Message: fmt.Sprintf("failed to get block metadata: %s", err)}
+		if err := json.NewEncoder(s).Encode(response); err != nil {
 			logrus.Errorf("failed to write error response: %s", err)
 			return
 		}
 	}
-	if err := json.NewEncoder(s).Encode(metadata); err != nil {
-		logrus.Errorf("failed to write response: %s", err)
-		return
+
+	bytes := append(metadata, '\n')
+	if _, err := s.Write(bytes); err != nil {
+		logrus.Errorf("failed to write block: %s", err)
 	}
 }
 
@@ -343,7 +340,14 @@ func (h *BlockHandler) Put(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		blk := blocks.NewBlock(data)
-		m := blockMetadata{Key: blk.Cid().String(), Name: fileHeader.Filename, Size: len(data), Price: price, Wallet: wallet}
+		m := blockMetadata{
+			Key:        blk.Cid().String(),
+			Name:       fileHeader.Filename,
+			Size:       len(data),
+			UploadTime: time.Now(),
+			Price:      price,
+			Wallet:     wallet,
+		}
 
 		metadataKey := ds.NewKey(fmt.Sprintf("%s/%s", metadataPrefix, blk.Cid().String()))
 		jsonMetadata, _ := json.Marshal(m)
