@@ -1,6 +1,12 @@
-import { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, ChangeEvent, FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import FilesIcon from '../assets/file-icon.png'
+import DeleteIcon from '../assets/trash.png'
+import FilePreview from './FilePreview'
+import ConfirmationDialog from './ConfirmationDialog';
+import axios from "axios";
+import FormData from "form-data";
+import { LoadingButton } from '@mui/lab';
 
 function FilesPage(): JSX.Element {
   const [storage, set_storage] = useState('')
@@ -15,57 +21,133 @@ function FilesPage(): JSX.Element {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [updateDate, setUpdateDate] = useState(true)
   const defaultFileCost = localStorage.getItem('defaultFileCost') ? parseFloat(localStorage.getItem('defaultFileCost') as string) : 1
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<ProvidedFile | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [deleteHash, setDeleteHash] = useState<string>('');
 
-  type File = {
+  //const [fileHash, setFileHash] = useState<string>('');
+
+  const handleCloseDialog = () => {
+      setDialogOpen(false);
+  };
+
+  // File Preview
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [popoverFile, setPopoverFile] = useState<ProvidedFile | null>(null);
+
+  const handleShowPreview = (event: React.MouseEvent<HTMLDivElement>, file: ProvidedFile) => {
+    // *** currently disabled for better testing experience ***
+    //setAnchorEl(event.currentTarget);
+    //setPopoverFile(file);
+    console.log("hi");
+  };
+
+  const handleClosePreview = () => {
+    setAnchorEl(null);
+  };
+
+  const previewOpen = Boolean(anchorEl);
+
+
+  type ProvidedFile = {
     type: string
     name: string
     size: number
-    path: string
     upload_date: Date
+    path: string
     CID: string
     price: number
+    fileObject: File
+    status: string
   }
 
-  const files: File[] = [
+  const files: ProvidedFile[] = [
     // for testing
-    {
-      type: 'txt',
-      name: 'XNew Text Document.txt',
-      size: 101233,
-      path: 'ANew-Text-Document',
-      upload_date: new Date(20010101),
-      CID: 'gmx286mbXoaWmaszRzTG4R8yvptfGCZPLdY3KoRTauSX3C',
-      price: .0002,
-    },
-    {
-      type: 'txt',
-      name: 'BNew Text Document2.txt',
-      size: 100224423,
-      path: 'BNew-Text-Document2',
-      upload_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-      CID: 'zdN4U62G1FMyWVhUXSrdKSGxHDeyCDmCCCZyVgpdc58SiM',
-      price: .4,
-    },
-    {
-      type: 'txt',
-      name: 'CNew Text Document2.txt',
-      size: 103230,
-      path: 'BNew-Text-Document2',
-      upload_date: new Date(Date.now() - 30 * 60 * 1000),
-      CID: 'mL6VNFF1wHFhfeXbio8iGRmSc7Z9wyX5Ng1gNXacuC5Ro8',
-      price: 2,
-    },
-    {
-      type: 'txt',
-      name: 'ASNew Text Document2.txt',
-      size: 44214,
-      path: 'BNew-Text-Document2',
-      upload_date: new Date(Date.now() - 20 * 60 * 60 * 1000),
-      CID: 'fwzPoUwFVJF8RwNiBEM9VH1rQ6EkhEJPyjfH25EKSG5FVd',
-      price: .42,
-    },
+    
+    // {
+    //   type: 'txt',
+    //   name: 'A: First click UPLOAD to upload files in the waiting list',
+    //   size: 101233,
+    //   upload_date: new Date(20010101),
+    //   path: "xxxpath1",
+    //   CID: 'gmx286mbXoaWmaszRzTG4R8yvptfGCZPLdY3KoRTauSX3C',
+    //   price: .0002,
+    //   fileObject: new File(["0"], "1"), // dummy file object
+    //   status: "provided"
+    // },
+    // {
+    //   type: 'txt',
+    //   name: 'B: Files in the waiting list doesn\'t have a hash',
+    //   size: 100224423,
+    //   upload_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    //   path: "xxxpath2",
+    //   CID: 'zdN4U62G1FMyWVhUXSrdKSGxHDeyCDmCCCZyVgpdc58SiM',
+    //   price: .4,
+    //   fileObject: new File(["0"], "1"),
+    //   status: "provided"
+    // },
+    // {
+    //   type: 'txt',
+    //   name: 'C: You can then actually "upload" thoes files in the waiting list by hitting "SUBMIT"',
+    //   size: 103230,
+    //   upload_date: new Date(Date.now() - 30 * 60 * 1000),
+    //   path: "xxxpath3",
+    //   CID: 'mL6VNFF1wHFhfeXbio8iGRmSc7Z9wyX5Ng1gNXacuC5Ro8',
+    //   price: 2,
+    //   fileObject: new File(["0"], "1"),
+    //   status: "provided"
+    // },
+    // {
+    //   type: 'pdf',
+    //   name: 'D: And the hash will show up, you can check the provider in explore section',
+    //   size: 44214,
+    //   upload_date: new Date(Date.now() - 20 * 60 * 60 * 1000),
+    //   path: "xxxpath4",
+    //   CID: 'fwzPoUwFVJF8RwNiBEM9VH1rQ6EkhEJPyjfH25EKSG5FVd',
+    //   price: .42,
+    //   fileObject: new File(["0"], "1"),
+    //   status: "provided"
+    // },
+    // {
+    //   type: 'txt',
+    //   name: 'X: sort by name to see instruction',
+    //   size: 103230,
+    //   upload_date: new Date(Date.now()),
+    //   path: "xxxpath3",
+    //   CID: 'mL6VNFF1wHFhfeXbio8iGRmSc7Z9wyX5Ng1gNXacuC5Ro8',
+    //   price: 2,
+    //   fileObject: new File(["0"], "1"),
+    //   status: "provided"
+    // },
+    
   ]
-  const [file_list, set_file_list] = useState(files)
+  let [file_list, set_file_list] = useState(() => {
+    // localStorage.clear();
+    const savedFiles = localStorage.getItem('fileList');
+    console.log(savedFiles);
+    if (savedFiles) {
+      let parsedFiles = JSON.parse(savedFiles);
+      // Reconstruct Date objects
+      return parsedFiles.map(file => ({
+        ...file,
+        upload_date: new Date(file.upload_date),
+        CID: file.CID,
+        status: file.status,
+        fileObject: localStorage.getItem(file.path),
+      }));
+    }
+    return files;
+  });
+
+  // Existing effect to save to localStorage
+  useEffect(() => {
+    console.log("FILE LIST BEFORE SAVE: " + JSON.stringify(file_list));
+    localStorage.setItem('fileList', JSON.stringify(file_list));
+    for (let i =0; i < file_list.length; i++) {
+      localStorage.setItem(file_list[i].path, file_list[i].fileObject);
+    }
+  }, [file_list]);
 
   const sort_by_time = () => {
     if (sorting_order === 'time') set_inverse({ time: !inverse.time, name: inverse.name, size: inverse.size, price: inverse.price })
@@ -109,9 +191,65 @@ function FilesPage(): JSX.Element {
     setSearch(event.target.value)
   }
 
-  function deleteFile(delete_file) {
-    set_file_list(file_list.filter((file) => file.CID !== delete_file.CID))
+  function deleteFile() {
+    if (fileToDelete) {
+      setDialogOpen(false);
+      set_file_list(file_list.filter((file) => file.CID !== fileToDelete.CID))
+    }
   }
+
+  const handleDelete = (file: ProvidedFile) => {
+    setFileToDelete(file);  // Set the file to be deleted
+    setDialogOpen(true);  // Open the confirmation dialog
+  };
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    for(let file of file_list.filter((file) => file.status !== "hey")) {
+      try {
+        let data = new FormData();
+        data.append("data", file.fileObject);
+        if (file.fileObject == null) {
+          file.fileObject = await readFile(file.path, 'utf8');
+        }
+        console.log("HERE");
+        const response_put = await axios.post(`http://localhost:5001/api/v0/block/put?price=${defaultFileCost}&wallet=${localStorage.getItem("walletaddr")}`, data, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        file.CID = response_put.data.Responses[0].Key;
+        const response_provide = await axios.post(`http://localhost:5001/api/v0/routing/provide?arg=${file.CID}`);
+        file.status = "provided";
+      } catch (error) {
+        console.error("Error during API request:", error);
+        setLoading(false);
+        localStorage.setItem('fileList', JSON.stringify(file_list));
+        return;
+      } finally {
+        files.splice(files.indexOf(file), 1);
+      }
+    }
+    setLoading(false);
+  }
+
+  const handleDeleteFile = async (e: FormEvent): Promise<void> => {
+    e.preventDefault()
+    console.log("Search for delete: " + deleteHash);
+
+    try {
+      const response = await axios.post(`http://localhost:5001/api/v0/block/rm?arg=${deleteHash}`);
+      console.log(response.data);
+    } catch (error) {
+      console.error("Error during API request:", error);
+    } finally {
+    }
+  }
+
+  const handleDeleteHash = (e: ChangeEvent<HTMLInputElement>): void => {
+    setDeleteHash(e.target.value)
+  }
+  
 
   //add a file to the list
   useEffect(() => {
@@ -119,17 +257,21 @@ function FilesPage(): JSX.Element {
       if (file_list.filter((file) => file.path === selectedFile.path).length > 0) {
         return
       }
-      let temp: File = {
+      let temp: ProvidedFile = {
         type: selectedFile.type,
         name: selectedFile.name,
         size: selectedFile.size,
-        path: selectedFile.path,
         upload_date: new Date(),
-        CID: generateRandomCID(),
+        path: selectedFile.path,
+        CID: "",
         price: defaultFileCost,
+        fileObject: selectedFile,
+        status: "readyToProvide"
       }
       set_file_list((prevFileList) => [temp, ...prevFileList])
-      setSelectedFile(null)
+       console.log("File uploaded:");
+       console.log(temp);
+      setSelectedFile(null);
     }
   }, [selectedFile, updateDate])
 
@@ -156,8 +298,18 @@ function FilesPage(): JSX.Element {
         <div className="file_storage">Total File Size: {storage}</div>
         <input type="file" onChange={handleFileChange} ref={hiddenFileInput} style={{ display: 'none' }} />
         <button className="import_file" onClick={handleClick}>
-          Upload
+          UPLOAD
         </button>
+        <LoadingButton 
+          loading={loading}
+          variant="contained"
+          color="primary"
+          className="import_file"
+          onClick={handleSubmit}
+          loadingPosition="end"
+          endIcon={null}>
+          SUBMIT
+        </LoadingButton>
       </div>
 
       <div
@@ -176,16 +328,16 @@ function FilesPage(): JSX.Element {
         <div className="files_header">
           <div className="icon_col"></div>
           <div className="name_col" onMouseDown={() => sort_by_name()}>
-            Name:
+            Name
           </div>
           <div className="price_col" onMouseDown={() => sort_by_price()}>
-            Price (WACO):
+            Price (WACO)
           </div>
           <div className="last_modified_col" onMouseDown={() => sort_by_time()}>
-            Upload Date:
+            Upload Date
           </div>
           <div className="size_col" onMouseDown={() => sort_by_size()}>
-            Size:
+            Size
           </div>
           <div className="delete_col"></div>
         </div>
@@ -194,13 +346,13 @@ function FilesPage(): JSX.Element {
             .filter((file) => file.name.toLowerCase().includes(search.toLowerCase()) || file.CID.toLowerCase().includes(search.toLowerCase()))
             .map((file, index) => (
               <li key={index} className="menu-item">
-                <div className="file_row">
+                <div className="file_row" onClick={(e) => handleShowPreview(e, file)}>
                   <div className="icon_col">
                     <img src={FilesIcon} alt={file.type} className="w-10 h-10 ml-3" />
                   </div>
-                  <div className="name_col">
+                  <div className="name_col w-1/4 break-words whitespace-normal">
                     <div>{file.name}</div>
-                    <div style={{ color: 'gray', fontSize: '15px', }}>{file.CID}</div>
+                    <div style={{ color: 'gray', fontSize: '15px', }}>{file.CID !== "" ? file.CID : "Ready to provide"}</div>
                   </div>
                   <div className="price_col">
                     <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -214,8 +366,10 @@ function FilesPage(): JSX.Element {
                         value={file.price}
                         onChange={(e) => {
                           // prettier-ignore
-                          set_file_list(file_list.map(f => f.CID === file.CID ? { ...f, price: Math.min(9999, Math.max(0, isNaN(parseFloat(e.target.value)) ? 0 : parseFloat(e.target.value))) } : f));
+                          if(file.status !== "provided")
+                            set_file_list(file_list.map(f => f.CID === file.CID ? { ...f, price: Math.min(9999, Math.max(0, isNaN(parseFloat(e.target.value)) ? 0 : parseFloat(e.target.value))) } : f));
                         }}
+                        onClick={(e) => e.stopPropagation()}
                       />
                       {/* prettier-ignore */}
                     </div>
@@ -223,24 +377,73 @@ function FilesPage(): JSX.Element {
                   <div className="last_modified_col">{time_convert(file.upload_date)}</div>
                   <div className="size_col">{formatFileSize(file.size)}</div>
                   <div className="delete_col">
-                    <img
-                      src={'/src/assets/trash.png'}
+                    {file.status === "readyToProvide"&&<img
+                      src={DeleteIcon}
                       alt="delete"
                       className="w-10 h-10 ml-3"
                       onClick={(e) => {
                         e.stopPropagation()
-                        deleteFile(file)
+                        handleDelete(file)
                       }}
-                    />
+                    />}
                   </div>
                 </div>
               </li>
             ))}
         </ul>
       </div>
+      <form onSubmit={handleDeleteFile}>
+        <input
+          type="text"
+          placeholder="QmHash/bafyHash"
+          value={deleteHash}
+          onChange={handleDeleteHash}
+          style={{
+            padding: '8px',
+            fontSize: '16px',
+            width: '800px',
+            borderRadius: '4px',
+            border: '1px solid #ccc',
+            margin: '4px 0px'
+          }}
+        />
+        <button
+          type="submit"
+          style={{
+            marginLeft: '10px',
+            padding: '8px 16px',
+            fontSize: '16px',
+            borderRadius: '4px',
+            border: 'none',
+            backgroundColor: '#007bff',
+            color: 'white',
+            cursor: 'pointer'
+          }}
+          className={`ml-2 px-4 py-2 text-lg rounded-md border-none bg-blue-500 text-white cursor-pointer`}
+        >
+          Delete
+        </button>
+      </form>
+      <FilePreview
+        open={Boolean(anchorEl)} 
+        anchorEl={anchorEl}
+        onClose={handleClosePreview}
+        file={popoverFile}
+       >
+       </FilePreview>
+       <ConfirmationDialog
+          open={dialogOpen}
+          onClose={handleCloseDialog}
+          onConfirm={deleteFile}
+          title="Delete File?"
+          message={`Are you sure you want to delete the file "${fileToDelete?.name}"? It will be gone forever!`}
+        />
     </div>
   )
 }
+/*
+
+*/
 
 const time_convert = (date: Date) => {
   // current time

@@ -24,18 +24,26 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^3.0.0",
+    "@emotion/react": "^11.13.3",
+    "@emotion/styled": "^11.13.0",
+    "@mui/lab": "^6.0.0-beta.14",
+    "@mui/material": "^6.1.6",
     "axios": "^1.7.7",
+    "browserify-fs": "^1.0.0",
     "chart.js": "^4.4.5",
+    "electron-store": "^10.0.0",
     "electron-updater": "^6.1.7",
     "ipfs": "^0.66.1",
     "jayson": "^4.1.2",
+    "js-yaml": "^4.1.0",
     "json-rpc-client": "^0.2.2",
     "node-pty": "^1.0.0",
     "react-chartjs-2": "^5.2.0",
     "react-native": "^0.75.4",
     "react-router-dom": "^6.26.2",
     "react-switch": "^7.0.0",
-    "tailwind": "^4.0.0"
+    "tailwind": "^4.0.0",
+    "tree-kill": "^1.2.2"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^2.0.0",

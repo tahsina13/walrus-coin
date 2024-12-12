@@ -80,7 +80,7 @@ function AccountPage(): JSX.Element {
           type="number"
         ></input>
         <div>
-          Current Address: <span style={{ backgroundColor: 'lightgray', cursor: 'default' }}>{address}</span>
+          Current Address: <span style={{ backgroundColor: 'lightgray', cursor: 'default' }}>{localStorage.getItem('walletaddr')}</span>
         </div>
 
         <div style={{ display: 'inline' }}>SBU ID: </div>
@@ -99,13 +99,13 @@ function AccountPage(): JSX.Element {
         <button onClick={changeSBUID} style={{ display: 'inline', marginLeft: '10px', backgroundColor: 'lightblue' }}>Set New ID</button>
         {newIDSuccess && <div style={{ color: 'green', marginTop: '10px' }}>ID successfully changed!</div>}
 
-        <button
+        {/* <button
           className="logout-button"
           style={{ background: 'lightblue', display: 'block', marginTop: '50px', width: '300px' }}
           onClick={() => setShowPasswordFields(!showPasswordFields)}
         >
           Change Password
-        </button>
+        </button> */}
 
         {showPasswordFields && (
           <div style={{ marginTop: '20px' }}>
@@ -138,7 +138,7 @@ function AccountPage(): JSX.Element {
           </div>
         )}
 
-        <button
+        {/* <button
           className="logout-button"
           style={{ background: 'lightblue', display: 'block', marginTop: '50px', width: '100px' }}
           onClick={handleLogout}
@@ -154,7 +154,7 @@ function AccountPage(): JSX.Element {
             handleLogout()}}
         >
           Reset(testing)
-        </button>
+        </button> */}
       </div>
     </div>
   )

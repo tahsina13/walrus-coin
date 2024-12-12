@@ -157,6 +157,27 @@ The routing module handles DHT lookups and requests.
 }
 ```
 
+#### /api/v0/routing/findproxyprovos
+
+##### Arguments
+
+* `num-providers` [int]: The number of providers to find. Default: 20. 
+
+##### Response
+
+```json
+{
+  "Responses": [
+    {
+      "Addrs": [
+        "<multiaddr-string>"
+      ],
+      "ID": "peer-id"
+    }
+  ]
+}
+```
+
 #### /api/v0/routing/provide
 
 ##### Arguments
@@ -170,6 +191,17 @@ The routing module handles DHT lookups and requests.
   "Responses": null
 }
 ```
+
+#### /api/v0/routing/provideproxy
+
+##### Arguments
+
+##### Response
+
+```json
+{
+  "Responses": null
+}
 
 ### Block
 
@@ -256,4 +288,114 @@ Argument `data` is of file type and is sent via multipart-form data.
     }
   ]
 }
+```
+
+#### /api/v0/block/putproxy
+
+Store your proxy's public IP and price per byte
+
+##### Arguments
+
+* `price` [string]: Price per byte of proxing **Required**.
+* `ip` [string]: Public IP Address of proxy **Required**.
+
+##### Response
+
+```json
+{
+  "Key": "<string>",
+  "Size": "<int>"
+}
+```
+
+#### /api/v0/block/getproxy
+
+Get the proxy public IP and price per byte of a peer
+
+##### Arguments
+
+* `peer` [string]: The remote peer. Query self if no peer. *Optional*.
+
+##### Response
+
+Json i think
+
+### Proxy
+
+The bootstrap module is used to handle HTTP Proxying.
+
+#### /api/v0/proxy/start
+Starts remote proxy
+##### Arguments
+
+* `URL` [string]: Host:Port. (If no port is included, it uses 8084) **Required**
+* `price` [int]: Price per byte. **Required**.
+* `wallet` [string]: Wallet address. **Required**.
+
+##### Response
+
+```json
+{
+  "Error": "<string>"
+}
+```
+
+#### /api/v0/proxy/stop
+Stops remote proxy
+##### Arguments
+
+
+##### Response
+
+```json
+```
+
+#### /api/v0/proxy/connect
+Connect to a remote proxy
+##### Arguments
+* `remoteProxyAddr` [string]: Address of remote proxy. Host:Port. (If no port is included, it defaults to 8084) **Required**.
+* `port` [int]: Port to start the local proxy on. (Default 8083)
+
+
+##### Response
+
+```json
+```
+
+#### /api/v0/proxy/disconnect
+Disconnect from a remote proxy
+##### Arguments
+
+##### Response
+
+```json
+```
+
+#### /api/v0/proxy/bytes
+Returns the amount of bytes that has been sent
+##### Arguments
+
+##### Response
+
+```json
+{
+  "bytes": "<int>"
+}
+```
+
+#### /api/v0/proxy/discover
+Find peers that down to proxy and get their metadata
+##### Arguments
+* `count` [int]: Number of peers to find
+##### Response
+
+```json
+[
+  {
+    "price": "<int>",
+    "url": "<string>"
+  },
+  ...
+]
+
 ```

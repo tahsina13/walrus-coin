@@ -1,4 +1,4 @@
-import React, { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom'
+import React, { HashRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom'
 import SignInLogIn from './components/SignInLogIn'
 import RegisterPage from './components/RegisterPage'
 import Sidebar from './components/Sidebar'
@@ -11,6 +11,8 @@ import AccountPage from './components/AccountPage'
 import ProxyPage from './components/ProxyPage'
 import LoginPage from './components/LoginPage'
 import FirstLoginPage from './components/FirstLoginPage'
+import SendPage from './components/SendPage'
+import MiningHistory from './components/MiningHistory'
 {
   /* Add the pages */
 }
@@ -40,6 +42,8 @@ function App(): JSX.Element {
           <Route path="/explore" element={<Explorepage />} />
           <Route path="/mining" element={<MiningPage />} />
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/send" element={<SendPage />} />
+          <Route path="/mining-history" element={<MiningHistory />} />
           {/* Add the pages */}
           <Route path="*" element={<Navigate to="/sign-in" />} />
         </Routes>
