@@ -2,6 +2,7 @@ import axios from "axios";
 import { ChangeEvent, FormEvent, useState, useEffect } from "react";
 import { LoadingButton } from '@mui/lab';
 import ConfirmationDialog from "./ConfirmationDialog";
+import { stat } from "fs";
 
 function ExplorePage(): JSX.Element {
   return (
@@ -31,22 +32,23 @@ function SearchBar(): JSX.Element {
         for (let provider of providers){
           let filteredAddr = findCircuitAddr(provider.Addrs);
           // No p2p-circuit address
-          // if (!filteredAddr) {
-          //   for (let addr of provider.Addrs){
-          //     const peerArg = `${addr}/p2p/${provider.ID}`;
-          //     try {
-          //       console.log("asljga")
-          //       const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}&peer=${peerArg}`);
-          //       setStats(statsResponse.data.Responses[0]);
-          //       console.log("hi");
-          //     } catch (error) {
-          //       console.error("Error fetching stats:", error);
-          //     } finally {
-          //       setStatsLoading(false);
-          //     }
-          //   }
+          if (!filteredAddr) {
+            for (let addr of provider.Addrs){
+              const peerArg = `${addr}/p2p/${provider.ID}`;
+              try {
+                console.log("asljga")
+                const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}&peer=${peerArg}`);
+                setStats(statsResponse.data.Responses[0]);
+                console.log("hi");
+              } catch (error) {
+                console.error("Error fetching stats:", error);
+              } finally {
+                setStatsLoading(false);
+              }
+            }
+          }
             
-          if (filteredAddr) {
+          else {
             const peerArg = `${filteredAddr}/p2p/${provider.ID}`;
             try {
               const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}&peer=${peerArg}`);
@@ -269,6 +271,7 @@ function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, 
             variant="contained"
             color="primary"
             onClick={handleDownload}
+            disabled={!stats}
           >
             Download
           </LoadingButton>
