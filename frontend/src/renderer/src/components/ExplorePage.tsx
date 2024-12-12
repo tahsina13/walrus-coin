@@ -22,6 +22,46 @@ function SearchBar(): JSX.Element {
     setHash(e.target.value);
   };
 
+  useEffect(() => {
+    const getStats = async () => {
+      if (providers.length > 0 && !stats) {
+        const findCircuitAddr = (addresses: string[]): string | undefined => {
+          return addresses.find(addr => addr.includes('tcp') && addr.includes('p2p-circuit'));
+        };
+        for (let provider of providers){
+          let filteredAddr = findCircuitAddr(provider.Addrs);
+          // No p2p-circuit address
+          // if (!filteredAddr) {
+          //   for (let addr of provider.Addrs){
+          //     const peerArg = `${addr}/p2p/${provider.ID}`;
+          //     try {
+          //       console.log("asljga")
+          //       const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}&peer=${peerArg}`);
+          //       setStats(statsResponse.data.Responses[0]);
+          //       console.log("hi");
+          //     } catch (error) {
+          //       console.error("Error fetching stats:", error);
+          //     } finally {
+          //       setStatsLoading(false);
+          //     }
+          //   }
+            
+          if (filteredAddr) {
+            const peerArg = `${filteredAddr}/p2p/${provider.ID}`;
+            try {
+              const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}&peer=${peerArg}`);
+              setStats(statsResponse.data.Responses[0]);
+            } catch (error) {
+            } finally {
+              setStatsLoading(false);
+            }
+          }
+        }
+      }
+    }
+    getStats();
+  }, [providers, stats]);
+
   const handleSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
     console.log("Search: " + hash);
@@ -35,7 +75,6 @@ function SearchBar(): JSX.Element {
       console.log(providerResponse.data)
       if (providerResponse.data && Array.isArray(providerResponse.data.Responses)) {
         setProviders(providerResponse.data.Responses);
-        console.log("p",providers)
         // await getStats(providers);
         // Fetch stats
         // const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}&peer=${peerArg}`);
@@ -54,45 +93,6 @@ function SearchBar(): JSX.Element {
     }
   };
 
-  // useEffect(() => {
-  //   const getStats = async () => {
-      
-  //     if (providers.length > 0) {
-  //       const findCircuitAddr = (addresses: string[]): string | undefined => {
-  //         return addresses.find(addr => addr.includes('tcp') && addr.includes('p2p-circuit'));
-  //       };
-
-  //       for (let provider of providers){
-  //         let filteredAddr = findCircuitAddr(provider.Addrs);
-  //         console.log("hi");
-  //         if (!filteredAddr) {
-  //           for (let addr of provider.Addrs){
-  //             const peerArg = `${addr}/p2p/${provider.id}`;
-  //             try {
-  //               const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}&peer=${peerArg}`);
-  //               setStats(statsResponse.data.Responses[0]);
-  //             } catch (error) {
-  //               console.error("Error fetching stats:", error);
-  //             } finally {
-  //               setStatsLoading(false);
-  //             }
-  //           }
-  //         } else {
-  //             const peerArg = `${filteredAddr}/p2p/${provider.ID}`
-  //             try {
-  //               const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}&peer=${peerArg}`);
-  //               setStats(statsResponse.data.Responses[0]);
-  //             } catch (error) {
-  //               console.error("Error fetching stats:", error);
-  //             } finally {
-  //               setStatsLoading(false);
-  //             }
-  //         }
-  //       }
-  //     }
-  //   };
-  //   getStats();
-  // }, [providers, hash]);
 
   return (
     <div className="flex flex-col items-center justify-center m-5">
@@ -139,7 +139,6 @@ function SearchBar(): JSX.Element {
 }
 
 function ProviderList({ providers, hash, stats }: { providers: any[], hash: string, stats: any }): JSX.Element {
-  // console.log("prov",providers)
   return (
     <div>
       {providers.length > 0 ? (
@@ -200,7 +199,7 @@ function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, 
   };
 
   const downloadBlob = (blobData: Blob, fileName: string) => {
-    // payForFile(); // pay for file then initiate download
+    payForFile(); // pay for file then initiate download
     const url = window.URL.createObjectURL(blobData);
     const link = document.createElement('a');
     link.href = url;
@@ -211,33 +210,33 @@ function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, 
     setLoading(false);
   };
 
-  // const payForFile = async () => {
-  //   const name = stats.Name;
-  //   const price = stats.Price;
-  //   const destAddress = stats.Wallet
-  //   try {
-  //     console.log(`Paying ${price} WACO for ${name} to ${destAddress}`)
-  //     const cmdres = await window.versions.btcctlcmd(['sendtoaddress', '"' + destAddress + '"', price]);
-  //     console.log(cmdres);
-  //     const ret = await window.versions.killWallet();
-  //     const ret2 = await window.versions.startWallet();
-  //     // relog in
-  //     const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [localStorage.getItem("walletpassword"), 99999999]}, {
-  //         auth: {
-  //           username: 'user',
-  //           password: 'password'
-  //         },
-  //         headers: {
-  //           'Content-Type': 'text/plain;',
-  //         },
-  //       });
-  //     console.log(passres);
-  //     console.log("killed wallet after transaction");
-  //   } catch (error) {
-  //     console.error('Payment failed', error);
-  //     setErrorMessage('Payment failed');
-  //   }
-  // }
+  const payForFile = async () => {
+    const name = stats.Name;
+    const price = stats.Price;
+    const destAddress = stats.Wallet
+    try {
+      console.log(`Paying ${price} WACO for ${name} to ${destAddress}`)
+      const cmdres = await window.versions.btcctlcmd(['sendtoaddress', '"' + destAddress + '"', price]);
+      console.log(cmdres);
+      const ret = await window.versions.killWallet();
+      const ret2 = await window.versions.startWallet();
+      // relog in
+      const passres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [localStorage.getItem("walletpassword"), 99999999]}, {
+          auth: {
+            username: 'user',
+            password: 'password'
+          },
+          headers: {
+            'Content-Type': 'text/plain;',
+          },
+        });
+      console.log(passres);
+      console.log("killed wallet after transaction");
+    } catch (error) {
+      console.error('Payment failed', error);
+      setErrorMessage('Payment failed');
+    }
+  }
 
   const handleDownload = () => {
     setDialogOpen(true);
@@ -246,12 +245,14 @@ function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, 
   const handleDialogClose = () => {
     setDialogOpen(false);
   };
-  console.log("stat", stats);
+
+  
+  const price = stats?.Price;
 
   return (
     provider.Addrs && provider.Addrs.length > 0 ? (
       <div style={{ position: 'relative', margin: '10px', padding: '10px', border: '1px solid #ccc', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width:'600px'}}>
-        {/* <p className="mb-2"> {stats.Name}</p> */}
+        {stats ? <p className="mb-2"> {stats.Name}</p> : <p></p>}
         
         <p style={{ width: '100%' }}>Provider ID: {provider.ID}</p>
          {/* <div>
@@ -261,7 +262,7 @@ function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, 
             ))}
           </ul>
         </div> */}
-        {/* <p> Price: {stats.Price} WACO</p> */}
+        {stats ? <p> Price: {price} WACO</p> : <p></p>}
         <div style={{ width: '100%', marginTop: '10px', textAlign: 'right' }}>
           <LoadingButton
             loading={loading}
@@ -278,7 +279,7 @@ function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, 
           onClose={handleDialogClose}
           onConfirm={() => downloadFile(provider.ID)}
           title="Download?"
-          message={`Are you sure you want to download this file at a price of  WACO`}
+          message={`Are you sure you want to download this file at a price of ${price} WACO`}
         />
       </div>
     ) : null
