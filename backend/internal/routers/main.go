@@ -26,7 +26,7 @@ func NewAPIRouter(node host.Host, dht *dht.IpfsDHT, dstore *leveldb.Datastore) (
 		return nil, err
 	}
 
-	proxyHandler := handlers.NewProxyHandler()
+	proxyHandler := handlers.NewProxyHandler(dht, node)
 	
 	r := mux.NewRouter()
 	r.PathPrefix("/bootstrap").Handler(http.StripPrefix("/bootstrap", NewBootstrapRouter(bootstrapHandler)))

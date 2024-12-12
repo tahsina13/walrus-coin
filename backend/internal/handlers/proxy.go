@@ -9,9 +9,15 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/elazarl/goproxy"
+	"github.com/ipfs/go-cid"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/tahsina13/walrus-coin/backend/internal/util"
 )
 
@@ -19,10 +25,25 @@ type ProxyHandler struct {
 	localProxy  *http.Server
 	remoteProxy *http.Server
 	numBytes	uint64
+	dht 	   *dht.IpfsDHT
+	node	   host.Host
 }
 
-func NewProxyHandler() *ProxyHandler {
-	return &ProxyHandler{}
+type Metadata struct{
+	Price float32 `json:"price"`
+	URL string `json:"url"`
+	Wallet string `json:"wallet"`
+}
+var proxyCID = cid.NewCidV1(cid.Raw, []byte("proxy"))
+var meta Metadata
+
+const (
+	proxyMetadata  = "/orcanet/proxy/data"
+)
+
+func NewProxyHandler(dhtInstance *dht.IpfsDHT, nodeInstance host.Host) *ProxyHandler {
+	handler := &ProxyHandler{dht: dhtInstance, node: nodeInstance}
+	return handler
 }
 
 func orPanic(err error) {
@@ -73,6 +94,8 @@ func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) err
 	}
 	if port == "" {
 		port = ":8083"
+	}else{
+		port = ":" + port
 	}
 	
 	if secondHopProxyURL.Port() == "" {
@@ -222,16 +245,44 @@ func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) err
 }
 
 func (h *ProxyHandler) StartProxyServer(w http.ResponseWriter, r *http.Request) error {
-	port := r.FormValue("port")
-	if port == "" {
-		port = ":8084"
+	query := r.URL.Query()
+	if arg, ok := query["price"]; ok {
+		var temp = arg[0]
+		result, err := strconv.ParseFloat(temp, 32)
+		orPanic(err)
+		meta.Price = float32(result)
+	} else {
+		return util.BadRequestWithBody(routingError{Message: "argument \"price\" is required"})
 	}
+
+	if arg, ok := query["wallet"]; ok {
+		var temp = arg[0]
+		meta.Wallet = temp
+	} else {
+		return util.BadRequestWithBody(routingError{Message: "argument \"wallet\" is required"})
+	}
+	
+	var ipaddr string
+	if arg, ok := query["ipaddr"]; ok {
+		var temp = arg[0]
+		ipaddr = temp
+	} else {
+		return util.BadRequestWithBody(routingError{Message: "argument \"ipaddr\" is required"})
+	}
+	url, err := url.Parse(ipaddr)
+	if err != nil {
+		return util.BadRequestWithBody(routingError{Message: fmt.Sprintf("invalid ipaddr: %v", err)})
+	}
+	if(url.Port() == ""){
+		url.Host = url.Hostname() + ":8084"
+	}
+	meta.URL = url.Host
 
 	proxy := goproxy.NewProxyHttpServer()
 	proxy.Verbose = false
 
 	h.remoteProxy = &http.Server{
-		Addr:    port,
+		Addr:    url.Host,
 		Handler: proxy,
 	}
 
@@ -244,7 +295,6 @@ func (h *ProxyHandler) StartProxyServer(w http.ResponseWriter, r *http.Request) 
 			errCh <- err
 		}
 	}()
-
 	// 1 second timeout for proxy server to start
 	select {
 	case err := <-errCh:
@@ -257,6 +307,9 @@ func (h *ProxyHandler) StartProxyServer(w http.ResponseWriter, r *http.Request) 
 		log.Println("Remote proxy server started successfully.")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Remote proxy server started successfully."))
+		err := h.dht.Provide(context.Background(), proxyCID, true)
+		orPanic(err)
+		h.node.SetStreamHandler(proxyMetadata, h.SendMetadata)
 	}
 	
 	return nil
@@ -271,6 +324,7 @@ func (h *ProxyHandler) StopProxying(w http.ResponseWriter, r *http.Request) erro
 			return err
 		}
 		log.Println("Proxying server stopped")
+		h.numBytes = 0
 	}
 	return nil
 }
@@ -284,6 +338,9 @@ func (h *ProxyHandler) StopProxyServer(w http.ResponseWriter, r *http.Request) e
 			return err
 		}
 		log.Println("Second hop proxy server stopped")
+		h.node.RemoveStreamHandler(proxyMetadata)
+		err := h.dht.Provide(context.Background(), proxyCID, false)
+		orPanic(err)
 	}
 	return nil
 }
@@ -297,4 +354,73 @@ func (h *ProxyHandler) StopProxy() { //called with start_proxy in order to stop 
 		}
 		log.Println("Proxying server stopped")
 	}
+}
+
+func (h *ProxyHandler) FindProxies(w http.ResponseWriter, r *http.Request) error {
+	query := r.URL.Query()
+	var count int
+	if arg, ok := query["count"]; ok {
+		temp, err := strconv.Atoi(arg[0])
+		if err != nil {
+			return util.BadRequestWithBody(routingError{Message: fmt.Sprintf("invalid count: %v", err)})
+		}
+		count = temp
+	} else {
+		count = 10
+	}
+
+	var metadataList []Metadata
+	for p := range h.dht.FindProvidersAsync(r.Context(), proxyCID, count) {
+		if p.ID == peer.ID("") {
+			break
+		}
+
+		if p.ID == h.node.ID() {
+			continue  // Skip this peer and move to the next iteration
+		}
+
+		fmt.Print("Found peer: ", p.ID, "\n")
+		for i := range p.Addrs {
+			fmt.Printf("Address %d: %s\n", i, p.Addrs[i])
+		}
+
+		// Establish a stream to the peer
+		stream, err := h.node.NewStream(r.Context(), p.ID, proxyMetadata)
+		if err != nil {
+			log.Printf("Error creating stream to peer %s: %v", p.ID, err)
+			continue
+		}
+
+		// Retrieve metadata from the peer
+		var metadata Metadata
+		decoder := json.NewDecoder(stream)
+		if err := decoder.Decode(&metadata); err != nil {
+			log.Printf("Error decoding metadata from peer %s: %v", p.ID, err)
+			continue
+		}
+
+		metadataList = append(metadataList, metadata)
+	}
+
+	// Send aggregated metadata as the response
+	if err := json.NewEncoder(w).Encode(metadataList); err != nil {
+		return util.BadRequest(err)
+	}
+	return nil
+}
+
+
+func (h *ProxyHandler) SendMetadata(s network.Stream){
+	defer s.Close()
+	jsonData, err := json.Marshal(meta)
+	if err != nil {
+		log.Printf("Error marshaling metadata: %v", err)
+		return
+	}
+	_, err = s.Write(jsonData)
+	if err != nil {
+		log.Printf("Error sending metadata: %v", err)
+		return
+	}
+	log.Printf("Sent metadata: %s", string(jsonData))
 }
