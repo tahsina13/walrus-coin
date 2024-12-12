@@ -30,7 +30,7 @@ type ProxyHandler struct {
 }
 
 type Metadata struct{
-	Price int `json:"price"`
+	Price float32 `json:"price"`
 	URL string `json:"url"`
 	Wallet string `json:"wallet"`
 }
@@ -94,6 +94,8 @@ func (h *ProxyHandler) StartProxying(w http.ResponseWriter, r *http.Request) err
 	}
 	if port == "" {
 		port = ":8083"
+	}else{
+		port = ":" + port
 	}
 	
 	if secondHopProxyURL.Port() == "" {
@@ -246,9 +248,9 @@ func (h *ProxyHandler) StartProxyServer(w http.ResponseWriter, r *http.Request) 
 	query := r.URL.Query()
 	if arg, ok := query["price"]; ok {
 		var temp = arg[0]
-		result, err := strconv.Atoi(temp)
+		result, err := strconv.ParseFloat(temp, 32)
 		orPanic(err)
-		meta.Price = result
+		meta.Price = float32(result)
 	} else {
 		return util.BadRequestWithBody(routingError{Message: "argument \"price\" is required"})
 	}
@@ -322,6 +324,7 @@ func (h *ProxyHandler) StopProxying(w http.ResponseWriter, r *http.Request) erro
 			return err
 		}
 		log.Println("Proxying server stopped")
+		h.numBytes = 0
 	}
 	return nil
 }
@@ -336,7 +339,8 @@ func (h *ProxyHandler) StopProxyServer(w http.ResponseWriter, r *http.Request) e
 		}
 		log.Println("Second hop proxy server stopped")
 		h.node.RemoveStreamHandler(proxyMetadata)
-		h.dht.ProviderStore()
+		err := h.dht.Provide(context.Background(), proxyCID, false)
+		orPanic(err)
 	}
 	return nil
 }
@@ -376,6 +380,9 @@ func (h *ProxyHandler) FindProxies(w http.ResponseWriter, r *http.Request) error
 		}
 
 		fmt.Print("Found peer: ", p.ID, "\n")
+		for i := range p.Addrs {
+			fmt.Printf("Address %d: %s\n", i, p.Addrs[i])
+		}
 
 		// Establish a stream to the peer
 		stream, err := h.node.NewStream(r.Context(), p.ID, proxyMetadata)

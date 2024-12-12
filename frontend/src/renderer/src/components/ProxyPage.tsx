@@ -1,41 +1,36 @@
 import { PageHeader, PageSubheader, VerticalSpace1, VerticalSpace2, HorizontalSpace1, HorizontalSpace2, HorizontalSpace3, BigText, HorizontalLine } from '../components/Components'
-import React, {useState, useRef} from "react"
+import React, {useState, useRef, useEffect} from "react"
 import ProxyIcon from '../assets/proxy2.png'
 import axios from 'axios'
 
 
-const testProxies = [{name:"node1", id:1, cost:0.004353}, {name:"node2", id:2, cost:0.343251}, {name:"node3", id:3, cost:0.004321}, {name:"node4", id:4, cost:1.002121}, {name:"bob", id:5, cost:10000.0}]
-
-function Input({setCost}): JSX.Element {
-  const [isSwitched, setIsSwitched] = useState(false)
-  const inputRef = useRef(null)
-
-  const setSetCost = (event) => {
-    if(event.keyCode === 13 && !isNaN(+event.target.value) && (event.target.value > 0)){
-      setCost(event.target.value)
-      handleSwitch()
-    }
-  }
-
-
-  const handleSwitch = () => {
-    setIsSwitched(!isSwitched)
-  }
-
-  return (
-    <div>
-      <input ref={inputRef} type="number" className={"" + (isSwitched? "" : "hidden") + " text-black text-xl h-8 w-2/3 pl-2 pr-2 rounded bg-blue-100"} onKeyUp={(event) => setSetCost(event)} />
-      <button className={"" + (isSwitched? "hidden" : "") + " bg-blue-500 hover:bg-blue-700 text-white text-xl px-4 rounded w-2/3"} onClick={() => handleSwitch()}>
-        Change Sell Cost
-      </button>
-    </div>
-  )
+async function discoverProxies(){
+  let resp = await axios.post("http://localhost:5001/api/v0/proxy/discover?count=100")
+  let data = resp.data
+  return data
+}
+async function connect(remoteproxyaddr, port){
+  await axios.post(`http://localhost:5001/api/v0/proxy/connect?remoteProxyAddr=http://${remoteproxyaddr}&port=${port}`)
+}
+async function disconnect(){
+  await axios.post("http://localhost:5001/api/v0/proxy/disconnect")
+}
+async function start(price, ipaddr){
+  let addr = localStorage.getItem('walletaddr')
+  await axios.post(`http://localhost:5001/api/v0/proxy/start?price=${price}&ipaddr=${ipaddr}&wallet=${addr}`)
+}
+async function stop(){
+  await axios.post("http://localhost:5001/api/v0/proxy/stop")
+}
+async function getBytes(){
+  let resp = await axios.post("http://localhost:5001/api/v0/proxy/bytes")
+  let data = resp.data
+  return parseFloat(data['bytes'])
 }
 
 function Switch({text, onClick, isChecked}): JSX.Element {
   const handleCheckboxChange = () => {
     onClick()
-    console.log("IN  SWITCH");
   }
 
   const checkedClassName="translate-x-10"
@@ -138,44 +133,118 @@ function ProxyHeader(): JSX.Element {
   )
 }
 
-function ProxyList({proxies, handleClicked, selectedID}): JSX.Element {
-  return (<div>
-    <ProxyHeader />
-    <div className="flex flex-col w-full divide-y-2 border-t-2 border-b-2">
-    {proxies.map((proxy, index) => <ProxyNode node={proxy} onClick={handleClicked} selectedID={selectedID}/>)}
-    </div>
-    </div>
-  )
-}
-
-
 function ProxyPage(): JSX.Element {
-  const [CurrentProxyName, setCurrentProxyName] = useState("none")
-  const [selectedID, setSelectedID] = useState(-1)
-  const [selectedCost, setSelectedCost] = useState(0)
-  const [selfProxyID, setSelfProxyID] = useState(-1);
+  const [CurrentProxyName, setCurrentProxyName] = useState(()=>{
+    let data = localStorage.getItem('currentProxyName')
+    if(data)
+      return data
+    else
+      return "none"
+  })
+  const [selectedID, setSelectedID] = useState(()=>{
+    let data = localStorage.getItem('selectedID')
+    if(data)
+      return parseInt(data)
+    else
+      return -1
+  })
+  const [selectedCost, setSelectedCost] = useState(()=>{
+    let data = localStorage.getItem('selectedCost')
+    if(data)
+      return parseFloat(data)
+    else
+      return 0
+  })
+  const [yourCost, setYourCost] = useState(0.002)
+  const [ipaddr, setIPAddr] = useState(() => {
+    let data = localStorage.getItem('ipaddr')
+    if(data)
+      return data
+    else
+      return "http://localhost:8084"
+  })
+  const [bytes, setBytes] = useState(()=>{
+    let data = localStorage.getItem('bytes')
+    if(data)
+      return parseInt(data)
+    else
+      return 0
+  });
+  var bytesInterval;
+  const selfnode = {name:"self", id:0}
+  const [proxies, setProxies] = useState(()=>{
+    let data = localStorage.getItem('proxies')
+    if(data)
+      return JSON.parse(data)
+    else
+      return []
+    })
+  useEffect(() => {
+    var fetchData = async () => {
+      let data = await discoverProxies()
+      console.log(data)
+      if(data == null)
+        setProxies([])
+      else{
+        let temp = data.map((element, idx) => ({name: element['url'], id: idx + 1, cost: element['price']}))
+        setProxies(temp)
+        localStorage.setItem('proxies', JSON.stringify(temp))
+      }
+    }
 
-  const [selfnode, setSelfnode] = useState({name:"self", id:0, cost:10})
+
+    fetchData()
+    setInterval(fetchData, 100000)
+  }, [])
+  
 
   const handleSelectProxy = async (node) => {
     if (node == selfnode) {
-
+      if(selectedID == node.id){
+        setSelectedID(-1)
+        await stop()
+      }
+      else{
+        if(selectedID != -1)
+          await disconnect()
+        setSelectedID(node.id)
+        localStorage.setItem('selectedID', node.id.toString())
+        await start(yourCost, "http://localhost:8084")
+        // await start(0, ipaddr)
+      }
     } else 
     if(selectedID == node.id)
     {
-      const disconnect_proxy = await axios.post(`http://localhost:5001/api/v0/proxy/disconnect`);
-      console.log(disconnect_proxy);
+      await disconnect()
       setCurrentProxyName("none")
+      localStorage.setItem('currentProxyName', "none")
       setSelectedID(-1)
+      localStorage.setItem('selectedID', "-1")
       setSelectedCost(0)
-      // const conne = await axios.post(`http://localhost:5001/api/v0/routing/provide?arg=${file.CID}`);
+      localStorage.setItem('selectedCost', "0")
+      // const conne = await axios.post(`http://localhost:5001:5001/api/v0/routing/provide?arg=${file.CID}`);
     }
     else 
     {
-      const connect_proxy = await axios.post(`http://localhost:5001/api/v0/proxy/connect?arg=${node.id}`);
+      if(selectedID != 0 && selectedID != -1){
+        await disconnect()
+        //TODO SEND PAYMENT
+        setBytes(0)
+        localStorage.setItem('bytes', "0")
+        clearInterval(bytesInterval)
+      }
       setCurrentProxyName(node.name)
+      localStorage.setItem('currentProxyName', node.name)
       setSelectedID(node.id)
+      localStorage.setItem('selectedID', node.id.toString())
       setSelectedCost(node.cost)
+      localStorage.setItem('selectedCost', node.cost.toString())
+      await connect(node.name, 8083)
+      bytesInterval = setInterval(async ()=>{ 
+        let curbytes = await getBytes()
+        setBytes(curbytes)
+        localStorage.setItem('bytes', curbytes.toString())
+      }, 10000)
     } 
   }
 
@@ -184,7 +253,7 @@ function ProxyPage(): JSX.Element {
   }
 
   const setSelfCost = (cost) => {
-    setSelfnode({name:"self", id:0, cost:cost})
+    setYourCost(parseFloat(cost))
   }
 
   return (
@@ -196,11 +265,26 @@ function ProxyPage(): JSX.Element {
           <div className="w-1/4">
             <Switch text="Serve As Proxy:" onClick={handleSelectSelfProxy} isChecked={selectedID === selfnode.id} />
           </div>
+          <p>Cost:</p>
+          <input 
+            style={{"border":"solid black 1px"}} 
+            value={yourCost} 
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value === '' || value === '.' || !isNaN(parseFloat(value))) {
+                setYourCost(value === '' || value === '.' ? 0 : parseFloat(value));
+              }
+            }} 
+            placeholder='Cost (WACO/MB)'
+          />
+          <p>IP: </p>
+          <input style={{"border":"solid black 1px"}} value={ipaddr} onChange={(event)=>(setIPAddr(event.target.value))} placeholder='IP ADDR (http://<IP>:<PORT>)'></input>
           <div className="w-1/4">
             <BigText name={"Current Proxy: " + CurrentProxyName} />
           </div>
-          {((CurrentProxyName === "self") ? <><div className="w-1/4"><BigText name={"Selling for: " + selfnode.cost + " WACO/MB"}/></div> <div className="w-1/4"> <Input setCost={setSelfCost}/></div></>
+          {((selectedID === selfnode.id) ? <><div className="w-1/4"><BigText name={"Selling for: " + yourCost + " WACO/MB"}/></div> <div className="w-1/4"></div></>
           : <div className="w-1/4"><BigText name={"Proxy Cost: " + selectedCost + " WACO/MB"} /></div>)}
+          <BigText name={"Total MB: " + (bytes/1000000)} />
         </div>
       </div>
       <VerticalSpace1 />
@@ -209,7 +293,10 @@ function ProxyPage(): JSX.Element {
         <PageSubheader name={'Available Proxies:'} />
         <VerticalSpace1 />
       </div>
-      <ProxyList proxies={testProxies} handleClicked={handleSelectProxy} selectedID={selectedID}/>
+      <ProxyHeader />
+      <div className="flex flex-col w-full divide-y-2 border-t-2 border-b-2">
+        {proxies.length == 0? <div> No proxies available </div> : proxies.map((proxy) => <ProxyNode node={proxy} onClick={handleSelectProxy} selectedID={selectedID}/>)}
+      </div>
     </div>
   )
 }
