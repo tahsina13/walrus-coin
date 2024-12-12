@@ -243,7 +243,7 @@ The bootstrap module is used to handle HTTP Proxying.
 Starts remote proxy
 ##### Arguments
 
-* `URL` [string]: Host:Port. (If no port is included, it uses 8084) **Required**
+* `ipaddr` [string]: Host:Port. (If no port is included, it uses 8084) **Required**
 * `price` [int]: Price per byte. **Required**.
 * `wallet` [string]: Wallet address. **Required**.
 
