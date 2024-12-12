@@ -172,7 +172,8 @@ function LoginPage(): JSX.Element {
         }
         set_error_message('Getting Address...');
         const address_res = await window.versions.getAddress();
-
+        
+        localStorage.clear();
         localStorage.setItem("walletaddr", address_res);
         
         // const btcdres = await window.versions.startProcess('../backend/btcd/btcd', ['-C', '../backend/btcd.conf', '--notls', '--txindex', '--addrindex', '--miningaddr', address_res]);

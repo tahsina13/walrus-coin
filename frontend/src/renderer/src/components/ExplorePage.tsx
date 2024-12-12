@@ -35,7 +35,8 @@ function SearchBar(): JSX.Element {
         setProviders(providerResponse.data.Responses);
         
         // Fetch stats
-        const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}`);
+        console.log("hash: " + hash);
+        const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}/p2p/${peer}`);
         setStats(statsResponse.data.Responses[0]);
       } else {
         setProviders([]);

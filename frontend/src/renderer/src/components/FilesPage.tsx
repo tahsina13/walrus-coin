@@ -65,73 +65,76 @@ function FilesPage(): JSX.Element {
   const files: ProvidedFile[] = [
     // for testing
     
-    {
-      type: 'txt',
-      name: 'A: First click UPLOAD to upload files in the waiting list',
-      size: 101233,
-      upload_date: new Date(20010101),
-      path: "xxxpath1",
-      CID: 'gmx286mbXoaWmaszRzTG4R8yvptfGCZPLdY3KoRTauSX3C',
-      price: .0002,
-      fileObject: new File(["0"], "1"), // dummy file object
-      status: "provided"
-    },
-    {
-      type: 'txt',
-      name: 'B: Files in the waiting list doesn\'t have a hash',
-      size: 100224423,
-      upload_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-      path: "xxxpath2",
-      CID: 'zdN4U62G1FMyWVhUXSrdKSGxHDeyCDmCCCZyVgpdc58SiM',
-      price: .4,
-      fileObject: new File(["0"], "1"),
-      status: "provided"
-    },
-    {
-      type: 'txt',
-      name: 'C: You can then actually "upload" thoes files in the waiting list by hitting "SUBMIT"',
-      size: 103230,
-      upload_date: new Date(Date.now() - 30 * 60 * 1000),
-      path: "xxxpath3",
-      CID: 'mL6VNFF1wHFhfeXbio8iGRmSc7Z9wyX5Ng1gNXacuC5Ro8',
-      price: 2,
-      fileObject: new File(["0"], "1"),
-      status: "provided"
-    },
-    {
-      type: 'pdf',
-      name: 'D: And the hash will show up, you can check the provider in explore section',
-      size: 44214,
-      upload_date: new Date(Date.now() - 20 * 60 * 60 * 1000),
-      path: "xxxpath4",
-      CID: 'fwzPoUwFVJF8RwNiBEM9VH1rQ6EkhEJPyjfH25EKSG5FVd',
-      price: .42,
-      fileObject: new File(["0"], "1"),
-      status: "provided"
-    },
-    {
-      type: 'txt',
-      name: 'X: sort by name to see instruction',
-      size: 103230,
-      upload_date: new Date(Date.now()),
-      path: "xxxpath3",
-      CID: 'mL6VNFF1wHFhfeXbio8iGRmSc7Z9wyX5Ng1gNXacuC5Ro8',
-      price: 2,
-      fileObject: new File(["0"], "1"),
-      status: "provided"
-    },
+    // {
+    //   type: 'txt',
+    //   name: 'A: First click UPLOAD to upload files in the waiting list',
+    //   size: 101233,
+    //   upload_date: new Date(20010101),
+    //   path: "xxxpath1",
+    //   CID: 'gmx286mbXoaWmaszRzTG4R8yvptfGCZPLdY3KoRTauSX3C',
+    //   price: .0002,
+    //   fileObject: new File(["0"], "1"), // dummy file object
+    //   status: "provided"
+    // },
+    // {
+    //   type: 'txt',
+    //   name: 'B: Files in the waiting list doesn\'t have a hash',
+    //   size: 100224423,
+    //   upload_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    //   path: "xxxpath2",
+    //   CID: 'zdN4U62G1FMyWVhUXSrdKSGxHDeyCDmCCCZyVgpdc58SiM',
+    //   price: .4,
+    //   fileObject: new File(["0"], "1"),
+    //   status: "provided"
+    // },
+    // {
+    //   type: 'txt',
+    //   name: 'C: You can then actually "upload" thoes files in the waiting list by hitting "SUBMIT"',
+    //   size: 103230,
+    //   upload_date: new Date(Date.now() - 30 * 60 * 1000),
+    //   path: "xxxpath3",
+    //   CID: 'mL6VNFF1wHFhfeXbio8iGRmSc7Z9wyX5Ng1gNXacuC5Ro8',
+    //   price: 2,
+    //   fileObject: new File(["0"], "1"),
+    //   status: "provided"
+    // },
+    // {
+    //   type: 'pdf',
+    //   name: 'D: And the hash will show up, you can check the provider in explore section',
+    //   size: 44214,
+    //   upload_date: new Date(Date.now() - 20 * 60 * 60 * 1000),
+    //   path: "xxxpath4",
+    //   CID: 'fwzPoUwFVJF8RwNiBEM9VH1rQ6EkhEJPyjfH25EKSG5FVd',
+    //   price: .42,
+    //   fileObject: new File(["0"], "1"),
+    //   status: "provided"
+    // },
+    // {
+    //   type: 'txt',
+    //   name: 'X: sort by name to see instruction',
+    //   size: 103230,
+    //   upload_date: new Date(Date.now()),
+    //   path: "xxxpath3",
+    //   CID: 'mL6VNFF1wHFhfeXbio8iGRmSc7Z9wyX5Ng1gNXacuC5Ro8',
+    //   price: 2,
+    //   fileObject: new File(["0"], "1"),
+    //   status: "provided"
+    // },
     
   ]
-  const [file_list, set_file_list] = useState(() => {
+  let [file_list, set_file_list] = useState(() => {
+    // localStorage.clear();
     const savedFiles = localStorage.getItem('fileList');
+    console.log(savedFiles);
     if (savedFiles) {
-      const parsedFiles = JSON.parse(savedFiles);
+      let parsedFiles = JSON.parse(savedFiles);
       // Reconstruct Date objects
       return parsedFiles.map(file => ({
         ...file,
         upload_date: new Date(file.upload_date),
-        CID: file.CID || "",
-        status: file.status || "readyToProvide"
+        CID: file.CID,
+        status: file.status,
+        fileObject: localStorage.getItem(file.path),
       }));
     }
     return files;
@@ -139,7 +142,11 @@ function FilesPage(): JSX.Element {
 
   // Existing effect to save to localStorage
   useEffect(() => {
+    console.log("FILE LIST BEFORE SAVE: " + JSON.stringify(file_list));
     localStorage.setItem('fileList', JSON.stringify(file_list));
+    for (let i =0; i < file_list.length; i++) {
+      localStorage.setItem(file_list[i].path, file_list[i].fileObject);
+    }
   }, [file_list]);
 
   const sort_by_time = () => {
@@ -198,10 +205,14 @@ function FilesPage(): JSX.Element {
 
   const handleSubmit = async () => {
     setLoading(true);
-    for(let file of file_list.filter((file) => file.status !== "provided")) {
+    for(let file of file_list.filter((file) => file.status !== "hey")) {
       try {
         let data = new FormData();
         data.append("data", file.fileObject);
+        if (file.fileObject == null) {
+          file.fileObject = await readFile(file.path, 'utf8');
+        }
+        console.log("HERE");
         const response_put = await axios.post(`http://localhost:5001/api/v0/block/put?price=${defaultFileCost}&wallet=${localStorage.getItem("walletaddr")}`, data, {
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -213,6 +224,7 @@ function FilesPage(): JSX.Element {
       } catch (error) {
         console.error("Error during API request:", error);
         setLoading(false);
+        localStorage.setItem('fileList', JSON.stringify(file_list));
         return;
       } finally {
         files.splice(files.indexOf(file), 1);
@@ -224,6 +236,7 @@ function FilesPage(): JSX.Element {
   const handleDeleteFile = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     console.log("Search for delete: " + deleteHash);
+
     try {
       const response = await axios.post(`http://localhost:5001/api/v0/block/rm?arg=${deleteHash}`);
       console.log(response.data);
