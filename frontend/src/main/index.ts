@@ -322,6 +322,7 @@ app.whenReady().then(async() => {
     let child = btcwalletproc;
     kill(child.pid, 'SIGTERM', (err) => {
       if (err) {
+        event.sender.send("wallet-killed");
         console.error("ERROR TREE-KILL: ", err);
       } else {
         console.log("terminated via TREE-KILL");
