@@ -245,6 +245,7 @@ Starts remote proxy
 
 * `URL` [string]: Host:Port. (If no port is included, it uses 8084) **Required**
 * `price` [int]: Price per byte. **Required**.
+* `wallet` [string]: Wallet address. **Required**.
 
 ##### Response
 
