@@ -32,6 +32,7 @@ type ProxyHandler struct {
 type Metadata struct{
 	Price int `json:"price"`
 	URL string `json:"url"`
+	Wallet string `json:"wallet"`
 }
 var proxyCID = cid.NewCidV1(cid.Raw, []byte("proxy"))
 var meta Metadata
@@ -250,6 +251,13 @@ func (h *ProxyHandler) StartProxyServer(w http.ResponseWriter, r *http.Request) 
 		meta.Price = result
 	} else {
 		return util.BadRequestWithBody(routingError{Message: "argument \"price\" is required"})
+	}
+
+	if arg, ok := query["wallet"]; ok {
+		var temp = arg[0]
+		meta.Wallet = temp
+	} else {
+		return util.BadRequestWithBody(routingError{Message: "argument \"wallet\" is required"})
 	}
 	
 	var ipaddr string
