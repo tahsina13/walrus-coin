@@ -88,7 +88,7 @@ function LoginPage(): JSX.Element {
     // endpoint: 'http://localhost:8332/rpc',
   // });
   const goToSignIn = async () => {
-    // await window.versions.killWallet();
+    await window.versions.killWallet();
     navigate('/sign-in');
   }
 
@@ -319,7 +319,7 @@ function LoginPage(): JSX.Element {
                     </div>
                 </div>
                 <div className='flex space-x-1 mt-4'>
-                    <div>Not sure yet?</div><div onClick={()=>{navigate('/sign-in')}} className='cursor-pointer text-blue-800 underline'>Return to home</div>
+                    <div>Not sure yet?</div><div onClick={goToSignIn} className='cursor-pointer text-blue-800 underline'>Return to home</div>
                 </div>
             </div>
         </div>
