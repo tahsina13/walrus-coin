@@ -2,6 +2,7 @@ import axios from "axios";
 import { ChangeEvent, FormEvent, useState, useEffect } from "react";
 import { LoadingButton } from '@mui/lab';
 import ConfirmationDialog from "./ConfirmationDialog";
+import { stat } from "fs";
 
 function ExplorePage(): JSX.Element {
   return (
@@ -15,16 +16,59 @@ function SearchBar(): JSX.Element {
   const [hash, setHash] = useState<string>('');
   const [providers, setProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [statsLoading, setStatsLoading] = useState<boolean>(false);
   const [stats, setStats] = useState<any>(null);
 
   const handleSearch = (e: ChangeEvent<HTMLInputElement>): void => {
     setHash(e.target.value);
   };
 
+  useEffect(() => {
+    const getStats = async () => {
+      if (providers.length > 0 && !stats) {
+        const findCircuitAddr = (addresses: string[]): string | undefined => {
+          return addresses.find(addr => addr.includes('tcp') && addr.includes('p2p-circuit'));
+        };
+        for (let provider of providers){
+          let filteredAddr = findCircuitAddr(provider.Addrs);
+          // No p2p-circuit address
+          if (!filteredAddr) {
+            for (let addr of provider.Addrs){
+              const peerArg = `${addr}/p2p/${provider.ID}`;
+              try {
+                console.log("asljga")
+                const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}&peer=${peerArg}`);
+                setStats(statsResponse.data.Responses[0]);
+                console.log("hi");
+              } catch (error) {
+                console.error("Error fetching stats:", error);
+              } finally {
+                setStatsLoading(false);
+              }
+            }
+          }
+            
+          else {
+            const peerArg = `${filteredAddr}/p2p/${provider.ID}`;
+            try {
+              const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}&peer=${peerArg}`);
+              setStats(statsResponse.data.Responses[0]);
+            } catch (error) {
+            } finally {
+              setStatsLoading(false);
+            }
+          }
+        }
+      }
+    }
+    getStats();
+  }, [providers, stats]);
+
   const handleSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
     console.log("Search: " + hash);
     setLoading(true);
+    setStatsLoading(true);
     setProviders([]);
     setStats(null);
 
@@ -33,11 +77,10 @@ function SearchBar(): JSX.Element {
       console.log(providerResponse.data)
       if (providerResponse.data && Array.isArray(providerResponse.data.Responses)) {
         setProviders(providerResponse.data.Responses);
-        
+        // await getStats(providers);
         // Fetch stats
-        console.log("hash: " + hash);
-        const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}/p2p/${peer}`);
-        setStats(statsResponse.data.Responses[0]);
+        // const statsResponse = await axios.post(`http://localhost:5001/api/v0/block/stat?arg=${hash}&peer=${peerArg}`);
+        // setStats(statsResponse.data.Responses[0]);
       } else {
         setProviders([]);
         console.log("No providers found or invalid response format.");
@@ -51,6 +94,7 @@ function SearchBar(): JSX.Element {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="flex flex-col items-center justify-center m-5">
@@ -85,7 +129,7 @@ function SearchBar(): JSX.Element {
           Search
         </button>
       </form>
-      {loading && !stats ? (
+      {loading && statsLoading ? (
         <div className="loading-indicator">
           <p>Loading...</p>
         </div>
@@ -204,10 +248,13 @@ function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, 
     setDialogOpen(false);
   };
 
+  
+  const price = stats?.Price;
+
   return (
     provider.Addrs && provider.Addrs.length > 0 ? (
       <div style={{ position: 'relative', margin: '10px', padding: '10px', border: '1px solid #ccc', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width:'600px'}}>
-        <p className="mb-2"> {stats.Name}</p>
+        {stats ? <p className="mb-2"> {stats.Name}</p> : <p></p>}
         
         <p style={{ width: '100%' }}>Provider ID: {provider.ID}</p>
          {/* <div>
@@ -217,13 +264,14 @@ function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, 
             ))}
           </ul>
         </div> */}
-        <p> Price: {stats.Price} WACO</p>
+        {stats ? <p> Price: {price} WACO</p> : <p></p>}
         <div style={{ width: '100%', marginTop: '10px', textAlign: 'right' }}>
           <LoadingButton
             loading={loading}
             variant="contained"
             color="primary"
             onClick={handleDownload}
+            disabled={!stats}
           >
             Download
           </LoadingButton>
@@ -234,7 +282,7 @@ function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, 
           onClose={handleDialogClose}
           onConfirm={() => downloadFile(provider.ID)}
           title="Download?"
-          message={`Are you sure you want to download this file at a price of ${stats.Price} WACO`}
+          message={`Are you sure you want to download this file at a price of ${price} WACO`}
         />
       </div>
     ) : null
