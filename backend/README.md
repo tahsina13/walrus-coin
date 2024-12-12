@@ -328,7 +328,9 @@ The bootstrap module is used to handle HTTP Proxying.
 Starts remote proxy
 ##### Arguments
 
-* `port` [int]: Port to start the remote proxy server on. (Default 8084)
+* `URL` [string]: Host:Port. (If no port is included, it uses 8084) **Required**
+* `price` [int]: Price per byte. **Required**.
+* `wallet` [string]: Wallet address. **Required**.
 
 ##### Response
 
@@ -351,7 +353,7 @@ Stops remote proxy
 #### /api/v0/proxy/connect
 Connect to a remote proxy
 ##### Arguments
-* `remoteProxyAddr` [string]: Address of remote proxy. **Required**.
+* `remoteProxyAddr` [string]: Address of remote proxy. Host:Port. (If no port is included, it defaults to 8084) **Required**.
 * `port` [int]: Port to start the local proxy on. (Default 8083)
 
 
@@ -379,4 +381,21 @@ Returns the amount of bytes that has been sent
 {
   "bytes": "<int>"
 }
+```
+
+#### /api/v0/proxy/discover
+Find peers that down to proxy and get their metadata
+##### Arguments
+* `count` [int]: Number of peers to find
+##### Response
+
+```json
+[
+  {
+    "price": "<int>",
+    "url": "<string>"
+  },
+  ...
+]
+
 ```
