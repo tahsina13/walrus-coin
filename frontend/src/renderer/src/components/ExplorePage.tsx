@@ -214,10 +214,31 @@ function ProviderCard({ provider, hash, stats }: { provider: any, hash: string, 
     const name = stats.Name;
     const price = stats.Price;
     const destAddress = stats.Wallet
+    const ret3 = await window.versions.killWallet();
+    const ret4 = await window.versions.startWallet();
     try {
+      const passres2 = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "walletpassphrase", params: [localStorage.getItem("walletpassword"), 99999999]}, {
+        auth: {
+          username: 'user',
+          password: 'password'
+        },
+        headers: {
+          'Content-Type': 'text/plain;',
+        },
+      });
       console.log(`Paying ${price} WACO for ${name} to ${destAddress}`)
-      const cmdres = await window.versions.btcctlcmd(['sendtoaddress', '"' + destAddress + '"', price]);
-      console.log(cmdres);
+      // const cmdres = await window.versions.btcctlcmd(['sendtoaddress', '"' + destAddress + '"', price]);
+        const sendres = await axios.post('http://localhost:8332/', {jsonrpc: '1.0', id: 1, method: "sendtoaddress", params: [destAddress, price]}, {
+        auth: {
+          username: 'user',
+          password: 'password'
+        },
+        headers: {
+          'Content-Type': 'text/plain;',
+        },
+      } as any
+      );
+      console.log(sendres);
       const ret = await window.versions.killWallet();
       const ret2 = await window.versions.startWallet();
       // relog in
