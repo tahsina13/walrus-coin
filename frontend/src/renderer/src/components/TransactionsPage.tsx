@@ -97,7 +97,7 @@ function TransactionsPage(): JSX.Element {
       set_inverse({time: !inverse.time, name: inverse.name, size: inverse.size});
     set_sorting_order("time")
     if(inverse.time)
-      set_transactions_list(transactions_list.sort((f2, f1) => f2.time- f1.time))
+      set_transactions_list(transactions_list.sort((f2, f1) => f2.time - f1.time))
     else
       set_transactions_list(transactions_list.sort((f1, f2) => f2.time - f1.time))
   }
@@ -122,11 +122,11 @@ function TransactionsPage(): JSX.Element {
   //     set_transactions_list(transactions_list.sort((f1, f2) => f1.name.localeCompare(f2.name)))
   // }
 
-  const hiddenFileInput = useRef(null);
+  // const hiddenFileInput = useRef(null);
 
-  const handleClick = event => {
-    hiddenFileInput.current.click();
-  };
+  // const handleClick = event => {
+  //   hiddenFileInput.current.click();
+  // };
   
   // const handleFileChange = event => {
   //   setSelectedFile(event.target.files[0]);
