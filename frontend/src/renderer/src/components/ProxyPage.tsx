@@ -1,6 +1,7 @@
 import { PageHeader, PageSubheader, VerticalSpace1, VerticalSpace2, HorizontalSpace1, HorizontalSpace2, HorizontalSpace3, BigText, HorizontalLine } from '../components/Components'
 import React, {useState, useRef} from "react"
 import ProxyIcon from '../assets/proxy2.png'
+import axios from 'axios'
 
 
 const testProxies = [{name:"node1", id:1, cost:0.004353}, {name:"node2", id:2, cost:0.343251}, {name:"node3", id:3, cost:0.004321}, {name:"node4", id:4, cost:1.002121}, {name:"bob", id:5, cost:10000.0}]
@@ -34,6 +35,7 @@ function Input({setCost}): JSX.Element {
 function Switch({text, onClick, isChecked}): JSX.Element {
   const handleCheckboxChange = () => {
     onClick()
+    console.log("IN  SWITCH");
   }
 
   const checkedClassName="translate-x-10"
@@ -61,6 +63,7 @@ function SmallSwitch({text, onClick, isChecked}): JSX.Element {
 
   const handleCheckboxChange = () => {
     onClick()
+    console.log("IN SMALL SWITCH");
   }
 
   const checkedClassName="translate-x-6"
@@ -150,18 +153,26 @@ function ProxyPage(): JSX.Element {
   const [CurrentProxyName, setCurrentProxyName] = useState("none")
   const [selectedID, setSelectedID] = useState(-1)
   const [selectedCost, setSelectedCost] = useState(0)
+  const [selfProxyID, setSelfProxyID] = useState(-1);
 
   const [selfnode, setSelfnode] = useState({name:"self", id:0, cost:10})
 
-  const handleSelectProxy = (node) => {
+  const handleSelectProxy = async (node) => {
+    if (node == selfnode) {
+
+    } else 
     if(selectedID == node.id)
     {
+      const disconnect_proxy = await axios.post(`http://localhost:5001/api/v0/proxy/disconnect`);
+      console.log(disconnect_proxy);
       setCurrentProxyName("none")
       setSelectedID(-1)
       setSelectedCost(0)
+      // const conne = await axios.post(`http://localhost:5001/api/v0/routing/provide?arg=${file.CID}`);
     }
     else 
     {
+      const connect_proxy = await axios.post(`http://localhost:5001/api/v0/proxy/connect?arg=${node.id}`);
       setCurrentProxyName(node.name)
       setSelectedID(node.id)
       setSelectedCost(node.cost)
