@@ -81,12 +81,12 @@ func main() {
 	// Connect to relay nodes
 	for _, addr := range cfg.Relayaddr {
 		if err := connectToPeer(node, ctx, addr); err != nil {
-			logrus.Fatal(err)
+			logrus.Errorf("Failed to connect to relay: %s", addr)
 		}
 		logrus.Infof("Connected to relay: %s", addr)
 
 		if err := makeReservation(ctx, node, addr); err != nil {
-			logrus.Fatal(err)
+			logrus.Errorf("Failed to make reservation with relay: %s", addr)
 		}
 		logrus.Infof("Made reservation with relay: %s", addr)
 
@@ -96,7 +96,7 @@ func main() {
 	// Connect to bootstrap nodes
 	for _, addr := range cfg.Bootstrapaddr {
 		if err := connectToPeer(node, ctx, addr); err != nil {
-			logrus.Fatal(err)
+			logrus.Errorf("Failed to connect to bootstrap: %s", addr)
 		}
 		logrus.Infof("Connected to bootstrap: %s", addr)
 	}
