@@ -92,6 +92,11 @@ function LoginPage(): JSX.Element {
     navigate('/sign-in');
   }
 
+  const goToRegister = async () => {
+    await window.versions.killWallet();
+    navigate('/register');
+  }
+
   const handleLogin = async () => {
     setExistingLoading(true);
 
@@ -304,7 +309,7 @@ function LoginPage(): JSX.Element {
                             <button 
                                 className="submit bg-yellow-900 text-white px-4 py-2 rounded hover:bg-black duration-300 disabled:bg-gray-300 disabled:text-gray-500 cursor-pointer disabled:cursor-not-allowed"
                                 type='button'
-                                onClick={() => navigate('/register')}
+                                onClick={goToRegister}
                                 >
                                 Generate a New Wallet
                             </button>
