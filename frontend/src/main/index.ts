@@ -516,6 +516,11 @@ app.whenReady().then(async() => {
           console.log(resrpc);
           address = resrpc.data.result;
           console.log("ADDRESS? : " + address);
+          // connect network
+          const btcctlPath = path.join(process.cwd(), '../backend/btcd/cmd/btcctl/btcctl');
+      const confPath = path.join(process.cwd(), '../backend/btcctl.conf');
+      // addnode "130.245.173.221:8333" add | cat
+          const btcctlchild = spawn(btcctlPath, ['--configfile='+confPath, '--rpcuser=user', '--rpcpass=password', '--notls', 'addnode', '"130.245.173.221:8333"', "add"], { shell: true });
           // child.kill();
           kill(child.pid, 'SIGTERM', (err) => {
             if (err) {

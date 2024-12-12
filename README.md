@@ -4,6 +4,7 @@
 
 ```bash
 cd /path/to/repo/backend
+git submodule update --init --recursive
 ./build.sh
 cd ../frontend
 npm install
